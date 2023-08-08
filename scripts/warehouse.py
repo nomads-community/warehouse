@@ -20,25 +20,19 @@ def create_experiment_name(expt_date: str, expt_id: str, sample_set: str, assay:
 
 
 
-def main(expt_date, expt_id, sample_set, assay, metadata_csv):
+def main(expt_date, expt_id, sample_set, assay, metadata_table):
     """
     Create folder structure for a given experiment
     
     """
 
-    # Convert
-    expt_id = expt_id.upper()
-    sample_set = sample_set.upper()
-    assay = assay.upper()
-
-    # PARSE CLI
+    # PARSE CLI / Metadata info
     print("Preparing data storage")
     is_valid_format(expt_date)
     print(f"  Experiment date: {expt_date}")
     print(f"  Experiment ID: {expt_id}")
     print(f"  Sample set: {sample_set}")
     print(f"  Assay: {assay}")
-    print(f"  Metadata CSV: {metadata_csv}")
     print("")
 
     # UPDATE INVENTORIES
@@ -52,15 +46,6 @@ def main(expt_date, expt_id, sample_set, assay, metadata_csv):
         print(f"Updating {name} inventory at {inv_path}.")
         inv = InventoryUpdater(inv_path)
         inv.update(inv_entry)
-    print("Done.")
-    print("")
-
-    # Next we check the metadata
-    print("Loading and checking metadata...")
-    print(f"  Input file: {metadata_csv}.")
-    metadata_table = MetadataTableParser(metadata_csv)
-    print("  Metadata passed formatting checks.")
-    print(f"  Loaded {metadata_table.df.shape[0]} barcodes, each with {metadata_table.df.shape[1] - 1} fields.")
     print("Done.")
     print("")
 
@@ -86,19 +71,19 @@ def main(expt_date, expt_id, sample_set, assay, metadata_csv):
     print("")
 
 
-@click.command(short_help="Warehouse some NOMADS sequencing.")
+@click.command(short_help="Warehouse NOMADS sequencing outputs systematically.")
 @click.option(
     "-d",
     "--expt_date",
     type=str,
-    required=True,
+    required=False,
     help="Date experiment was conducted."
 )
 @click.option(
     "-e",
     "--expt_id",
     type=str,
-    required=True,
+    required=False,
     help="Experiment ID. For example MM-KP005."
 )
 @click.option(
@@ -112,7 +97,7 @@ def main(expt_date, expt_id, sample_set, assay, metadata_csv):
     "-a",
     "--assay",
     type=str,
-    required=True,
+    required=False,
     help="Assay ID. For example NOMADS8."
 )
 @click.option(
@@ -122,6 +107,7 @@ def main(expt_date, expt_id, sample_set, assay, metadata_csv):
     required=True,
     help="Path to metadata CSV."
 )
+
 def cli(expt_date, expt_id, sample_set, assay, metadata_csv):
     """
     Efficiently store sequencing data, automating the creation
@@ -129,8 +115,20 @@ def cli(expt_date, expt_id, sample_set, assay, metadata_csv):
     metadata
     
     """
+    print("Checking and extracting metadata...")
+    print(f"  Input file: {metadata_csv}.")
+    metadata_table = MetadataTableParser(metadata_csv, assay, expt_date, expt_id)
+    print("  Metadata passed formatting checks.")
+    print(f"  Loaded {metadata_table.df.shape[0]} barcodes, each with {metadata_table.df.shape[1] - 1} fields.")
+    print("Done.")
+    print("")
 
-    main(expt_date, expt_id, sample_set, assay, metadata_csv)
+    assay = metadata_table.assay.upper()
+    expt_id = metadata_table.expt_id.upper()
+    expt_date = metadata_table.expt_date.upper()
+
+    main(expt_date, expt_id, sample_set, assay, metadata_table)
+
 
 
 if __name__ == "__main__":
