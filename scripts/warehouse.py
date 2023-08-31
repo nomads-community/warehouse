@@ -99,7 +99,7 @@ def cli(expt_id, metadata_folder):
     exp_metadata = ExpMetadataParser(metadata_folder, expt_id)
     print("Done.")
 
-    main(exp_metadata.expt_date, exp_metadata.expt_id, "DANTESTING", "NOMADS8", exp_metadata.df)
+    main(exp_metadata.expt_date, expt_id, "DANTESTING", "NOMADS8", exp_metadata.df)
 
 if __name__ == "__main__":
     cli()

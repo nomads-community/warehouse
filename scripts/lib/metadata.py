@@ -23,6 +23,7 @@ class ExpMetadataParser:
 
         """
         self.metadata_folder = Path(metadata_folder)
+        self.expt_id = expt_id
 
         print(f"Searching for {expt_id} metadata files in {self.metadata_folder}..." )
         #Load and check expt metadata
@@ -58,7 +59,7 @@ class ExpMetadataParser:
         """
 
         matching_files = []
-        pattern = re.compile(f"{expt_id}_{searchstring}_.*")
+        pattern = re.compile(f"{self.expt_id}_{searchstring}_.*")
 
         # Iterate through files in the directory
         for file_path in self.metadata_folder.iterdir():
