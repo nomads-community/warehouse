@@ -1,6 +1,5 @@
 import click
-import shutil
-from lib.metadata import MetadataTableParser
+from lib.metadata import ExpMetadataParser
 from lib.inventory import InventoryUpdater
 from lib.dirs import ExperimentDirectories
 from lib.util import is_valid_format
@@ -13,7 +12,7 @@ SAMPLESET_INVENTORY = "inventory/sample_sets.txt"
 
 def create_experiment_name(expt_date: str, expt_id: str, sample_set: str, assay: str) -> str:
     """
-    Create an experiment name from dscriptive information
+    Create an experiment name from descriptive information
 
     """
     return f"{expt_date}_{sample_set.upper()}_{assay.upper()}_{expt_id.upper()}"
@@ -61,8 +60,8 @@ def main(expt_date, expt_id, sample_set, assay, metadata_table):
     print("")
 
     # Copying metadata
-    print("Copying over metadata...")
-    shutil.copy(src=metadata_table.csv, dst=f"{expt_dirs.metadata_dir}/sample_info.csv")
+    print("Exporting metadata for nomadic...")
+    metadata_table.to_csv(f"{expt_dirs.metadata_dir}/sample_info.csv")
     print("Done.")
     print("")
 
@@ -72,43 +71,24 @@ def main(expt_date, expt_id, sample_set, assay, metadata_table):
 
 
 @click.command(short_help="Warehouse NOMADS sequencing outputs systematically.")
-@click.option(
-    "-d",
-    "--expt_date",
-    type=str,
-    required=False,
-    help="Date experiment was conducted."
-)
+
 @click.option(
     "-e",
     "--expt_id",
     type=str,
-    required=False,
-    help="Experiment ID. For example MM-KP005."
-)
-@click.option(
-    "-s",
-    "--sample_set",
-    type=str,
     required=True,
-    help="Sample set ID. For example TES2022."
-)
-@click.option(
-    "-a",
-    "--assay",
-    type=str,
-    required=False,
-    help="Assay ID. For example NOMADS8."
-)
-@click.option(
-    "-m",
-    "--metadata_csv",
-    type=str,
-    required=True,
-    help="Path to metadata CSV."
+    help="Experiment ID. For example SLMM005."
 )
 
-def cli(expt_date, expt_id, sample_set, assay, metadata_csv):
+@click.option(
+    "-m",
+    "--metadata_folder",
+    type=str,
+    required=True,
+    help="Path to folder containing metadata CSV files."
+)
+
+def cli(expt_id, metadata_folder):
     """
     Efficiently store sequencing data, automating the creation
     of directory structures, inventories, and validation of
@@ -116,20 +96,10 @@ def cli(expt_date, expt_id, sample_set, assay, metadata_csv):
     
     """
     print("Checking and extracting metadata...")
-    print(f"  Input file: {metadata_csv}.")
-    metadata_table = MetadataTableParser(metadata_csv, assay, expt_date, expt_id)
-    print("  Metadata passed formatting checks.")
-    print(f"  Loaded {metadata_table.df.shape[0]} barcodes, each with {metadata_table.df.shape[1] - 1} fields.")
+    exp_metadata = ExpMetadataParser(metadata_folder, expt_id)
     print("Done.")
-    print("")
 
-    assay = metadata_table.assay.upper()
-    expt_id = metadata_table.expt_id.upper()
-    expt_date = metadata_table.expt_date.upper()
-
-    main(expt_date, expt_id, sample_set, assay, metadata_table)
-
-
+    main(exp_metadata.expt_date, exp_metadata.expt_id, "DANTESTING", "NOMADS8", exp_metadata.df)
 
 if __name__ == "__main__":
     cli()
