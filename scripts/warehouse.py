@@ -10,16 +10,16 @@ ASSAY_INVENTORY = "inventory/assays.txt"
 SAMPLESET_INVENTORY = "inventory/sample_sets.txt"
 
 
-def create_experiment_name(expt_date: str, expt_id: str, sample_set: str, assay: str) -> str:
+def create_experiment_name(expt_date: str, expt_id: str, expt_summary) -> str:
     """
     Create an experiment name from descriptive information
 
     """
-    return f"{expt_date}_{sample_set.upper()}_{assay.upper()}_{expt_id.upper()}"
+    return f"{expt_date}_{expt_id.upper()}_{expt_summary}"
 
 
 
-def main(expt_date, expt_id, sample_set, assay, metadata_table):
+def main(expt_date, expt_id, expt_summary, metadata_table):
     """
     Create folder structure for a given experiment
     
@@ -30,16 +30,14 @@ def main(expt_date, expt_id, sample_set, assay, metadata_table):
     is_valid_format(expt_date)
     print(f"  Experiment date: {expt_date}")
     print(f"  Experiment ID: {expt_id}")
-    print(f"  Sample set: {sample_set}")
-    print(f"  Assay: {assay}")
+    print(f"  Experiment Summary: {expt_summary}")
     print("")
 
     # UPDATE INVENTORIES
     print("Loading and updating inventories...")
     inventories = {
         "experiment": (EXPT_INVENTORY, expt_id),
-        "assay": (ASSAY_INVENTORY, assay),
-        "sample set": (SAMPLESET_INVENTORY, sample_set)
+        "summary": (SAMPLESET_INVENTORY, expt_summary)
     }
     for name, (inv_path, inv_entry) in inventories.items():
         print(f"Updating {name} inventory at {inv_path}.")
@@ -50,7 +48,7 @@ def main(expt_date, expt_id, sample_set, assay, metadata_table):
 
     # Next make folders
     print("Creating experiment folder structure...")
-    expt_name = create_experiment_name(expt_date, expt_id, sample_set, assay)
+    expt_name = create_experiment_name(expt_date, expt_id, expt_summary)
     expt_dirs = ExperimentDirectories(expt_name)
     print(f"  Experiment: {expt_dirs.expt_dir}")
     print(f"  Metadata: {expt_dirs.metadata_dir}")
@@ -99,7 +97,7 @@ def cli(expt_id, metadata_folder):
     exp_metadata = ExpMetadataParser(metadata_folder, expt_id)
     print("Done.")
 
-    main(exp_metadata.expt_date, expt_id, "DANTESTING", "NOMADS8", exp_metadata.df)
+    main(exp_metadata.expt_date, expt_id, exp_metadata.expt_summary, exp_metadata.df)
 
 if __name__ == "__main__":
     cli()
