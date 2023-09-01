@@ -5,7 +5,16 @@ The idea here is to help streamline and standardise the storage of data generate
 - Standardised directory hierarchies
 - Standardised metadata files
 
-In addition, we hope to maintain an inventory of sample sets and assays that we refer to with standardised codes. All of this will ensure data is useful and easily accessible over the life time of the project.
+In addition, we hope to maintain an inventory of experiments and assays performed that we refer to with standardised codes. All of this will ensure data is useful and easily accessible over the life time of the project.
+## Data Flow
+All experimental data is produced using a standardised macro-enabled Excel template. VBA code extracts and outputs all of the relevent data from the experiment into two metadata csv files as follows:
+```
+EXPID_expt_metadata.csv   e.g. SLMM005_expt_metadata.csv
+EXPID_rxn_metadata.csv    e.g. SLMM005_rxn_metadata.csv
+```
+
+EXPID_expt_metadata.csv: Contains a single row of text that contains all variables that are common to the entire experiment.
+EXPID_rxn_metadata.csv: Contains as many rows as there are reactions performed with outputs unique to each reaction.
 
 ## Current status
 As a start, I have produced a small script to automate some of the process of putting data on the NMEC Server:
@@ -18,11 +27,8 @@ Usage: warehouse.py [OPTIONS]
   structures, inventories, and validation of metadata
 
 Options:
-  -d, --expt_date TEXT     Date experiment was conducted.  [required]
   -e, --expt_id TEXT       Experiment ID. For example MM-KP005.  [required]
-  -s, --sample_set TEXT    Sample set ID. For example TES2022.  [required]
-  -a, --assay TEXT         Assay ID. For example NOMADS8.  [required]
-  -m, --metadata_csv TEXT  Path to metadata CSV.  [required]
+  -m, --metadata_folder TEXT  Path to folder containing metadata CSV files. [required]
   --help                   Show this message and exit.
 
 ```
@@ -31,11 +37,8 @@ For example:
 
 ```
 python scripts/warehouse.py \
--d 2023-07-26 \
--e MM-KP005 \
--s TES2022 \
--a NOMADS 8 \
--m path/to/metadata.csv
+-e SLMM005 \
+-m path/to/metadatafolder/
 
 ```
 
