@@ -62,8 +62,9 @@ class ExpMetadataParser:
         searchstring = re.compile(searchstring)
         matching_files = [ path for path in self.metadata_folder.iterdir()
                           if searchstring.match(path.name) ]
-
-        if len(matching_files) != 1:
+        
+        count = len(matching_files)            
+        if count != 1:
             raise MetadataFormatError(f"Expected to find 1 file, but {count} were found")
         else:
             match_path = matching_files[0]
