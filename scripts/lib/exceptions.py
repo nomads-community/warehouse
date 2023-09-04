@@ -1,7 +1,7 @@
 
 
 class MetadataFormatError(Exception):
-    """Error in format or contents of the  meatdata"""
+    """Error in format or contents of the metadata"""
 
     pass
 
