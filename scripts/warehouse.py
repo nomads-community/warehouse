@@ -54,7 +54,7 @@ def main(expt_date, expt_id, expt_summary, metadata_table):
     print(f"Please move outputs from MinKNOW to: {expt_dirs.minknow_dir}")
     print("")
 
-def inventory()
+def inventory():
     """
     Placeholder function for the inventory update code
     """
