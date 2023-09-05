@@ -9,7 +9,10 @@ from .exceptions import MetadataFormatError
 class ExpMetadataParser:
     """
     Parse the experimental and individual rxn metadata, and make sure that it is formatted
-    correctly
+    correctly. Requires two inputs:
+
+    metadata_folder - Folder containing standardised csv files exported from individual experimental templates
+    expt_id - The id of the experiment e.g. SLMM009
 
     """
     EXPT_REQUIRED_COLUMNS = ["expt_id", "expt_date"]
@@ -30,7 +33,7 @@ class ExpMetadataParser:
         self.expt_csv = self._match_file(self.expt_id + "_expt_metadata.csv")
         self.expt_df = pd.read_csv(self.expt_csv)
         self._check_for_columns(self.EXPT_REQUIRED_COLUMNS, self.expt_df)
-        self._check_for_rows(1, self.expt_df)
+        self.check_number_rows(1, self.expt_df)
         self.num_rxn = self.expt_df["seqlib_rxns"].iloc[0]
         self.expt_date = self.expt_df["expt_date"].iloc[0]
         self.expt_summary = self.expt_df["expt_summary"].iloc[0]
@@ -40,7 +43,7 @@ class ExpMetadataParser:
         self.rxn_csv = self._match_file(self.expt_id + "_rxn_metadata.csv")
         self.rxn_df = pd.read_csv(self.rxn_csv)
         self._check_for_columns(self.RXN_REQUIRED_COLUMNS, self.rxn_df)
-        self._check_for_rows(self.num_rxn, self.rxn_df)
+        self.check_number_rows(self.num_rxn, self.rxn_df)
         self._check_entries_unique(self.RXN_UNIQUE_COLUMNS, self.rxn_df)
         print("      Passed formatting checks.")
 
@@ -72,7 +75,7 @@ class ExpMetadataParser:
 
         return match_path
 
-    def _check_for_rows(self, num_rows, dataframe):
+    def check_number_rows(self, num_rows, dataframe):
         """
         Check if correct number of rows are present
 
