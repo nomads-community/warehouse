@@ -33,20 +33,7 @@ def main(expt_date, expt_id, expt_summary, metadata_table):
     print(f"  Experiment Summary: {expt_summary}")
     print("")
 
-    # UPDATE INVENTORIES
-    print("Loading and updating inventories...")
-    inventories = {
-        "experiment": (EXPT_INVENTORY, expt_id),
-        "summary": (SAMPLESET_INVENTORY, expt_summary)
-    }
-    for name, (inv_path, inv_entry) in inventories.items():
-        print(f"Updating {name} inventory at {inv_path}.")
-        inv = InventoryUpdater(inv_path)
-        inv.update(inv_entry)
-    print("Done.")
-    print("")
-
-    # Next make folders
+    # Make folders
     print("Creating experiment folder structure...")
     expt_name = create_experiment_name(expt_date, expt_id, expt_summary)
     expt_dirs = ExperimentDirectories(expt_name)
@@ -67,6 +54,22 @@ def main(expt_date, expt_id, expt_summary, metadata_table):
     print(f"Please move outputs from MinKNOW to: {expt_dirs.minknow_dir}")
     print("")
 
+def inventory()
+    """
+    Placeholder function for the inventory update code
+    """
+    # UPDATE INVENTORIES
+    print("Loading and updating inventories...")
+    inventories = {
+        "experiment": (EXPT_INVENTORY, expt_id),
+        "summary": (SAMPLESET_INVENTORY, expt_summary)
+    }
+    for name, (inv_path, inv_entry) in inventories.items():
+        print(f"Updating {name} inventory at {inv_path}.")
+        inv = InventoryUpdater(inv_path)
+        inv.update(inv_entry)
+    print("Done.")
+    print("")
 
 @click.command(short_help="Warehouse NOMADS sequencing outputs systematically.")
 
