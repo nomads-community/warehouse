@@ -15,10 +15,6 @@ class ExpMetadataParser:
     expt_id - The id of the experiment e.g. SLMM009
 
     """
-    EXPT_REQUIRED_COLUMNS = ["expt_id", "expt_date"]
-    RXN_REQUIRED_COLUMNS = ["barcode", "seqlib_id", "sample_id","extraction_id"]
-    RXN_UNIQUE_COLUMNS = ["barcode", "seqlib_id"]
-    BARCODE_PATTERN = "barcode[0-9]{2}"
 
     def __init__(self, metadata_folder: str, expt_id: str = None, include_unclassified: bool = False):
         """
@@ -29,33 +25,40 @@ class ExpMetadataParser:
         self.expt_id = expt_id
 
         print(f"Searching for {expt_id} metadata files in {self.metadata_folder}..." )
-        #Load and check expt metadata
+        #Load expt metadata
         self.expt_csv = self._match_file(self.expt_id + "_expt_metadata.csv")
         self.expt_df = pd.read_csv(self.expt_csv)
-        self._check_for_columns(self.EXPT_REQUIRED_COLUMNS, self.expt_df)
-        self.check_number_rows(1, self.expt_df)
-        self.num_rxn = self.expt_df["seqlib_rxns"].iloc[0]
         self.expt_date = self.expt_df["expt_date"].iloc[0]
         self.expt_summary = self.expt_df["expt_summary"].iloc[0]
-        print("      Passed formatting checks.")
+        self.expt_type = self.expt_df["expt_type"].iloc[0]
+        self.num_rxn = self.expt_df["expt_rxns"].iloc[0]
 
-        #Load and check rxn metadata
+        #Check validity of expt metadata
+        self._define_expt_variables()
+        self._check_for_columns(self.expt_req_cols, self.expt_df)
+        self.check_number_rows(1, self.expt_df)
+        print("      Experimental metadata file passed formatting checks.")
+
+        #Load rxn metadata
         self.rxn_csv = self._match_file(self.expt_id + "_rxn_metadata.csv")
         self.rxn_df = pd.read_csv(self.rxn_csv)
-        self._check_for_columns(self.RXN_REQUIRED_COLUMNS, self.rxn_df)
+        #Check validity of rxn metadata
+        self._check_for_columns(self.rxn_req_cols, self.rxn_df)
         self.check_number_rows(self.num_rxn, self.rxn_df)
-        self._check_entries_unique(self.RXN_UNIQUE_COLUMNS, self.rxn_df)
-        print("      Passed formatting checks.")
+        self._check_entries_unique(self.rxn_unique_cols, self.rxn_df)
+        if len(self.barcode_pattern) >0  :
+            self.barcodes = self.df["barcode"].tolist()
+            if include_unclassified:
+                self.barcodes.append("unclassified")
+            self._check_barcodes_valid()
+        print("      Rxn metadata file passed formatting checks.")
 
-        print("Merging experimental and rxn data...")
+        print("   Merging experimental and rxn data...")
         self.df = pd.merge(self.expt_df, self.rxn_df, on='expt_id', how='inner')
-        self.barcodes = self.df["barcode"].tolist()
-        if include_unclassified:
-            self.barcodes.append("unclassified")
-        self._check_barcodes_valid()
+
 
         print("      Done")
-
+    
     def _match_file(self, searchstring):
 
         """
@@ -119,6 +122,32 @@ class ExpMetadataParser:
         for barcode in self.barcodes:
             if barcode == "unclassified":
                 continue
-            m = re.match(self.BARCODE_PATTERN, barcode)
+            m = re.match(self.barcode_pattern, barcode)
             if m is None:
-                raise MetadataFormatError(f"Error in barcode name for {barcode}. To be valid, must match this regexp: {self.BARCODE_PATTERN}.")
+                raise MetadataFormatError(f"Error in barcode name for {barcode}. To be valid, must match this regexp: {self.barcode_pattern}.")
+    
+    def _define_expt_variables(self):
+        """
+        Define all required fields, counts etc for the exp type.
+
+        """
+        print(f"      Identified as {self.expt_type} type experiment")
+        if self.expt_type == "seqlib":
+            self.expt_req_cols = ["expt_id", "expt_date"]
+            self.rxn_req_cols = ["barcode", "seqlib_id", "sample_id","extraction_id"]
+            self.rxn_unique_cols = ["barcode", "seqlib_id"]
+            self.barcode_pattern = "barcode[0-9]{2}"
+        elif self.expt_type == "PCR":
+            self.expt_req_cols = ["expt_id", "expt_date"]
+            self.rxn_req_cols = ["pcr_identifier", "sample_id","extraction_id"]
+            self.rxn_unique_cols = ["pcr_identifier"]
+            self.barcode_pattern = ""
+        elif self.expt_type == "sWGA":
+            self.expt_req_cols = ["expt_id", "expt_date"]
+            self.rxn_req_cols = ["swga_identifier", "sample_id","extraction_id"]
+            self.rxn_unique_cols = ["swga_identifier"]
+            self.barcode_pattern = ""
+        else:
+            raise MetadataFormatError(f"Error experiment type given as {self.expt_type}, expected seqlib, PCR or sWGA.")
+
+

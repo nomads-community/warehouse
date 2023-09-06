@@ -99,8 +99,8 @@ def cli(expt_id, metadata_folder):
     print("Checking and extracting metadata...")
     exp_metadata = ExpMetadataParser(metadata_folder, expt_id)
     print("Done.")
-
-    main(exp_metadata.expt_date, expt_id, exp_metadata.expt_summary, exp_metadata.df)
+    if exp_metadata.expt_type == "seqlib":
+        main(exp_metadata.expt_date, expt_id, exp_metadata.expt_summary, exp_metadata.df)
 
 if __name__ == "__main__":
     cli()
