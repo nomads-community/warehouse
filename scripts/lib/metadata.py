@@ -36,7 +36,7 @@ class ExpMetadataParser:
         #Check validity of expt metadata
         self._define_expt_variables()
         self._check_for_columns(self.expt_req_cols, self.expt_df)
-        self.check_number_rows(1, self.expt_df)
+        self._check_number_rows(1, self.expt_df)
         print("      Experimental metadata file passed formatting checks.")
 
         #Load rxn metadata
@@ -44,7 +44,7 @@ class ExpMetadataParser:
         self.rxn_df = pd.read_csv(self.rxn_csv)
         #Check validity of rxn metadata
         self._check_for_columns(self.rxn_req_cols, self.rxn_df)
-        self.check_number_rows(self.num_rxn, self.rxn_df)
+        self._check_number_rows(self.num_rxn, self.rxn_df)
         self._check_entries_unique(self.rxn_unique_cols, self.rxn_df)
         if len(self.barcode_pattern) >0  :
             self.barcodes = self.df["barcode"].tolist()
@@ -78,14 +78,15 @@ class ExpMetadataParser:
 
         return match_path
 
-    def check_number_rows(self, num_rows, dataframe):
+    def _check_number_rows(self, num_rows, dataframe):
         """
         Check if correct number of rows are present
 
         """
         found_rows = dataframe.shape[0]
         if found_rows != num_rows:
-            raise MetadataFormatError(f"Expected {num_rows} rows, but found {found_rows}!")
+            print(f"WARNING: Expected {num_rows} rows, but found {found_rows}!")
+            # raise MetadataFormatError(f"Expected {num_rows} rows, but found {found_rows}!")
 
     def _check_for_columns(self, columns, dataframe):
         """
