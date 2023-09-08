@@ -2,11 +2,15 @@ import os
 import re
 from pathlib import Path, PurePath
 import pandas as pd
+from datetime import datetime
 
-from .exceptions import MetadataFormatError
 
+class MetadataFormatError(Exception):
+    """Error in format or contents of the metadata"""
 
-class ExpMetadataParser:
+    pass
+
+class ExpMetadataParser(MetadataFormatError):
     """
     Parse the experimental and individual rxn metadata, and make sure that it is formatted
     correctly. Requires two inputs:
@@ -15,7 +19,7 @@ class ExpMetadataParser:
     expt_id - The id of the experiment e.g. SLMM009
 
     """
-
+    # MetadataFormatError = MetadataFormatError()
     def __init__(self, metadata_folder: str, expt_id: str = None, include_unclassified: bool = False):
         """
         Load and sanity check the metadata
@@ -29,6 +33,7 @@ class ExpMetadataParser:
         self.expt_csv = self._match_file(self.expt_id + "_expt_metadata.csv")
         self.expt_df = pd.read_csv(self.expt_csv)
         self.expt_date = self.expt_df["expt_date"].iloc[0]
+        self._check_valid_date_format(self.expt_date)
         self.expt_summary = self.expt_df["expt_summary"].iloc[0]
         self.expt_type = self.expt_df["expt_type"].iloc[0]
         self.num_rxn = self.expt_df["expt_rxns"].iloc[0]
@@ -36,7 +41,7 @@ class ExpMetadataParser:
         #Check validity of expt metadata
         self._define_expt_variables()
         self._check_for_columns(self.expt_req_cols, self.expt_df)
-        self._check_number_rows(1, self.expt_df)
+        self.expt_rows = self._check_number_rows(1, self.expt_df)
         print("      Experimental metadata file passed formatting checks.")
 
         #Load rxn metadata
@@ -44,10 +49,10 @@ class ExpMetadataParser:
         self.rxn_df = pd.read_csv(self.rxn_csv)
         #Check validity of rxn metadata
         self._check_for_columns(self.rxn_req_cols, self.rxn_df)
-        self._check_number_rows(self.num_rxn, self.rxn_df)
+        self.rxn_rows = self._check_number_rows(self.num_rxn, self.rxn_df)
         self._check_entries_unique(self.rxn_unique_cols, self.rxn_df)
-        if len(self.barcode_pattern) >0  :
-            self.barcodes = self.df["barcode"].tolist()
+        if len(self.barcode_pattern) > 0  :
+            self.barcodes = self.rxn_df["barcode"].tolist()
             if include_unclassified:
                 self.barcodes.append("unclassified")
             self._check_barcodes_valid()
@@ -123,7 +128,7 @@ class ExpMetadataParser:
         for barcode in self.barcodes:
             if barcode == "unclassified":
                 continue
-            m = re.match(self.barcode_pattern, barcode)
+            m = re.match(self.barcode_pattern, str(barcode))
             if m is None:
                 raise MetadataFormatError(f"Error in barcode name for {barcode}. To be valid, must match this regexp: {self.barcode_pattern}.")
     
@@ -151,4 +156,9 @@ class ExpMetadataParser:
         else:
             raise MetadataFormatError(f"Error experiment type given as {self.expt_type}, expected seqlib, PCR or sWGA.")
 
-
+    def _check_valid_date_format(self, date: str, format: str="%Y-%m-%d") -> None:
+        """ Check that a `date` adheres to a given `format` """
+        try:
+            datetime.strptime(date, format)
+        except ValueError:
+            raise MetadataFormatError(f"Date {date} does not adhere to expected format: {format}.")
