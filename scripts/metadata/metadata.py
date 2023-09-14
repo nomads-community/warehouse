@@ -1,9 +1,7 @@
-import os
 import re
 from pathlib import Path, PurePath
 import pandas as pd
 from datetime import datetime
-
 
 class MetadataFormatError(Exception):
     """Error in format or contents of the metadata"""
