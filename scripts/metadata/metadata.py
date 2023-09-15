@@ -5,7 +5,6 @@ from datetime import datetime
 
 class MetadataFormatError(Exception):
     """Error in format or contents of the metadata"""
-
     pass
 
 class ExpMetadataParser(MetadataFormatError):
@@ -17,7 +16,7 @@ class ExpMetadataParser(MetadataFormatError):
     expt_id - The id of the experiment e.g. SLMM009
 
     """
-    # MetadataFormatError = MetadataFormatError()
+    
     def __init__(self, metadata_folder: str, expt_id: str = None, include_unclassified: bool = False):
         """
         Load and sanity check the metadata
@@ -49,6 +48,7 @@ class ExpMetadataParser(MetadataFormatError):
         self._check_for_columns(self.rxn_req_cols, self.rxn_df)
         self.rxn_rows = self._check_number_rows(self.num_rxn, self.rxn_df)
         self._check_entries_unique(self.rxn_unique_cols, self.rxn_df)
+        self._check_entries_not_blank(self.rxn_notblank_cols, self.rxn_df)
         if len(self.barcode_pattern) > 0  :
             self.barcodes = self.rxn_df["barcode"].tolist()
             if include_unclassified:
@@ -56,10 +56,8 @@ class ExpMetadataParser(MetadataFormatError):
             self._check_barcodes_valid()
         print("      Rxn metadata file passed formatting checks.")
 
-        print("   Merging experimental and rxn data...")
+        print(f"   Merging experimental and rxn data for {expt_id}...")
         self.df = pd.merge(self.expt_df, self.rxn_df, on='expt_id', how='inner')
-
-
         print("      Done")
     
     def _match_file(self, searchstring):
@@ -81,26 +79,26 @@ class ExpMetadataParser(MetadataFormatError):
 
         return match_path
 
-    def _check_number_rows(self, num_rows, dataframe):
+    def _check_number_rows(self, num_rows, df):
         """
         Check if correct number of rows are present
 
         """
-        found_rows = dataframe.shape[0]
+        found_rows = df.shape[0]
         if found_rows != num_rows:
             print(f"WARNING: Expected {num_rows} rows, but found {found_rows}!")
             # raise MetadataFormatError(f"Expected {num_rows} rows, but found {found_rows}!")
 
-    def _check_for_columns(self, columns, dataframe):
+    def _check_for_columns(self, columns, df):
         """
         Check the correct columns are present
 
         """
         for c in columns:
-            if not c in dataframe:
+            if not c in df:
                 raise MetadataFormatError(f"Metadata must contain column called {c}!")
 
-    def _check_entries_unique(self, columns, dataframe):
+    def _check_entries_unique(self, columns, df):
         """
         Check entires of the required columns are unique
 
@@ -109,7 +107,7 @@ class ExpMetadataParser(MetadataFormatError):
         """
 
         for c in columns:
-            all_entries = dataframe[c].tolist()
+            all_entries = df[c].tolist()
             observed_entries = []
             for entry in all_entries:
                 if entry in observed_entries:
@@ -136,20 +134,24 @@ class ExpMetadataParser(MetadataFormatError):
 
         """
         print(f"      Identified as {self.expt_type} type experiment")
+        self.rxn_identifier_col = self.expt_type + "_identifier"
         if self.expt_type == "seqlib":
             self.expt_req_cols = ["expt_id", "expt_date"]
-            self.rxn_req_cols = ["barcode", "seqlib_id", "sample_id","extraction_id"]
-            self.rxn_unique_cols = ["barcode", "seqlib_id"]
+            self.rxn_req_cols = ["barcode", "seqlib_identifier", "sample_id","extraction_id"]
+            self.rxn_unique_cols = ["barcode", "seqlib_identifier"]
+            self.rxn_notblank_cols = ["sample_id","extraction_id","swga_identifier", "pcr_identifier","seqlib_identifier"]
             self.barcode_pattern = "barcode[0-9]{2}"
         elif self.expt_type == "PCR":
             self.expt_req_cols = ["expt_id", "expt_date"]
             self.rxn_req_cols = ["pcr_identifier", "sample_id","extraction_id"]
             self.rxn_unique_cols = ["pcr_identifier"]
+            self.rxn_notblank_cols = ["sample_id","extraction_id","swga_identifier", "pcr_identifier"]
             self.barcode_pattern = ""
         elif self.expt_type == "sWGA":
             self.expt_req_cols = ["expt_id", "expt_date"]
             self.rxn_req_cols = ["swga_identifier", "sample_id","extraction_id"]
             self.rxn_unique_cols = ["swga_identifier"]
+            self.rxn_notblank_cols = ["sample_id","extraction_id","swga_identifier"]
             self.barcode_pattern = ""
         else:
             raise MetadataFormatError(f"Error experiment type given as {self.expt_type}, expected seqlib, PCR or sWGA.")
@@ -160,3 +162,14 @@ class ExpMetadataParser(MetadataFormatError):
             datetime.strptime(date, format)
         except ValueError:
             raise MetadataFormatError(f"Date {date} does not adhere to expected format: {format}.")
+    
+    def _check_entries_not_blank(self, columns, df):
+        """
+        Check that all entries in these columns are not blank
+        """
+        
+        for c in columns:
+            df_filtered = df[df[c].isnull()]
+            if df_filtered.shape[0] >0 :
+                print(f"WARNING: Column {c} contains empty data for {self.expt_id}:\n{df_filtered}")
+            
