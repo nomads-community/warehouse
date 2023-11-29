@@ -85,8 +85,9 @@ class ExtractMetadata():
         expt_id = self._identify_exptid(filename)
 
         for tabname in self.tabnames:
-            #Extract data
+            #Extract data and drop empty rows
             data =  pd.read_excel(filename, sheet_name=tabname)
+            data.dropna(how='all', inplace=True)  
             #Export data
             csv_fn = f"{expt_id}_{tabname}.csv"
             csv_fullpath = Path(self.export_folder, csv_fn)
