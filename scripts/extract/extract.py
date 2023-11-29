@@ -22,20 +22,19 @@ class ExtractMetadata():
         """
         self.expdata_folder = Path(expdata_folder)
         self.export_folder = Path(export_folder)
-        self.expt_id = expt_id
         self.tabnames = ["expt_metadata", "rxn_metadata"]
+        self.regex_4expid = r'[A-Z]{4}\d{3}'
 
         #Search for all files or just the specified one
-        if not self.expt_id:
+        if not expt_id:
             print("Searching for all experimental files")
-            searchstring = re.compile(".*.xls[x|m]$")
-            files = [ path for path in self.expdata_folder.iterdir()
-                          if searchstring.match(path.name) ]
-            print(f"{len(files)} files identified")
+            files = self._match_file(".*.xls[x|m]$")
         else:
-            print(f"Searching for {expt_id} experimental file" )
-            #Identify expt file
-            files = [ self._match_file(".*" + self.expt_id + ".*.xls[x|m]$") ]
+            self.expt_id = self._check_validexpid(expt_id)
+            print(f"Searching for {self.expt_id} experimental file" )
+            files = self._match_file(".*" + self.expt_id + ".*.xls[x|m]$", maxfiles=1)
+        
+        print(f"{len(files)} files identified")
         
         #Identify all the files with the correct sheets
         matched_files = []
@@ -44,7 +43,6 @@ class ExtractMetadata():
             #Check tables are present in file 
             if self.tabnames[0] in sheets and self.tabnames[1] in sheets:
                 matched_files.append(file)
-        
         #Export data from each
         if matched_files:
             print(f"{len(matched_files)} valid files identified")
@@ -54,34 +52,30 @@ class ExtractMetadata():
         else:
             print("ERROR: No valid files found.")
 
-    def _match_file(self, searchstring):
-
+    def _match_file(self, searchstring, maxfiles=None):
         """
-        Identify if there is a matching file for the given expt_id
+        Identify all file(s) matching a given search string
         """
         searchstring = re.compile(searchstring)
         matching_files = [ path for path in self.expdata_folder.iterdir()
                           if searchstring.match(path.name) ]
-        
-        count = len(matching_files)            
-        if count != 1:
-            raise Error(f"Expected to find 1 file, but {count} were found")
-        else:
-            match_path = matching_files[0]
+        if maxfiles:
+            count = len(matching_files)            
+            if count > maxfiles:
+                raise Error(f"Expected to find {maxfiles} file, but {count} were found")
 
-        return match_path
+        return matching_files
     
     def _identify_exptid(self, filename):
         """
         Extract the experimental ID from a filename
         """
-        pattern = r'_([A-Z]{4}\d{3})'
-        match = re.search(pattern, filename.name)
+        id_regex = fr'({self.regex_4expid})'
+        match = re.search(id_regex, filename.name)
         if match:
             expt_id = match.group(1)
         else:
             raise Error(f"Unable to determine the ExpID from the filename for {filename.name}")
-        
         return expt_id
 
     def _export_data(self, filename):
@@ -98,3 +92,13 @@ class ExtractMetadata():
             csv_fullpath = Path(self.export_folder, csv_fn)
             data.to_csv(csv_fullpath, index=False)
             print(f"      Exported to {csv_fn}")
+
+    def _check_validexpid (self, expt_id):
+        """
+        Ensure that the supplied ExpID is valid
+        """
+        id_regex = fr'^{self.regex_4expid}$'
+        if not re.match(id_regex,expt_id):
+            raise Error(f"{expt_id} is not a valid entry (should be {self.regex_4expid})")
+        
+        return expt_id
