@@ -11,12 +11,11 @@ class ExpMetadataParser(MetadataFormatError):
 
     """
     
-    def __init__(self, metadata_file: str, include_unclassified: bool = False):
+    def __init__(self, metadata_file: Path, include_unclassified: bool = False):
         """
         Load and sanity check the metadata
 
         """
-        #self.metadata_folder = Path(metadata_file)
         print(f"{PurePath(metadata_file).name}")
         self.tabnames = ["expt_metadata", "rxn_metadata"]
 
@@ -170,7 +169,7 @@ class ExpMetadataMerge(ExpMetadataParser):
     """
     Extract metadata from multiple files, merge into a coherent dataframe, and optionally export the data
     """
-    def __init__(self, matching_filepaths, output_folder):
+    def __init__(self, matching_filepaths, output_folder : Path):
         #Extract each file into a dictionary 
         metadata_dict = { self._identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath) for filepath in matching_filepaths }
         print("="*80)
@@ -211,7 +210,7 @@ class ExpMetadataMerge(ExpMetadataParser):
         self.agg_experiments_df = allmetadata_df[cols_to_retain].groupby(['sample_id', 'expt_assay']).agg(list).reset_index()
 
         #Give some user feedback on number of reactions performed
-        print(f"   Total reactions:")
+        print("   Total reactions:")
         identifier_cols = [col for col in self.agg_experiments_df.columns if 'identifier' in col]
 
         for col in identifier_cols:
@@ -223,8 +222,7 @@ class ExpMetadataMerge(ExpMetadataParser):
 
         #Optionally export the data
         if output_folder:
-            output_folder = Path(output_folder)
-            print(f"Outputting data to folder: {output_folder}")
+            print(f"Outputting data to folder: {output_folder.name}")
             #Iterate through the dictionary outputting individual and aggregate
             for key in metadata_dict:
                 print(f"   {key}")

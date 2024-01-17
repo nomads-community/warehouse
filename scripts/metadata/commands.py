@@ -8,7 +8,7 @@ from lib.general import identify_fn_from_exptid
 @click.option(
     "-m",
     "--metadata_folder",
-    type=str,
+    type=Path,
     required=True,
     help="Path to folder containing Excel metadata files."
 )
@@ -16,7 +16,7 @@ from lib.general import identify_fn_from_exptid
 @click.option(
     "-o",
     "--output_folder",
-    type=str,
+    type=Path,
     required=False,
     help="Output individual and aggregated metadata files."
 )
@@ -31,7 +31,7 @@ from lib.general import identify_fn_from_exptid
     # callback=lambda ctx, param, value: validate_id(value) 
 )
 
-def metadata(metadata_folder, expt_id, output_folder):
+def metadata(metadata_folder : Path, expt_id : str, output_folder : Path):
     """
     Extract, combine and validate all metadata
     """
@@ -40,16 +40,14 @@ def metadata(metadata_folder, expt_id, output_folder):
     from .metadata import ExpMetadataParser
     
     #Extract all metadata
-    metadata_folder_path = Path(metadata_folder)
     if expt_id:
         #For an individual expt
         #Identify matching file
-        matching_filepath = identify_fn_from_exptid(metadata_folder_path, expt_id)
-        metadata = ExpMetadataParser(Path(matching_filepath.match_path))
+        matching_filepath = identify_fn_from_exptid(metadata_folder, expt_id)
+        metadata = ExpMetadataParser(matching_filepath.match_path)
         #Export data
         if output_folder:
-                print(f"Outputting data to folder: {output_folder}")
-                output_folder = Path(output_folder)
+                print(f"Outputting data to folder: {output_folder.name}")
                 #Expt
                 expt_df = metadata.expt_df
                 expt_fn = f"{expt_id}_expt_metadata.csv"
@@ -66,7 +64,7 @@ def metadata(metadata_folder, expt_id, output_folder):
         #For all files in folder
         #Find those that are correctly named
         fn_regex = '^\d{4}-\d{2}-\d{2}_(sWGA|PCR|SeqLib)_(SW|PC|SL)[a-zA-Z]{2}\d{3}_.*'
-        matching_filepaths = { metadata_folder_path.joinpath(file) for file in os.listdir(metadata_folder) if re.match(fn_regex,file)}
+        matching_filepaths = { metadata_folder.joinpath(file) for file in os.listdir(metadata_folder) if re.match(fn_regex,file)}
         print(f"Found {len(matching_filepaths)} file(s)")
     
         #Extract all instances and merge data

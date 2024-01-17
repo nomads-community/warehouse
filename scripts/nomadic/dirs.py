@@ -34,7 +34,7 @@ class ExperimentDirectories:
 
     """
 
-    def __init__(self, expt_name: str, root_folder: str):
+    def __init__(self, expt_name: str, root_folder: Path):
         """
         Initialise all the required directories
 

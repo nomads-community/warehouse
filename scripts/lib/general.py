@@ -1,14 +1,13 @@
 import re
-from pathlib import Path, PurePath
+from pathlib import Path
 from .exceptions import MetadataFormatError
 
 class identify_exptid_from_fn(MetadataFormatError):
     """
     Extract the experimental ID from a filename
     """
-    def __init__(self, filename: str):
+    def __init__(self, filename: Path):
         id_regex = '(SW|PC|SL)[a-zA-Z]{2}\d{3}'
-        filename=Path(filename)
         match = re.search(id_regex, filename.name)
         if match: 
             self.expt_id = match.group(0)
@@ -22,10 +21,9 @@ class identify_fn_from_exptid(MetadataFormatError):
     Identify if there is a file containing the ExpID
     """
 
-    def __init__(self, metadata_folder:str, expt_id: str = False ):
+    def __init__(self, metadata_folder: Path, expt_id: str = False ):
         searchstring = re.compile(f".*_{expt_id}_.*.xlsx")
-        metadata_folder_path = Path(metadata_folder)
-        matching_filepaths = [ path for path in metadata_folder_path.iterdir()
+        matching_filepaths = [ path for path in metadata_folder.iterdir()
                            if searchstring.match(path.name) ]
         
         count = len(matching_filepaths)            
@@ -33,4 +31,4 @@ class identify_fn_from_exptid(MetadataFormatError):
             raise MetadataFormatError(f"Expected to find 1 file, but {count} were found")
         else:
             self.match_path = matching_filepaths[0]
-            print(f"   Found: {PurePath(self.match_path).name}")
+            print(f"   Found: {self.match_path.name}")

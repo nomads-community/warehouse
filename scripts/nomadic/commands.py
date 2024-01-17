@@ -9,7 +9,7 @@ from lib.exceptions import MetadataFormatError
 @click.option(
     "-m",
     "--metadata_folder",
-    type=str,
+    type=Path,
     required=True,
     help="Path to folder containing Excel files."
 )
@@ -30,13 +30,12 @@ from lib.exceptions import MetadataFormatError
     help="Base folder to output experimental directory structure to."
 )
 
-def nomadic(metadata_folder , expt_id : str, output_folder: Path):
+def nomadic(metadata_folder : Path , expt_id : str, output_folder: Path):
     """
     Create nomadic file structure including relevent metadata 
     """
     #Extract metadata
-    metadata_folder_path = Path(metadata_folder)
-    matching_filepath = identify_fn_from_exptid(metadata_folder_path, expt_id)
+    matching_filepath = identify_fn_from_exptid(metadata_folder, expt_id)
     exp_metadata = ExpMetadataParser(Path(matching_filepath.match_path))
     print("="*80)
 
