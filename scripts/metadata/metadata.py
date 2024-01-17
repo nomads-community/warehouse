@@ -176,10 +176,16 @@ class ExpMetadataMerge(ExpMetadataParser):
         print("="*80)
         
         #Concatenate all the data for the different experimental types
+        #TO DO: Make it more flexible in case there are none of a certain type of expt
         sWGA_df = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == "sWGA" )
         PCR_df = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == "PCR" )
         seqlib_df = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == "seqlib" )
-        
+        # print(f"Total rxns identified by experiment type:")
+        # print(f"   sWGA:{sWGA_df.shape[0]}")
+        # print(f"   PCR:{PCR_df.shape[0]}")
+        # print(f"   seqlib:{seqlib_df.shape[0]}")
+        # print("="*80)
+
         print("Checking for mismatches in the data between experiments:")
         # Right joins check if any of the right_df do NOT have a match in the left_df 
         self._check_entry_mismatch(pd.merge(left=sWGA_df,right=PCR_df,how="right",on="swga_identifier")
@@ -197,17 +203,19 @@ class ExpMetadataMerge(ExpMetadataParser):
         print("Aggregating all experimental data")
         allmetadata_df = pd.merge(left=sWGA_df,right=PCR_df,how="outer",on="swga_identifier", suffixes=('', '_pcr'))
         allmetadata_df = pd.merge(left=allmetadata_df,right=seqlib_df,how="outer",on="pcr_identifier", suffixes=('', '_seqlib'))
-
         cols_to_retain = ['sample_id', 'extraction_id', 'swga_identifier', 'expt_assay', 'pcr_identifier',
                           'seqlib_identifier']
-        
+        #Fill in the nan values so the aggregation works
+        allmetadata_df = allmetadata_df.fillna('None')
         # Group and aggregate the df to give a list of all experiments performed on each sample 
         self.agg_experiments_df = allmetadata_df[cols_to_retain].groupby(['sample_id', 'expt_assay']).agg(list).reset_index()
-        identifier_cols = [col for col in self.agg_experiments_df.columns if 'identifier' in col]
 
         #Give some user feedback on number of reactions performed
+        print(f"   Total reactions:")
+        identifier_cols = [col for col in self.agg_experiments_df.columns if 'identifier' in col]
+
         for col in identifier_cols:
-            value = self._count_non_nan_entries_in_dfcolumn(self.agg_experiments_df, col)
+            value = self._count_non_none_entries_in_dfcolumn(self.agg_experiments_df, col)
             name = col.replace("_identifier","")
             print(f"      {name}: {value}")
         print("Done")
@@ -254,12 +262,12 @@ class ExpMetadataMerge(ExpMetadataParser):
                 print(f"WARNING: Mismatches identified for {c}")
                 print(mismatches_df[cols_to_retain])
 
-    def _count_non_nan_entries_in_dfcolumn (self, df, column):
+    def _count_non_none_entries_in_dfcolumn (self, df, column):
         '''
-        Function counts the number of non nan entries in a column of a dataframe
+        Function counts the number of non none entries in a column of a dataframe
         '''
         
-        return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not pd.isna(item)])
+        return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not item=="None"])
 
     def _identify_exptid_from_fn(self, filepath):
         """
