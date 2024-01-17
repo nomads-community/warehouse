@@ -2,6 +2,7 @@ import click
 import os
 import re
 from pathlib import Path
+from lib.general import identify_fn_from_exptid
 
 @click.command(short_help="Extract, validate and optionally export all metadata")
 @click.option(
@@ -43,15 +44,9 @@ def metadata(metadata_folder, expt_id, output_folder):
     if expt_id:
         #For an individual expt
         #Identify matching file
-        searchstring = re.compile(f".*_{expt_id}.*.xlsx")
-        matching_filepaths = [ path for path in metadata_folder_path.iterdir()
-                           if searchstring.match(path.name) ]
+        matching_filepath = identify_fn_from_exptid(metadata_folder_path, expt_id)
         
-        if len(matching_filepaths) != 1:
-            print(f"Expected to find 1 file, but {count} were found")
-            exit()
-        matching_filepath = Path(matching_filepaths[0])
-        metadata = ExpMetadataParser(Path(matching_filepath))
+        metadata = ExpMetadataParser(Path(matching_filepath.match_path))
         #Export data
         if output_folder:
                 print(f"Outputting data to {output_folder}")

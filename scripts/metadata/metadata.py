@@ -3,10 +3,7 @@ from pathlib import Path, PurePath
 import pandas as pd
 from datetime import datetime
 from itertools import chain
-
-class MetadataFormatError(Exception):
-    """Error in format or contents of the metadata"""
-    pass
+from lib.exceptions import MetadataFormatError
 
 class ExpMetadataParser(MetadataFormatError):
     """
