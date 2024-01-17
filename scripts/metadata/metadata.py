@@ -57,7 +57,7 @@ class ExpMetadataParser(MetadataFormatError):
 
         print(f"      Merging experimental and rxn data for {self.expt_id}...")
         self.df = pd.merge(self.expt_df, self.rxn_df, on='expt_id', how='inner')
-        print("      Done")
+        print("Done")
 
     def _extract_excel_data(self, filename, tabname):
 
@@ -191,7 +191,7 @@ class ExpMetadataMerge(ExpMetadataParser):
                                    ,['sample_id','extraction_id'])
         self._check_entry_mismatch(pd.merge(left=PCR_df,right=seqlib_df,how="inner",on="swga_identifier")
                                    ,['sample_id','extraction_id'])
-        print("      Done")
+        print("Done")
         print("="*80)
 
         print("Aggregating all experimental data")
@@ -210,13 +210,13 @@ class ExpMetadataMerge(ExpMetadataParser):
             value = self._count_non_nan_entries_in_dfcolumn(self.agg_experiments_df, col)
             name = col.replace("_identifier","")
             print(f"      {name}: {value}")
-        print("      Done")
+        print("Done")
         print("="*80)
 
         #Optionally export the data
         if output_folder:
             output_folder = Path(output_folder)
-            print(f"Outputting data to {output_folder} for")
+            print(f"Outputting data to folder: {output_folder}")
             #Iterate through the dictionary outputting individual and aggregate
             for key in metadata_dict:
                 print(f"   {key}")

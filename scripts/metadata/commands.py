@@ -49,7 +49,7 @@ def metadata(metadata_folder, expt_id, output_folder):
         metadata = ExpMetadataParser(Path(matching_filepath.match_path))
         #Export data
         if output_folder:
-                print(f"Outputting data to {output_folder}")
+                print(f"Outputting data to folder: {output_folder}")
                 output_folder = Path(output_folder)
                 #Expt
                 expt_df = metadata.expt_df
