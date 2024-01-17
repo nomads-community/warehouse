@@ -61,25 +61,6 @@ class ExpMetadataParser(MetadataFormatError):
         print(f"      Merging experimental and rxn data for {self.expt_id}...")
         self.df = pd.merge(self.expt_df, self.rxn_df, on='expt_id', how='inner')
         print("      Done")
-    
-    def _match_file(self, searchstring):
-
-        """
-        Identify if there is a matching file for the given expt_id
-        """
-
-        searchstring = re.compile(searchstring)
-        matching_files = [ path for path in self.metadata_folder.iterdir()
-                          if searchstring.match(path.name) ]
-        
-        count = len(matching_files)            
-        if count != 1:
-            raise MetadataFormatError(f"Expected to find 1 file, but {count} were found")
-        else:
-            match_path = matching_files[0]
-            print(f"   Found: {PurePath(match_path).name}")
-
-        return match_path
 
     def _extract_excel_data(self, filename, tabname):
 
@@ -287,8 +268,6 @@ class ExpMetadataMerge(ExpMetadataParser):
         """
         Extract the experimental ID from a filename
         """
-        #id_regex = fr'.*_(SW|PC|SL[a-zA-Z]{2}\d{3})_.*'
-        #'^\d{4}-\d{2}-\d{2}_(sWGA|PCR|SeqLib)_(SW|PC|SL)[a-zA-Z]{2}\d{3}_.*'
         id_regex = '(SW|PC|SL)[a-zA-Z]{2}\d{3}'
         match = re.search(id_regex, filepath.name)
         if match: 

@@ -42,10 +42,32 @@ def metadata(metadata_folder, expt_id, output_folder):
     metadata_folder_path = Path(metadata_folder)
     if expt_id:
         #For an individual expt
-        #Find matching file
-        matching_filepaths = { metadata_folder_path.joinpath(file) for file in os.listdir(metadata_folder) if re.match(expt_id,file)}
-        print(matching_filepaths)
-        metadata = ExpMetadataParser(matching_filepaths)
+        #Identify matching file
+        searchstring = re.compile(f".*_{expt_id}.*.xlsx")
+        matching_filepaths = [ path for path in metadata_folder_path.iterdir()
+                           if searchstring.match(path.name) ]
+        
+        if len(matching_filepaths) != 1:
+            print(f"Expected to find 1 file, but {count} were found")
+            exit()
+        matching_filepath = Path(matching_filepaths[0])
+        metadata = ExpMetadataParser(Path(matching_filepath))
+        #Export data
+        if output_folder:
+                print(f"Outputting data to {output_folder}")
+                output_folder = Path(output_folder)
+                #Expt
+                expt_df = metadata.expt_df
+                expt_fn = f"{expt_id}_expt_metadata.csv"
+                expt_path = output_folder / expt_fn
+                expt_df.to_csv(expt_path, index=False)
+                #Reaction
+                rxn_df = metadata.rxn_df
+                rxn_fn = f"{expt_id}_rxn_metadata.csv"
+                rxn_path = output_folder / rxn_fn
+                rxn_df.to_csv(rxn_path, index=False)
+                print("Done")
+                print("="*80)   
     else:
         #For all files in folder
         #Find those that are correctly named
