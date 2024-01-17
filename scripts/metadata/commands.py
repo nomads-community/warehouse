@@ -45,7 +45,6 @@ def metadata(metadata_folder, expt_id, output_folder):
         #For an individual expt
         #Identify matching file
         matching_filepath = identify_fn_from_exptid(metadata_folder_path, expt_id)
-        
         metadata = ExpMetadataParser(Path(matching_filepath.match_path))
         #Export data
         if output_folder:

@@ -34,18 +34,19 @@ class ExperimentDirectories:
 
     """
 
-    ROOT_DIR = Path(__file__).absolute().parent.parent.parent
-    experiments_dir = produce_dir(ROOT_DIR, "experiments")
-
-    def __init__(
-        self,
-        expt_name: str
-    ):
+    def __init__(self, expt_name: str, root_folder: str):
         """
         Initialise all the required directories
 
         """
+        
+        if root_folder:
+            ROOT_DIR = root_folder.absolute()
+        else:
+            ROOT_DIR = Path(__file__).absolute().parent.parent.parent
+        self.experiments_dir = produce_dir(ROOT_DIR, "experiments")
         # Experiment directory
+        
         self.expt_name = expt_name
         self.expt_dir = produce_dir(self.experiments_dir, expt_name)
 
