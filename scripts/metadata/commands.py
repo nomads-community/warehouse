@@ -1,46 +1,58 @@
 import click
 import os
 import re
-import pandas as pd
+from pathlib import Path
 
-@click.command(short_help="Combine and check all metadata files and export aggregate to csv in metadata folder")
+@click.command(short_help="Extract, validate and optionally export all metadata")
 @click.option(
     "-m",
     "--metadata_folder",
     type=str,
     required=True,
-    help="Path to folder containing metadata CSV files."
+    help="Path to folder containing Excel metadata files."
 )
 
 @click.option(
     "-o",
-    "--output",
-    is_flag=True,
-    show_default = True,
-    help="Output merged metadata to aggregate CSVs in metadata folder."
+    "--output_folder",
+    type=str,
+    required=False,
+    help="Output individual and aggregated metadata files."
 )
 
-def metadata(metadata_folder, output):
+@click.option(
+    "-e",
+    "--expt_id",
+    type=str,
+    required=False,
+    default = "",
+    help="Experiment ID. For example SLMM005."
+    # callback=lambda ctx, param, value: validate_id(value) 
+)
+
+def metadata(metadata_folder, expt_id, output_folder):
     """
-    Combine and check all metadata files and export aggregate to csv in metadata folder
+    Extract, combine and validate all metadata
     """
-    from .metadata import ExpMetadataParser
+
     from .metadata import ExpMetadataMerge
+    from .metadata import ExpMetadataParser
     
-    print("Checking and extracting metadata...")
-    print("="*80)
+    #Extract all metadata
+    metadata_folder_path = Path(metadata_folder)
+    if expt_id:
+        #For an individual expt
+        #Find matching file
+        matching_filepaths = { metadata_folder_path.joinpath(file) for file in os.listdir(metadata_folder) if re.match(expt_id,file)}
+        print(matching_filepaths)
+        metadata = ExpMetadataParser(matching_filepaths)
+    else:
+        #For all files in folder
+        #Find those that are correctly named
+        fn_regex = '^\d{4}-\d{2}-\d{2}_(sWGA|PCR|SeqLib)_(SW|PC|SL)[a-zA-Z]{2}\d{3}_.*'
+        matching_filepaths = { metadata_folder_path.joinpath(file) for file in os.listdir(metadata_folder) if re.match(fn_regex,file)}
+        print(f"Found {len(matching_filepaths)} file(s)")
+    
+        #Extract all instances and merge data
+        metadata = ExpMetadataMerge(matching_filepaths, output_folder) 
 
-    #Identify all experiment ids
-    fn_suffix = '_(expt|rxn)_metadata.csv'
-    fn_prefix = '^(SW|PC|SL)[a-zA-Z]{2}\d{3}_'
-    exp_ids = { re.sub(fn_suffix,"",file) for file in os.listdir(metadata_folder) if re.match(fn_prefix,file)}
-    print(f"Found {len(exp_ids)} experiment ids")
-    
-    #Extract all instances, merge and output
-    ExpMetadataMerge(metadata_folder, exp_ids)
-
-    # For an individual experiment can:
-    #  metadata = { expid: ExpMetadataParser(metadata_folder, expid) for expid in exp_ids }
-    
-    print("Done")
-    print("="*80)
