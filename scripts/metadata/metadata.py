@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime
 from itertools import chain
 from lib.exceptions import MetadataFormatError
+from lib.general import identify_exptid_from_fn
 
 class ExpMetadataParser:
     """
@@ -171,7 +172,7 @@ class ExpMetadataMerge:
     """
     def __init__(self, matching_filepaths, output_folder : Path):
         #Extract each file into a dictionary 
-        metadata_dict = { self._identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath) for filepath in matching_filepaths }
+        metadata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath) for filepath in matching_filepaths }
         print("="*80)
         
         #Concatenate all the data for the different experimental types
@@ -266,15 +267,3 @@ class ExpMetadataMerge:
         '''
         
         return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not item=="None"])
-
-    def _identify_exptid_from_fn(self, filepath):
-        """
-        Extract the experimental ID from a filename
-        """
-        id_regex = '(SW|PC|SL)[a-zA-Z]{2}\d{3}'
-        match = re.search(id_regex, filepath.name)
-        if match: 
-            expt_id = match.group(0)
-        else:
-            raise MetadataFormatError(f"Unable to determine the ExpID from the filename for {filepath.name}")
-        return expt_id
