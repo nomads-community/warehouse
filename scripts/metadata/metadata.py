@@ -12,7 +12,9 @@ class ExpMetadataParser:
 
     """
     
-    def __init__(self, metadata_file: Path, include_unclassified: bool = False):
+    def __init__(self, metadata_file: Path, 
+                 output_folder : Path = None,
+                 include_unclassified: bool = False):
         """
         Load and sanity check the metadata
 
@@ -57,6 +59,15 @@ class ExpMetadataParser:
 
         print(f"      Merging experimental and rxn data for {self.expt_id}...")
         self.df = pd.merge(self.expt_df, self.rxn_df, on='expt_id', how='inner')
+
+        if output_folder is not None:
+            print(f"      Outputting data to folder: {output_folder.name}")
+            output_dict = { "expt" : self.expt_df, "rxn" : self.rxn_df }
+            for output in output_dict:
+                filename = self.expt_id + "_" + output + "_metadata.csv"
+                path = output_folder / filename
+                output_dict[output].to_csv(path, index=False)
+                
         print("Done")
 
     def _extract_excel_data(self, filename, tabname):
@@ -172,7 +183,7 @@ class ExpMetadataMerge:
     """
     def __init__(self, matching_filepaths, output_folder : Path):
         #Extract each file into a dictionary 
-        metadata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath) for filepath in matching_filepaths }
+        metadata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in matching_filepaths }
         print("="*80)
         
         # Identify the expt_types present, create df for each and populate the df
@@ -238,22 +249,9 @@ class ExpMetadataMerge:
         print("Done")
         print("="*80)
 
-        #Optionally export the data
+        #Optionally export the aggregate data
         if output_folder:
-            print(f"Outputting data to folder: {output_folder.name}")
-            #Iterate through the dictionary outputting individual and aggregate
-            for key in metadata_dict:
-                print(f"   {key}")
-                #Experiment
-                expt_df = metadata_dict[key].expt_df
-                expt_fn = f"{key}_expt_metadata.csv"
-                expt_path = output_folder / expt_fn
-                expt_df.to_csv(expt_path, index=False)
-                #Reaction
-                rxn_df = metadata_dict[key].rxn_df
-                rxn_fn = f"{key}_rxn_metadata.csv"
-                rxn_path = output_folder / rxn_fn
-                rxn_df.to_csv(rxn_path, index=False)
+            print(f"Outputting aggregate data to folder: {output_folder.name}")
             
             #Aggregate
             agg_fn = "aggregate_metadata.csv"
@@ -262,8 +260,6 @@ class ExpMetadataMerge:
             
             print("Done")
             print("="*80)
-        
-
         
     def _check_entry_mismatch(self, df, columns):
         """
