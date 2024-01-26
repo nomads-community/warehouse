@@ -2,7 +2,7 @@ import click
 from pathlib import Path
 from metadata.metadata import ExpMetadataParser
 from nomadic.dirs import ExperimentDirectories
-from lib.general import identify_fn_from_exptid
+from lib.general import identify_nomads_files
 from lib.exceptions import MetadataFormatError
 
 @click.command(short_help="Create nomadic directory structure and copy metadata from a sequencing experiment")
@@ -35,13 +35,13 @@ def nomadic(metadata_folder : Path , expt_id : str, output_folder: Path):
     Create nomadic file structure including relevent metadata 
     """
     #Extract metadata
-    matching_filepath = identify_fn_from_exptid(metadata_folder, expt_id)
-    exp_metadata = ExpMetadataParser(Path(matching_filepath.match_path))
+    matching_filepath = identify_nomads_files(metadata_folder, expt_id)
+    exp_metadata = ExpMetadataParser(matching_filepath)
     print("="*80)
 
     #Make sure it is a seqlib expt
     if not exp_metadata.expt_type == "seqlib":
-        raise MetadataFormatError(f"{matching_filepath.match_path} is not a seqlib expt")
+        raise MetadataFormatError(f"{matching_filepath.name} is not a seqlib expt")
     
     #Give user feedback
     print(f"Experiment details for {exp_metadata.expt_id}")

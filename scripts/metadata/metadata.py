@@ -1,11 +1,11 @@
 import re
-from pathlib import Path, PurePath
+from pathlib import Path
 import pandas as pd
 from datetime import datetime
 from itertools import chain
 from lib.exceptions import MetadataFormatError
 
-class ExpMetadataParser(MetadataFormatError):
+class ExpMetadataParser:
     """
     Parse and validate the experimental and individual rxn metadata from an individual Excel spreadsheet.
 
@@ -16,7 +16,7 @@ class ExpMetadataParser(MetadataFormatError):
         Load and sanity check the metadata
 
         """
-        print(f"{PurePath(metadata_file).name}")
+        print(f"{metadata_file.name}")
         self.tabnames = ["expt_metadata", "rxn_metadata"]
 
         #Extract sheetnames
@@ -114,7 +114,7 @@ class ExpMetadataParser(MetadataFormatError):
 
         """
         for c in columns:
-            if not c in df:
+            if c not in df:
                 raise MetadataFormatError(f"Metadata must contain column called {c}!")
 
     def _check_entries_unique(self, columns, df):
@@ -165,7 +165,7 @@ class ExpMetadataParser(MetadataFormatError):
                 print(f"WARNING: Column {c} contains empty data for {self.expt_id}:\n{df_filtered}")
             
     
-class ExpMetadataMerge(ExpMetadataParser):
+class ExpMetadataMerge:
     """
     Extract metadata from multiple files, merge into a coherent dataframe, and optionally export the data
     """

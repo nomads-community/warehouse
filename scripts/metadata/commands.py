@@ -1,8 +1,6 @@
 import click
-import os
-import re
 from pathlib import Path
-from lib.general import identify_fn_from_exptid
+from lib.general import identify_nomads_files
 
 @click.command(short_help="Extract, validate and optionally export all metadata")
 @click.option(
@@ -41,10 +39,9 @@ def metadata(metadata_folder : Path, expt_id : str, output_folder : Path):
     
     #Extract all metadata
     if expt_id:
-        #For an individual expt
-        #Identify matching file
-        matching_filepath = identify_fn_from_exptid(metadata_folder, expt_id)
-        metadata = ExpMetadataParser(matching_filepath.match_path)
+        #For an individual expt identify the  matching file
+        matching_filepath = identify_nomads_files(metadata_folder, expt_id)
+        metadata = ExpMetadataParser(matching_filepath)
         #Export data
         if output_folder:
                 print(f"Outputting data to folder: {output_folder.name}")
@@ -61,12 +58,8 @@ def metadata(metadata_folder : Path, expt_id : str, output_folder : Path):
                 print("Done")
                 print("="*80)   
     else:
-        #For all files in folder
-        #Find those that are correctly named
-        fn_regex = '^\d{4}-\d{2}-\d{2}_(sWGA|PCR|SeqLib)_(SW|PC|SL)[a-zA-Z]{2}\d{3}_.*'
-        matching_filepaths = { metadata_folder.joinpath(file) for file in os.listdir(metadata_folder) if re.match(fn_regex,file)}
-        print(f"Found {len(matching_filepaths)} file(s)")
-    
+        #For all files in folder that match NOMADS template naming:
+        matching_filepaths = identify_nomads_files(metadata_folder)
         #Extract all instances and merge data
         metadata = ExpMetadataMerge(matching_filepaths, output_folder) 
 
