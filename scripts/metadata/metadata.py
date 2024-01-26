@@ -175,43 +175,60 @@ class ExpMetadataMerge:
         metadata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath) for filepath in matching_filepaths }
         print("="*80)
         
-        #Concatenate all the data for the different experimental types
-        #TO DO: Make it more flexible in case there are none of a certain type of expt
-        sWGA_df = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == "sWGA" )
-        PCR_df = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == "PCR" )
-        seqlib_df = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == "seqlib" )
-        # print(f"Total rxns identified by experiment type:")
-        # print(f"   sWGA:{sWGA_df.shape[0]}")
-        # print(f"   PCR:{PCR_df.shape[0]}")
-        # print(f"   seqlib:{seqlib_df.shape[0]}")
-        # print("="*80)
+        # Identify the expt_types present, create df for each and populate the df
+        expt_df = { metadata_dict[key].expt_type : pd.DataFrame for key in metadata_dict }
+        for expt_type in expt_df.keys():
+            #Concatenate data from the same expt_types into the dataframe dict
+            expt_df[expt_type] = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == expt_type )
 
-        print("Checking for mismatches in the data between experiments:")
-        # Right joins check if any of the right_df do NOT have a match in the left_df 
-        self._check_entry_mismatch(pd.merge(left=sWGA_df,right=PCR_df,how="right",on="swga_identifier")
-                                   ,['sample_id','extraction_id'])
-        self._check_entry_mismatch(pd.merge(left=PCR_df,right=seqlib_df,how="right",on="pcr_identifier")
-                                   ,['sample_id','extraction_id'])
-        # Inner joins check to see if there are any mismatches where there is a join between the left_df and right_df
-        self._check_entry_mismatch(pd.merge(left=sWGA_df,right=PCR_df,how="inner",on="swga_identifier")
-                                   ,['sample_id','extraction_id'])
-        self._check_entry_mismatch(pd.merge(left=PCR_df,right=seqlib_df,how="inner",on="swga_identifier")
-                                   ,['sample_id','extraction_id'])
-        print("Done")
-        print("="*80)
+        #Create joins dict according to experiment types present
+        joins = {}
+        if "sWGA" in expt_df and "PCR" in expt_df :
+            joins["sWGA and PCR"] = {"joining": ["sWGA", "PCR"],
+                                "left_df": expt_df["sWGA"], 
+                                "right_df" : expt_df["PCR"],
+                                "on" : "swga_identifier", 
+                                "cols" : [ 'sample_id', 'extraction_id'],
+                                "suffix" : "_PCR"
+                                } 
+        if "PCR" in expt_df and "seqlib" in expt_df :
+            joins["PCR and seqlib"] = {"joining": ["PCR", "seqlib"],
+                                "left_df":  expt_df["PCR"], 
+                                "right_df" :  expt_df["seqlib"], 
+                                "on" : "pcr_identifier", 
+                                "cols" : [ 'sample_id', 'extraction_id'],
+                                "suffix" : "_seqlib"
+                                }
+    
+        for count,join in enumerate(joins):
+            join_dict=joins[join]
 
-        print("Aggregating all experimental data")
-        allmetadata_df = pd.merge(left=sWGA_df,right=PCR_df,how="outer",on="swga_identifier", suffixes=('', '_pcr'))
-        allmetadata_df = pd.merge(left=allmetadata_df,right=seqlib_df,how="outer",on="pcr_identifier", suffixes=('', '_seqlib'))
-        cols_to_retain = ['sample_id', 'extraction_id', 'swga_identifier', 'expt_assay', 'pcr_identifier',
-                          'seqlib_identifier']
+            print(f"Checking for mismatches in the data between {join_dict['joining'][0]} and {join_dict['joining'][1]} data")
+            for howjoin in ["right","inner"]:
+                # Right joins checks right_df does NOT have a match in the left_df 
+                # Inner joins checks for mismatches where there is a join between the left_df and right_df
+                self._check_entry_mismatch(pd.merge(left=join_dict['left_df'],right=join_dict['right_df'],
+                                                how=howjoin, on=join_dict['on'])
+                                                ,join_dict['cols'])
+            print("   Merging into allmetadata")
+            
+            if count == 0:
+                allmetadata_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'], 
+                                          how="outer",on=join_dict['on'], suffixes=('', join_dict['suffix']))
+            else:
+                allmetadata_df = pd.merge(left=allmetadata_df,right=join_dict['right_df'],
+                                          how="outer",on=join_dict['on'], suffixes=('', join_dict['suffix']))
+            print("   Done")    
         #Fill in the nan values so the aggregation works
         allmetadata_df = allmetadata_df.fillna('None')
-        # Group and aggregate the df to give a list of all experiments performed on each sample 
-        self.agg_experiments_df = allmetadata_df[cols_to_retain].groupby(['sample_id', 'expt_assay']).agg(list).reset_index()
+        
+        print("="*80)
 
-        #Give some user feedback on number of reactions performed
-        print("   Total reactions:")
+        print("Summarising data")
+        # Group and aggregate the df to give a list of all experiments performed on each sample 
+        cols_to_retain = ['sample_id', 'extraction_id', 'swga_identifier', 'expt_assay', 'pcr_identifier',
+                          'seqlib_identifier']
+        self.agg_experiments_df = allmetadata_df[cols_to_retain].groupby(['sample_id', 'expt_assay']).agg(list).reset_index()
         identifier_cols = [col for col in self.agg_experiments_df.columns if 'identifier' in col]
 
         for col in identifier_cols:
@@ -267,3 +284,4 @@ class ExpMetadataMerge:
         '''
         
         return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not item=="None"])
+    
