@@ -224,7 +224,7 @@ class ExpMetadataMerge:
         
         print("="*80)
 
-        print("Summarising data")
+        print("Summarising rxn performed:")
         # Group and aggregate the df to give a list of all experiments performed on each sample 
         cols_to_retain = ['sample_id', 'extraction_id', 'swga_identifier', 'expt_assay', 'pcr_identifier',
                           'seqlib_identifier']
@@ -234,7 +234,7 @@ class ExpMetadataMerge:
         for col in identifier_cols:
             value = self._count_non_none_entries_in_dfcolumn(self.agg_experiments_df, col)
             name = col.replace("_identifier","")
-            print(f"      {name}: {value}")
+            print(f"   {name}: {value}")
         print("Done")
         print("="*80)
 
