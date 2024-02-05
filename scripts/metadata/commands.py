@@ -1,46 +1,65 @@
 import click
-import os
-import re
-import pandas as pd
+from pathlib import Path
+from lib.general import identify_nomads_files
 
-@click.command(short_help="Combine and check all metadata files and export aggregate to csv in metadata folder")
+@click.command(short_help="Extract, validate and optionally export all metadata")
 @click.option(
     "-m",
     "--metadata_folder",
-    type=str,
+    type=Path,
     required=True,
-    help="Path to folder containing metadata CSV files."
+    help="Path to folder containing Excel metadata files."
 )
 
 @click.option(
     "-o",
-    "--output",
-    is_flag=True,
-    show_default = True,
-    help="Output merged metadata to aggregate CSVs in metadata folder."
+    "--output_folder",
+    type=Path,
+    required=False,
+    help="Output individual and aggregated metadata files."
 )
 
-def metadata(metadata_folder, output):
+@click.option(
+    "-e",
+    "--expt_id",
+    type=str,
+    required=False,
+    default = "",
+    help="Experiment ID. For example SLMM005."
+    # callback=lambda ctx, param, value: validate_id(value) 
+)
+
+def metadata(metadata_folder : Path, expt_id : str, output_folder : Path):
     """
-    Combine and check all metadata files and export aggregate to csv in metadata folder
+    Extract, combine and validate all metadata
     """
-    from .metadata import ExpMetadataParser
+
     from .metadata import ExpMetadataMerge
+    from .metadata import ExpMetadataParser
     
-    print("Checking and extracting metadata...")
-    print("="*80)
+    #Extract all metadata
+    if expt_id:
+        #For an individual expt identify the  matching file
+        matching_filepath = identify_nomads_files(metadata_folder, expt_id)
+        metadata = ExpMetadataParser(matching_filepath, output_folder)
+        #Export data
+        # if output_folder:
+        #         print(f"Outputting data to folder: {output_folder.name}")
+        #         #Expt
+        #         expt_df = metadata.expt_df
+        #         expt_fn = f"{expt_id}_expt_metadata.csv"
+        #         expt_path = output_folder / expt_fn
+        #         expt_df.to_csv(expt_path, index=False)
+        #         #Reaction
+        #         rxn_df = metadata.rxn_df
+        #         rxn_fn = f"{expt_id}_rxn_metadata.csv"
+        #         rxn_path = output_folder / rxn_fn
+        #         rxn_df.to_csv(rxn_path, index=False)
+        #         print("Done")
+        #         print("="*80)   
+    else:
+        #For all files in folder that match NOMADS template naming:
+        matching_filepaths = identify_nomads_files(metadata_folder)
+        #Extract all instances and merge data
+        metadata = ExpMetadataMerge(matching_filepaths, output_folder) 
 
-    #Identify all experiment ids
-    fn_suffix = '_(expt|rxn)_metadata.csv'
-    fn_prefix = '^(SW|PC|SL)[a-zA-Z]{2}\d{3}_'
-    exp_ids = { re.sub(fn_suffix,"",file) for file in os.listdir(metadata_folder) if re.match(fn_prefix,file)}
-    print(f"Found {len(exp_ids)} experiment ids")
-    
-    #Extract all instances, merge and output
-    ExpMetadataMerge(metadata_folder, exp_ids)
-
-    # For an individual experiment can:
-    #  metadata = { expid: ExpMetadataParser(metadata_folder, expid) for expid in exp_ids }
-    
-    print("Done")
-    print("="*80)

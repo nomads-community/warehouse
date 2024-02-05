@@ -1,35 +1,36 @@
 import re
-from pathlib import Path, PurePath
+from pathlib import Path
 import pandas as pd
 from datetime import datetime
 from itertools import chain
+from lib.exceptions import MetadataFormatError
+from lib.general import identify_exptid_from_fn
 
-class MetadataFormatError(Exception):
-    """Error in format or contents of the metadata"""
-    pass
-
-class ExpMetadataParser(MetadataFormatError):
+class ExpMetadataParser:
     """
-    Parse the experimental and individual rxn metadata, and make sure that it is formatted
-    correctly. Requires two inputs:
-
-    metadata_folder - Folder containing standardised csv files exported from individual experimental templates
-    expt_id - The id of the experiment e.g. SLMM009
+    Parse and validate the experimental and individual rxn metadata from an individual Excel spreadsheet.
 
     """
     
-    def __init__(self, metadata_folder: str, expt_id: str = None, include_unclassified: bool = False):
+    def __init__(self, metadata_file: Path, 
+                 output_folder : Path = None,
+                 include_unclassified: bool = False):
         """
         Load and sanity check the metadata
 
         """
-        self.metadata_folder = Path(metadata_folder)
-        self.expt_id = expt_id
+        print(f"{metadata_file.name}")
+        self.tabnames = ["expt_metadata", "rxn_metadata"]
 
-        print(f"Searching for {expt_id} metadata files in {self.metadata_folder}..." )
+        #Extract sheetnames
+        sheets = pd.ExcelFile(metadata_file).sheet_names
+        #Check both sheets / tabs are present
+        if not (self.tabnames[0] in sheets and self.tabnames[1] in sheets):
+            raise MetadataFormatError(f"Missing tabs in {metadata_file}")
+
         #Load expt metadata
-        self.expt_csv = self._match_file(self.expt_id + "_expt_metadata.csv")
-        self.expt_df = pd.read_csv(self.expt_csv, keep_default_na=False).dropna(how='all')
+        self.expt_df = self._extract_excel_data(metadata_file, self.tabnames[0])
+        self.expt_id = self.expt_df["expt_id"].iloc[0]
         self.expt_date = self.expt_df["expt_date"].iloc[0]
         self._check_valid_date_format(self.expt_date)
         self.expt_summary = self.expt_df["expt_summary"].iloc[0]
@@ -43,8 +44,7 @@ class ExpMetadataParser(MetadataFormatError):
         print("      Experimental metadata file passed formatting checks.")
 
         #Load rxn metadata
-        self.rxn_csv = self._match_file(self.expt_id + "_rxn_metadata.csv")
-        self.rxn_df = pd.read_csv(self.rxn_csv, keep_default_na=False,).dropna(how='all')
+        self.rxn_df = self._extract_excel_data(metadata_file, self.tabnames[1])
         #Check validity of rxn metadata
         self._check_for_columns(self.rxn_req_cols, self.rxn_df)
         self.rxn_rows = self._check_number_rows(self.num_rxn, self.rxn_df)
@@ -57,28 +57,30 @@ class ExpMetadataParser(MetadataFormatError):
             self._check_barcodes_valid()
         print("      Rxn metadata file passed formatting checks.")
 
-        print(f"   Merging experimental and rxn data for {expt_id}...")
+        print(f"      Merging experimental and rxn data for {self.expt_id}...")
         self.df = pd.merge(self.expt_df, self.rxn_df, on='expt_id', how='inner')
-        print("      Done")
-    
-    def _match_file(self, searchstring):
 
-        """
-        Identify if there is a matching file for the given expt_id
-        """
+        if output_folder is not None:
+            print(f"      Outputting data to folder: {output_folder.name}")
+            output_dict = { "expt" : self.expt_df, "rxn" : self.rxn_df }
+            for output in output_dict:
+                filename = self.expt_id + "_" + output + "_metadata.csv"
+                path = output_folder / filename
+                output_dict[output].to_csv(path, index=False)
+                
+        print("Done")
 
-        searchstring = re.compile(searchstring)
-        matching_files = [ path for path in self.metadata_folder.iterdir()
-                          if searchstring.match(path.name) ]
-        
-        count = len(matching_files)            
-        if count != 1:
-            raise MetadataFormatError(f"Expected to find 1 file, but {count} were found")
-        else:
-            match_path = matching_files[0]
-            print(f"   Found: {PurePath(match_path).name}")
+    def _extract_excel_data(self, filename, tabname):
 
-        return match_path
+            """
+            Extract data from valid Excel sheets and return a dataframe.
+            """
+
+            #Extract data and drop empty rows
+            data =  pd.read_excel(filename, sheet_name=tabname)
+            data.dropna(how='all', inplace=True)
+
+            return data
 
     def _define_expt_variables(self):
         """
@@ -124,7 +126,7 @@ class ExpMetadataParser(MetadataFormatError):
 
         """
         for c in columns:
-            if not c in df:
+            if c not in df:
                 raise MetadataFormatError(f"Metadata must contain column called {c}!")
 
     def _check_entries_unique(self, columns, df):
@@ -174,51 +176,90 @@ class ExpMetadataParser(MetadataFormatError):
             if df_filtered.shape[0] >0 :
                 print(f"WARNING: Column {c} contains empty data for {self.expt_id}:\n{df_filtered}")
             
-class ExpMetadataMerge(ExpMetadataParser):
-    def __init__(self, metadata_folder, exp_ids):
-        metadata_dict = { expid: ExpMetadataParser(metadata_folder, expid) for expid in exp_ids }
+    
+class ExpMetadataMerge:
+    """
+    Extract metadata from multiple files, merge into a coherent dataframe, and optionally export the data
+    """
+    def __init__(self, matching_filepaths, output_folder : Path):
+        #Extract each file into a dictionary 
+        metadata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in matching_filepaths }
+        print("="*80)
+        
+        # Identify the expt_types present, create df for each and populate the df
+        expt_df = { metadata_dict[key].expt_type : pd.DataFrame for key in metadata_dict }
+        for expt_type in expt_df.keys():
+            #Concatenate data from the same expt_types into the dataframe dict
+            expt_df[expt_type] = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == expt_type )
+
+        #Create joins dict according to experiment types present
+        joins = {}
+        if "sWGA" in expt_df and "PCR" in expt_df :
+            joins["sWGA and PCR"] = {"joining": ["sWGA", "PCR"],
+                                "left_df": expt_df["sWGA"], 
+                                "right_df" : expt_df["PCR"],
+                                "on" : "swga_identifier", 
+                                "cols" : [ 'sample_id', 'extraction_id'],
+                                "suffix" : "_PCR"
+                                } 
+        if "PCR" in expt_df and "seqlib" in expt_df :
+            joins["PCR and seqlib"] = {"joining": ["PCR", "seqlib"],
+                                "left_df":  expt_df["PCR"], 
+                                "right_df" :  expt_df["seqlib"], 
+                                "on" : "pcr_identifier", 
+                                "cols" : [ 'sample_id', 'extraction_id'],
+                                "suffix" : "_seqlib"
+                                }
+    
+        for count,join in enumerate(joins):
+            join_dict=joins[join]
+
+            print(f"Checking for mismatches in the data between {join_dict['joining'][0]} and {join_dict['joining'][1]} data")
+            for howjoin in ["right","inner"]:
+                # Right joins checks right_df does NOT have a match in the left_df 
+                # Inner joins checks for mismatches where there is a join between the left_df and right_df
+                self._check_entry_mismatch(pd.merge(left=join_dict['left_df'],right=join_dict['right_df'],
+                                                how=howjoin, on=join_dict['on'])
+                                                ,join_dict['cols'])
+            print("   Merging into allmetadata")
+            
+            if count == 0:
+                allmetadata_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'], 
+                                          how="outer",on=join_dict['on'], suffixes=('', join_dict['suffix']))
+            else:
+                allmetadata_df = pd.merge(left=allmetadata_df,right=join_dict['right_df'],
+                                          how="outer",on=join_dict['on'], suffixes=('', join_dict['suffix']))
+            print("   Done")    
+        #Fill in the nan values so the aggregation works
+        allmetadata_df = allmetadata_df.fillna('None')
         
         print("="*80)
-        #Concatenate all the data for the different experimental types
-        sWGA_df = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == "sWGA" )
-        PCR_df = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == "PCR" )
-        seqlib_df = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == "seqlib" )
 
-        print("Checking for mismatches in the data between experiments:")
-        # Right joins check if any of the right_df do NOT have a match in the left_df 
-        self._check_entry_mismatch(pd.merge(left=sWGA_df,right=PCR_df,how="right",on="swga_identifier")
-                                   ,['sample_id','extraction_id'])
-        self._check_entry_mismatch(pd.merge(left=PCR_df,right=seqlib_df,how="right",on="pcr_identifier")
-                                   ,['sample_id','extraction_id'])
-        # Inner joins check to see if there are any mismatches where there is a join between the left_df and right_df
-        self._check_entry_mismatch(pd.merge(left=sWGA_df,right=PCR_df,how="inner",on="swga_identifier")
-                                   ,['sample_id','extraction_id'])
-        self._check_entry_mismatch(pd.merge(left=PCR_df,right=seqlib_df,how="inner",on="swga_identifier")
-                                   ,['sample_id','extraction_id'])
+        print("Summarising rxn performed:")
+        # Group and aggregate the df to give a list of all experiments performed on each sample 
+        cols_to_retain = ['sample_id', 'extraction_id', 'swga_identifier', 'expt_assay', 'pcr_identifier',
+                          'seqlib_identifier']
+        self.agg_experiments_df = allmetadata_df[cols_to_retain].groupby(['sample_id', 'expt_assay']).agg(list).reset_index()
+        identifier_cols = [col for col in self.agg_experiments_df.columns if 'identifier' in col]
+
+        for col in identifier_cols:
+            value = self._count_non_none_entries_in_dfcolumn(self.agg_experiments_df, col)
+            name = col.replace("_identifier","")
+            print(f"   {name}: {value}")
         print("Done")
         print("="*80)
 
-        print("Aggregating all experimental data")
-        allmetadata_df = pd.merge(left=sWGA_df,right=PCR_df,how="outer",on="swga_identifier", suffixes=('', '_pcr'))
-        allmetadata_df = pd.merge(left=allmetadata_df,right=seqlib_df,how="outer",on="pcr_identifier", suffixes=('', '_seqlib'))
-
-        cols_to_retain = ['sample_id', 'extraction_id', 'swga_identifier', 'expt_assay', 'pcr_identifier',
-                          'seqlib_identifier']
-        
-        # Group and aggregate the df to give a list of all experiments performed on each sample 
-        agg_experiments_df = allmetadata_df[cols_to_retain].groupby(['sample_id', 'expt_assay']).agg(list).reset_index()
-        identifier_cols = [col for col in agg_experiments_df.columns if 'identifier' in col]
-
-        #Give some user feedback on number of reactions performed
-        for col in identifier_cols:
-            value = self._count_non_nan_entries_in_dfcolumn(agg_experiments_df, col)
-            name = col.replace("_identifier","")
-            print(f"      {name}: {value}")
-
-        # Output file for user
-        output_path = Path.joinpath(Path(metadata_folder), "summary_rxn_data.csv")
-        print(f"Outputting aggregated data to {output_path}")
-        agg_experiments_df.to_csv(output_path, index=False)
+        #Optionally export the aggregate data
+        if output_folder:
+            print(f"Outputting aggregate data to folder: {output_folder.name}")
+            
+            #Aggregate
+            agg_fn = "aggregate_metadata.csv"
+            agg_path = output_folder / agg_fn
+            self.agg_experiments_df.to_csv(agg_path, index=False)  
+            
+            print("Done")
+            print("="*80)
         
     def _check_entry_mismatch(self, df, columns):
         """
@@ -233,12 +274,10 @@ class ExpMetadataMerge(ExpMetadataParser):
                 print(f"WARNING: Mismatches identified for {c}")
                 print(mismatches_df[cols_to_retain])
 
-    def _count_non_nan_entries_in_dfcolumn (self, df, column):
+    def _count_non_none_entries_in_dfcolumn (self, df, column):
         '''
-        Function counts the number of non nan entries in a column of a dataframe
+        Function counts the number of non none entries in a column of a dataframe
         '''
         
-        return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not pd.isna(item)])
-
-
+        return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not item=="None"])
     
