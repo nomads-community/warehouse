@@ -1,0 +1,10 @@
+name: warehouse
+channels:
+ - default
+ - conda-forge
+
+dependencies:
+ - python >=3.10
+ - click
+ - pandas
+ - openpyxl
