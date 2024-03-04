@@ -44,9 +44,8 @@ class ExperimentDirectories:
             ROOT_DIR = root_folder.absolute()
         else:
             ROOT_DIR = Path(__file__).absolute().parent.parent.parent
-        self.experiments_dir = produce_dir(ROOT_DIR, "experiments")
         # Experiment directory
-        
+        self.experiments_dir = ROOT_DIR
         self.expt_name = expt_name
         self.expt_dir = produce_dir(self.experiments_dir, expt_name)
 

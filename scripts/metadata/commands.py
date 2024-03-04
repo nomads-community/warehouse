@@ -26,7 +26,6 @@ from lib.general import identify_nomads_files
     required=False,
     default = "",
     help="Experiment ID. For example SLMM005."
-    # callback=lambda ctx, param, value: validate_id(value) 
 )
 
 def metadata(metadata_folder : Path, expt_id : str, output_folder : Path):
@@ -42,21 +41,7 @@ def metadata(metadata_folder : Path, expt_id : str, output_folder : Path):
         #For an individual expt identify the  matching file
         matching_filepath = identify_nomads_files(metadata_folder, expt_id)
         metadata = ExpMetadataParser(matching_filepath, output_folder)
-        #Export data
-        # if output_folder:
-        #         print(f"Outputting data to folder: {output_folder.name}")
-        #         #Expt
-        #         expt_df = metadata.expt_df
-        #         expt_fn = f"{expt_id}_expt_metadata.csv"
-        #         expt_path = output_folder / expt_fn
-        #         expt_df.to_csv(expt_path, index=False)
-        #         #Reaction
-        #         rxn_df = metadata.rxn_df
-        #         rxn_fn = f"{expt_id}_rxn_metadata.csv"
-        #         rxn_path = output_folder / rxn_fn
-        #         rxn_df.to_csv(rxn_path, index=False)
-        #         print("Done")
-        #         print("="*80)   
+
     else:
         #For all files in folder that match NOMADS template naming:
         matching_filepaths = identify_nomads_files(metadata_folder)

@@ -41,7 +41,7 @@ class ExpMetadataParser:
         self._define_expt_variables()
         self._check_for_columns(self.expt_req_cols, self.expt_df)
         self.expt_rows = self._check_number_rows(1, self.expt_df)
-        print("      Experimental metadata file passed formatting checks.")
+        print("      Experimental metadata passed formatting checks.")
 
         #Load rxn metadata
         self.rxn_df = self._extract_excel_data(metadata_file, self.tabnames[1])
@@ -55,7 +55,7 @@ class ExpMetadataParser:
             if include_unclassified:
                 self.barcodes.append("unclassified")
             self._check_barcodes_valid()
-        print("      Rxn metadata file passed formatting checks.")
+        print("      Rxn metadata passed formatting checks.")
 
         print(f"      Merging experimental and rxn data for {self.expt_id}...")
         self.df = pd.merge(self.expt_df, self.rxn_df, on='expt_id', how='inner')
