@@ -217,6 +217,7 @@ class ExpMetadataMerge:
             #Load the current join from the dict
             join_dict=joins[join]
             print(f"   {join_dict['joining'][0]} and {join_dict['joining'][1]}")
+            print("   ------------------")
 
             #Join the two df together
             data_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'],how='outer', on=join_dict['on'], 
@@ -232,7 +233,8 @@ class ExpMetadataMerge:
             missing_records_df = data_df[data_df['_merge'] == 'right_only']
             if len(missing_records_df) > 0 :
                 print(f"   WARNING: {join_dict['joining'][0]} data missing (present in {join_dict['joining'][1]} dataframe)")
-                print(missing_records_df[show_cols])
+                print(missing_records_df[show_cols].to_string(index=False))
+                print("")
 
             #Create df with matched records
             matched_df = data_df[data_df['_merge'] == 'both' ]
@@ -247,6 +249,7 @@ class ExpMetadataMerge:
                 if mismatches_df.shape[0] > 0:
                     print(f"   WARNING: Mismatches identified for {c}")
                     print(f"   {mismatches_df[show_cols].to_string(index=False)}")
+                    print("")
 
             #Recreat and merge the dataframes together            
             if count == 0:
