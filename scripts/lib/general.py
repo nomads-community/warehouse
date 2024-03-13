@@ -46,23 +46,27 @@ def identify_nomads_files(metadata_folder: Path, expt_id: str = None):
     else:
         search_pattern = re.compile(id_regex)
         targets = None
-    
+
     try:
         #Create a list of all subfolders and parent
-        folders = [ metadata_folder] + list_folders_in_dir(metadata_folder)  
-        print("HERE")
+        folders = [ metadata_folder] + _list_folders_in_dir(metadata_folder)  
         matches = []
         for folder in folders :
             #List all  entries matching the searchpattern and add to list
-            new_matches = [f for f in metadata_folder.iterdir() if search_pattern.search(f.name)]
+            new_matches = [f for f in folder.iterdir() if search_pattern.search(f.name)]
             matches.extend(new_matches)
 
         #List all open Excel files
         openfiles = [f for f in matches if openfile_pattern.findall(f.name)]
 
         #Ensure there are not any open files
-        if len(openfiles) > 0:
+        if openfiles:
             raise ValueError(f"{len(openfiles)} open Excel files identified. Please close and run again:")
+        
+        #Ensure there are no duplicate filenames
+        dupes = _check_duplicate_names(matches)
+        if dupes :
+            raise ValueError(f"Identical files identified: {dupes}. Please resolve and run again:")
 
         #Feedback to user what has been found
         if targets != 1:
@@ -90,7 +94,7 @@ def identify_nomads_files(metadata_folder: Path, expt_id: str = None):
         print(str(error_msg))
         raise
 
-def list_folders_in_dir(directory: Path) :
+def _list_folders_in_dir(directory: Path) :
     """
     Lists all folders within a given directory using pathlib.
   
@@ -105,3 +109,22 @@ def list_folders_in_dir(directory: Path) :
         if entry.is_dir():
             folders.append(entry)
     return folders
+
+def _check_duplicate_names(entries):
+  """Checks for duplicate names in a list of pathlib entries.
+
+  Args:
+      entries: A list of pathlib.Path objects.
+
+  Returns:
+      A list of filenames that appear more than once.
+  """
+  seen_names = set()
+  duplicates = []
+  for entry in entries:
+    filename = entry.name
+    if filename in seen_names:
+        duplicates.append(filename)
+    else:
+        seen_names.add(filename)
+  return duplicates

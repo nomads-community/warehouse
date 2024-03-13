@@ -185,6 +185,12 @@ class ExpMetadataMerge:
         #Extract each file into a dictionary 
         metadata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in matching_filepaths }
         print("="*80)
+
+        #Check that there aren't duplicate experiment IDs 
+        
+        dupes = self._check_duplicate_entries(metadata_dict, "expt_id")
+        if dupes :
+            raise ValueError(f"{len(dupes)} duplicate expt_id identfied: {dupes}")
         
         # Identify the expt_types present, create df for each and populate the df
         expt_df = { metadata_dict[key].expt_type : pd.DataFrame for key in metadata_dict }
@@ -307,4 +313,33 @@ class ExpMetadataMerge:
         if mismatches_df.shape[0] > 0:
             print(f"WARNING: Mismatches identified for {c}")
             print(mismatches_df[cols_to_retain])
+    
+    def _check_duplicate_entries(self, dictionary : dict, attribute : str) -> list :
+        """Checks for duplicate entries for a defined key in a dictionary.
+
+        Args:
+            dictionary: A populated dictionary.
+            key_dict: Key to look for duplicates in
+
+        Returns:
+            A list of values that have duplicate entries.
+        """
+
+        value_counts = {}  # Dictionary to store counts of each expt_id
+        duplicates = []
+
+        #For each entry, try to get the key and add to counts
+        for key, object in dictionary.items():
+            try:
+                value = getattr(object, attribute)
+                if value:
+                    if value in value_counts:
+                        value_counts[value] += 1
+                        duplicates.append(value)  # Add to duplicates if already encountered
+                    else:
+                        value_counts[value] = 1
+            except KeyError:
+            # Handle the case where the key might not exist in all entries
+                pass
+        return duplicates
     
