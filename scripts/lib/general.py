@@ -38,7 +38,7 @@ def identify_nomads_files(metadata_folder: Path, expt_id: str = None):
         Path: The path to the matching file(s), or None if not found.
     """
 
-    openfile_pattern = re.compile(r"^[/.|~]") 
+    openfile_pattern = re.compile(r"^[/.|~]")
 
     if expt_id is not None:
         search_pattern = re.compile(f".*{expt_id}_.*.xlsx")
@@ -48,13 +48,19 @@ def identify_nomads_files(metadata_folder: Path, expt_id: str = None):
         targets = None
     
     try:
-        #List all  entries matching the searchpattern
-        matches = [f for f in metadata_folder.iterdir() if search_pattern.search(f.name)]
-        
+        #Create a list of all subfolders and parent
+        folders = [ metadata_folder] + list_folders_in_dir(metadata_folder)  
+        print("HERE")
+        matches = []
+        for folder in folders :
+            #List all  entries matching the searchpattern and add to list
+            new_matches = [f for f in metadata_folder.iterdir() if search_pattern.search(f.name)]
+            matches.extend(new_matches)
+
         #List all open Excel files
         openfiles = [f for f in matches if openfile_pattern.findall(f.name)]
 
-        #Ensure there are non open files
+        #Ensure there are not any open files
         if len(openfiles) > 0:
             raise ValueError(f"{len(openfiles)} open Excel files identified. Please close and run again:")
 
@@ -74,7 +80,7 @@ def identify_nomads_files(metadata_folder: Path, expt_id: str = None):
         return match
 
     except FileNotFoundError:
-        print(f"Error: Folder '{folder}' not found.")
+        print(f"Error: Folder '{metadata_folder.name}' not found.")
 
     except StopIteration:
         print("No matching file found")
@@ -83,3 +89,19 @@ def identify_nomads_files(metadata_folder: Path, expt_id: str = None):
     except ValueError as error_msg:
         print(str(error_msg))
         raise
+
+def list_folders_in_dir(directory: Path) :
+    """
+    Lists all folders within a given directory using pathlib.
+  
+    Args:
+    directory (Path): path to the directory.
+    
+    Returns:
+    folders (list): pathlib paths to matching folders.
+    """
+    folders = []
+    for entry in Path(directory).iterdir():
+        if entry.is_dir():
+            folders.append(entry)
+    return folders
