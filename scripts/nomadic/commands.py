@@ -11,7 +11,7 @@ from lib.exceptions import MetadataFormatError
     "--metadata_folder",
     type=Path,
     required=True,
-    help="Path to folder containing Excel files."
+    help="Path to folder containing Sequencing Library Excel files."
 )
 
 @click.option(

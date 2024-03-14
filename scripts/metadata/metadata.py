@@ -41,7 +41,7 @@ class ExpMetadataParser:
         self._define_expt_variables()
         self._check_for_columns(self.expt_req_cols, self.expt_df)
         self.expt_rows = self._check_number_rows(1, self.expt_df)
-        print("      Experimental metadata file passed formatting checks.")
+        print("      Experimental metadata passed formatting checks.")
 
         #Load rxn metadata
         self.rxn_df = self._extract_excel_data(metadata_file, self.tabnames[1])
@@ -55,7 +55,7 @@ class ExpMetadataParser:
             if include_unclassified:
                 self.barcodes.append("unclassified")
             self._check_barcodes_valid()
-        print("      Rxn metadata file passed formatting checks.")
+        print("      Rxn metadata passed formatting checks.")
 
         print(f"      Merging experimental and rxn data for {self.expt_id}...")
         self.df = pd.merge(self.expt_df, self.rxn_df, on='expt_id', how='inner')
@@ -185,6 +185,12 @@ class ExpMetadataMerge:
         #Extract each file into a dictionary 
         metadata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in matching_filepaths }
         print("="*80)
+
+        #Check that there aren't duplicate experiment IDs 
+        
+        dupes = self._check_duplicate_entries(metadata_dict, "expt_id")
+        if dupes :
+            raise ValueError(f"{len(dupes)} duplicate expt_id identfied: {dupes}")
         
         # Identify the expt_types present, create df for each and populate the df
         expt_df = { metadata_dict[key].expt_type : pd.DataFrame for key in metadata_dict }
@@ -200,7 +206,7 @@ class ExpMetadataMerge:
                                 "right_df" : expt_df["PCR"],
                                 "on" : "swga_identifier", 
                                 "cols" : [ 'sample_id', 'extraction_id'],
-                                "suffix" : "_PCR"
+                                "suffixes" : ["", "_PCR"]
                                 } 
         if "PCR" in expt_df and "seqlib" in expt_df :
             joins["PCR and seqlib"] = {"joining": ["PCR", "seqlib"],
@@ -208,31 +214,62 @@ class ExpMetadataMerge:
                                 "right_df" :  expt_df["seqlib"], 
                                 "on" : "pcr_identifier", 
                                 "cols" : [ 'sample_id', 'extraction_id'],
-                                "suffix" : "_seqlib"
+                                "suffixes" : ["", "_seqlib"]
                                 }
-    
+        
+        print(f"Checking for data validity and merging dataframes for:")
+        #Cycle through all of the joins required based on the data present
         for count,join in enumerate(joins):
+            #Load the current join from the dict
             join_dict=joins[join]
+            print(f"   {join_dict['joining'][0]} and {join_dict['joining'][1]}")
+            print("   ------------------")
 
-            print(f"Checking for mismatches in the data between {join_dict['joining'][0]} and {join_dict['joining'][1]} data")
-            for howjoin in ["right","inner"]:
-                # Right joins checks right_df does NOT have a match in the left_df 
-                # Inner joins checks for mismatches where there is a join between the left_df and right_df
-                self._check_entry_mismatch(pd.merge(left=join_dict['left_df'],right=join_dict['right_df'],
-                                                how=howjoin, on=join_dict['on'])
-                                                ,join_dict['cols'])
-            print("   Merging into allmetadata")
+            #Join the two df together
+            data_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'],how='outer', on=join_dict['on'], 
+                               suffixes=join_dict['suffixes'], indicator=True)
+            #Above join appends suffix to column names so create correct list of names
+            key_cols = [item + suffix for item in join_dict['cols'] for suffix in join_dict['suffixes'] ]
+            expt_id_cols = [ "expt_id" + suffix for suffix in join_dict['suffixes'] ]
+            #Combine for user feedback
+            show_cols = expt_id_cols + key_cols
             
+            #Create df with unmatched records from the right
+            # NOT left as this would highlight all that have not been completed / advanced i.e. sWGA performed, but not PCR
+            missing_records_df = data_df[data_df['_merge'] == 'right_only']
+            if len(missing_records_df) > 0 :
+                print(f"   WARNING: {join_dict['joining'][0]} data missing (present in {join_dict['joining'][1]} dataframe)")
+                print(missing_records_df[show_cols].to_string(index=False))
+                print("")
+
+            #Create df with matched records
+            matched_df = data_df[data_df['_merge'] == 'both' ]
+            #Identify any mismatched records for the key columns
+            for c in join_dict['cols']:
+                #Pull out the two dataseries to compare
+                col1 = matched_df[f"{c}{join_dict['suffixes'][0]}"]
+                col2 = matched_df[f"{c}{join_dict['suffixes'][1]}"]
+                #Identify all that don't match
+                mismatches_df = matched_df.loc[(col1 != col2) ] 
+                #Feedbacl to user
+                if mismatches_df.shape[0] > 0:
+                    print(f"   WARNING: Mismatches identified for {c}")
+                    print(f"   {mismatches_df[show_cols].to_string(index=False)}")
+                    print("")
+
+            #Recreat and merge the dataframes together            
             if count == 0:
                 allmetadata_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'], 
-                                          how="outer",on=join_dict['on'], suffixes=('', join_dict['suffix']))
+                                          how="outer",on=join_dict['on'], suffixes=(join_dict['suffixes']))
             else:
                 allmetadata_df = pd.merge(left=allmetadata_df,right=join_dict['right_df'],
-                                          how="outer",on=join_dict['on'], suffixes=('', join_dict['suffix']))
-            print("   Done")    
+                                          how="outer",on=join_dict['on'], suffixes=(join_dict['suffixes']))
+            print("   Done")
+            print("")
+
         #Fill in the nan values so the aggregation works
         allmetadata_df = allmetadata_df.fillna('None')
-        
+        print("Done")
         print("="*80)
 
         print("Summarising rxn performed:")
@@ -260,24 +297,37 @@ class ExpMetadataMerge:
             
             print("Done")
             print("="*80)
-        
-    def _check_entry_mismatch(self, df, columns):
-        """
-        Check that data is in agreement for supplied columns 
-        """
-        
-        for c in columns:
-            #Identify mismatches and show the errors
-            mismatches_df = df.loc[(df[f"{c}_x"] != df[f"{c}_y"]) ]
-            cols_to_retain = ['expt_id_x','expt_id_y', f"{c}_x", f"{c}_y"]
-            if mismatches_df.shape[0] > 0:
-                print(f"WARNING: Mismatches identified for {c}")
-                print(mismatches_df[cols_to_retain])
+
 
     def _count_non_none_entries_in_dfcolumn (self, df, column):
         '''
         Function counts the number of non none entries in a column of a dataframe
         '''
         
-        return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not item=="None"])
+        return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not item=="None"]) 
+    
+    def _check_duplicate_entries(self, dt : dict, attribute : str) -> list :
+        """Checks for duplicate entries for a defined key in a dictionary.
+
+        Args:
+            dt: A populated dictionary.
+            attribute: attribute of the object in dt to look for duplicates in
+
+        Returns:
+            A list of values that have duplicate entries
+        """
+        
+        # Dictionary to store counts of attribute
+        value_counts = {}  
+
+        #For each entry, try to get the key and add to counts
+        for _, object in dt.items():
+            value = getattr(object, attribute)
+            if value:
+                if value in value_counts:
+                    value_counts[value] += 1
+                else:
+                    value_counts[value] = 1
+
+        return [k for k,v in value_counts.items() if v > 1]
     
