@@ -304,15 +304,7 @@ class ExpMetadataMerge:
         Function counts the number of non none entries in a column of a dataframe
         '''
         
-        return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not item=="None"])
-    
-    def _report_entry_mismatches(self, df, columns):
-        """
-        Summarisesd and reports all of the files and entries with mismatching data 
-        """
-        if mismatches_df.shape[0] > 0:
-            print(f"WARNING: Mismatches identified for {c}")
-            print(mismatches_df[cols_to_retain])
+        return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not item=="None"]) 
     
     def _check_duplicate_entries(self, dictionary : dict, attribute : str) -> list :
         """Checks for duplicate entries for a defined key in a dictionary.
