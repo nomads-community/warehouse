@@ -306,32 +306,28 @@ class ExpMetadataMerge:
         
         return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not item=="None"]) 
     
-    def _check_duplicate_entries(self, dictionary : dict, attribute : str) -> list :
+    def _check_duplicate_entries(self, dt : dict, attribute : str) -> list :
         """Checks for duplicate entries for a defined key in a dictionary.
 
         Args:
-            dictionary: A populated dictionary.
-            key_dict: Key to look for duplicates in
+            dt: A populated dictionary.
+            attribute: attribute of the object in dt to look for duplicates in
 
         Returns:
-            A list of values that have duplicate entries.
+            A list of values that have duplicate entries
         """
-
-        value_counts = {}  # Dictionary to store counts of each expt_id
-        duplicates = []
+        
+        # Dictionary to store counts of attribute
+        value_counts = {}  
 
         #For each entry, try to get the key and add to counts
-        for key, object in dictionary.items():
-            try:
-                value = getattr(object, attribute)
-                if value:
-                    if value in value_counts:
-                        value_counts[value] += 1
-                        duplicates.append(value)  # Add to duplicates if already encountered
-                    else:
-                        value_counts[value] = 1
-            except KeyError:
-            # Handle the case where the key might not exist in all entries
-                pass
-        return duplicates
+        for _, object in dt.items():
+            value = getattr(object, attribute)
+            if value:
+                if value in value_counts:
+                    value_counts[value] += 1
+                else:
+                    value_counts[value] = 1
+
+        return [k for k,v in value_counts.items() if v > 1]
     
