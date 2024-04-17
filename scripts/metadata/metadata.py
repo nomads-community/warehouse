@@ -174,7 +174,7 @@ class ExpMetadataParser:
         for c in columns:
             df_filtered = df[df[c].isnull()]
             if df_filtered.shape[0] >0 :
-                print(f"WARNING: Column {c} contains empty data for {self.expt_id}:\n{df_filtered}")
+                raise MetadataFormatError(f"Column {c} contains empty data for {self.expt_id}:\n{df_filtered}")
             
     
 class ExpMetadataMerge:
