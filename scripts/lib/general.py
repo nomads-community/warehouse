@@ -39,13 +39,13 @@ def identify_nomads_files(metadata_folder: Path, expt_id: str = None):
     """
 
     openfile_pattern = re.compile(r"^[/.|~]")
-
+    num_targets = None
+    
     if expt_id is not None:
         search_pattern = re.compile(f".*{expt_id}_.*.xlsx")
-        targets = 1
+        num_targets = 1
     else:
         search_pattern = re.compile(id_regex)
-        targets = None
 
     try:
         #Create a list of all subfolders and parent
@@ -67,21 +67,24 @@ def identify_nomads_files(metadata_folder: Path, expt_id: str = None):
         dupes = _check_duplicate_names(matches)
         if dupes :
             raise ValueError(f"Identical files identified: {dupes}. Please resolve and run again:")
-
-        #Feedback to user what has been found
-        if targets != 1:
-            print(f"Found {len(matches)} matching files")
-            return matches 
         
-        if len(matches) > 1:
-            raise ValueError(f"Multiple matches found: {matches}")
-        
+        #Esnure there is at least one match
         if len(matches) == 0:
             raise ValueError(f"No matching files found.")
         
-        match = matches[0]
-        print(f"Found: {match.name}")
-        return match
+        #Feedback to user what has been found
+        #For multiple targets:
+        if num_targets == None:
+            print(f"Found {len(matches)} matching files")
+            return matches 
+        
+        #For defined num of targets 
+        if len(matches) == num_targets:
+            match = matches[0]
+            print(f"Found: {match.name}")
+            return match 
+
+        raise ValueError(f"Multiple matches found: {matches}")
 
     except FileNotFoundError:
         print(f"Error: Folder '{metadata_folder.name}' not found.")

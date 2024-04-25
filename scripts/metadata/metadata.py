@@ -93,13 +93,13 @@ class ExpMetadataParser:
             self.expt_req_cols = ["expt_id", "expt_date"]
             self.rxn_req_cols = ["barcode", "seqlib_identifier", "sample_id","extraction_id"]
             self.rxn_unique_cols = ["barcode", "seqlib_identifier"]
-            self.rxn_notblank_cols = ["sample_id","extraction_id","swga_identifier", "pcr_identifier","seqlib_identifier"]
+            self.rxn_notblank_cols = ["sample_id","extraction_id", "pcr_identifier","seqlib_identifier"]
             self.barcode_pattern = "barcode[0-9]{2}"
         elif self.expt_type == "PCR":
             self.expt_req_cols = ["expt_id", "expt_date"]
             self.rxn_req_cols = ["pcr_identifier", "sample_id","extraction_id"]
             self.rxn_unique_cols = ["pcr_identifier"]
-            self.rxn_notblank_cols = ["sample_id","extraction_id","swga_identifier", "pcr_identifier"]
+            self.rxn_notblank_cols = ["sample_id","extraction_id", "pcr_identifier"]
             self.barcode_pattern = ""
         elif self.expt_type == "sWGA":
             self.expt_req_cols = ["expt_id", "expt_date"]
@@ -237,6 +237,12 @@ class ExpMetadataMerge:
             #Create df with unmatched records from the right
             # NOT left as this would highlight all that have not been completed / advanced i.e. sWGA performed, but not PCR
             missing_records_df = data_df[data_df['_merge'] == 'right_only']
+
+            # Ensure that only empty sWGA entries are mismatched?
+            if join == "sWGA and PCR":
+                missing_records_df = missing_records_df[missing_records_df['swga_identifier'].str.lower() != 'no swga']
+
+            # Give user feedback
             if len(missing_records_df) > 0 :
                 print(f"   WARNING: {join_dict['joining'][0]} data missing (present in {join_dict['joining'][1]} dataframe)")
                 print(missing_records_df[show_cols].to_string(index=False))

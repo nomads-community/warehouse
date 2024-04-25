@@ -6,3 +6,4 @@ class MetadataFormatError(Exception):
 
 class DateFormatError(Exception):
     """Date format is incorrect."""
+    pass

@@ -1,0 +1,5 @@
+# Script Outputs
+/experiments/
+
+# Python intermediates
+__pychache__/
