@@ -3,8 +3,7 @@ from pathlib import Path
 
 class Regex_patterns():
     #Identifying NOMADS specific files
-    EXPERIMENTALDATA_TEMPLATE = '(SW|PC|SL)[a-zA-Z]{2}[0-9]{3}.*.xlsx'
-    SEQDATASUMMARY_CSV='summary.*.csv'
+    SEQDATASUMMARY_CSV=re.compile(r'.*summary.*.csv')
     NOMADS_EXP_TEMPLATE=re.compile(r"(SW|PC|SL)[a-zA-Z]{2}[0-9]{3}.*.xlsx")
 
     #Files that are open
@@ -24,7 +23,7 @@ def identify_exptid_from_fn(filename: Path):
     """
 
     try:
-        match = re.search(Regex_patterns.EXPERIMENTALDATA_TEMPLATE, filename.name)
+        match = re.search(Regex_patterns.NOMADS_EXP_TEMPLATE, filename.name)
         expt_id = match.group(0)
         return expt_id
     
@@ -62,9 +61,14 @@ def identify_experiment_file(metadata_folder: Path, expt_id: str = None):
     path = matches[0]
     return path
 
-
 def _check_no_openfiles_identified(fn_list : list) :
+    """
+    Identify if there are any files from a list that are currently open"
 
+    Args:
+    fn_list (list): List of file paths (pathlib).
+
+    """
     #List all open files
     openfiles = [f for f in fn_list if Regex_patterns.OPENFILES.match(f.name)]
     #Ensure there are not any open files in the supplied list
@@ -136,7 +140,6 @@ def identify_files_by_search(folder_path: Path, pattern: str):
     try:
         #Create a list of all subfolders and parent
         folders = [ folder_path] + _list_folders_in_dir(folder_path)
-        
         matches = []
         for folder in folders :
             #List all  entries matching the searchpattern and add to list

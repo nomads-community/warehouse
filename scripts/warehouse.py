@@ -24,6 +24,7 @@ def cli():
 
 cli.add_command(metadata)
 cli.add_command(nomadic)
+cli.add_command(visualise)
 
 
 if __name__ == "__main__":
