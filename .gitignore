@@ -1,5 +1,6 @@
 # Script Outputs
 /experiments/
+/notebooks/
 
 # Python intermediates
-__pychache__/
+__pycache__/
