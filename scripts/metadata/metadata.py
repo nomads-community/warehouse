@@ -45,6 +45,8 @@ class ExpMetadataParser:
 
         #Load rxn metadata
         self.rxn_df = self._extract_excel_data(metadata_file, self.tabnames[1])
+        self.rxn_df['expt_type'] = pd.Series([self.expt_type] * len(self.rxn_df) )
+
         #Check validity of rxn metadata
         self._check_for_columns(self.rxn_req_cols, self.rxn_df)
         self.rxn_rows = self._check_number_rows(self.num_rxn, self.rxn_df)
@@ -174,8 +176,7 @@ class ExpMetadataParser:
         for c in columns:
             df_filtered = df[df[c].isnull()]
             if df_filtered.shape[0] >0 :
-                raise MetadataFormatError(f"Column {c} contains empty data for {self.expt_id}:\n{df_filtered}")
-            
+                raise MetadataFormatError(f"Column {c} contains empty data for {self.expt_id}:\n{df_filtered}")          
     
 class ExpMetadataMerge:
     """
@@ -185,18 +186,25 @@ class ExpMetadataMerge:
         #Extract each file into a dictionary 
         metadata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in matching_filepaths }
         print("="*80)
-
-        #Check that there aren't duplicate experiment IDs 
         
+        #Check that there aren't duplicate experiment IDs 
         dupes = self._check_duplicate_entries(metadata_dict, "expt_id")
         if dupes :
             raise ValueError(f"{len(dupes)} duplicate expt_id identfied: {dupes}")
-        
-        # Identify the expt_types present, create df for each and populate the df
+
+        #Concatenate all the exp level data into a df
+        self.expt_metadata_df = pd.concat(metadata_dict[key].expt_df for key in metadata_dict )
+        #Concatenate all the rxn level data into a df
+        self.rxn_metadata_df = pd.concat(metadata_dict[key].rxn_df for key in metadata_dict )
+
+        # Identify the expt_types present, create df for each and add df to the dict
         expt_df = { metadata_dict[key].expt_type : pd.DataFrame for key in metadata_dict }
         for expt_type in expt_df.keys():
             #Concatenate data from the same expt_types into the dataframe dict
             expt_df[expt_type] = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == expt_type )
+            # Add instance attribute for each expt_type
+            setattr(self, expt_type.lower() + "_df", expt_df[expt_type])
+            # self.expt_type = expt_df[expt_type]
 
         #Create joins dict according to experiment types present
         joins = {}
@@ -206,7 +214,7 @@ class ExpMetadataMerge:
                                 "right_df" : expt_df["PCR"],
                                 "on" : "swga_identifier", 
                                 "cols" : [ 'sample_id', 'extraction_id'],
-                                "suffixes" : ["", "_PCR"]
+                                "suffixes" : ["_sWGA", "_PCR"]
                                 } 
         if "PCR" in expt_df and "seqlib" in expt_df :
             joins["PCR and seqlib"] = {"joining": ["PCR", "seqlib"],
@@ -214,7 +222,7 @@ class ExpMetadataMerge:
                                 "right_df" :  expt_df["seqlib"], 
                                 "on" : "pcr_identifier", 
                                 "cols" : [ 'sample_id', 'extraction_id'],
-                                "suffixes" : ["", "_seqlib"]
+                                "suffixes" : ["_PCR", "_seqlib"]
                                 }
         
         print(f"Checking for data validity and merging dataframes for:")
@@ -257,7 +265,7 @@ class ExpMetadataMerge:
                 col2 = matched_df[f"{c}{join_dict['suffixes'][1]}"]
                 #Identify all that don't match
                 mismatches_df = matched_df.loc[(col1 != col2) ] 
-                #Feedbacl to user
+                #Feedback to user
                 if mismatches_df.shape[0] > 0:
                     print(f"   WARNING: Mismatches identified for {c}")
                     print(f"   {mismatches_df[show_cols].to_string(index=False)}")
@@ -273,24 +281,45 @@ class ExpMetadataMerge:
             print("   Done")
             print("")
 
+        # Fields are essentially duplicated through merging and appended with a suffix e.g. _pcr
+        # These need to be collapsed so that a single column captures the details needed
+        field_prefixes = ['sample_id' ]
+        for field_prefix in field_prefixes:
+            # Identify all the fields
+            repeat_cols = [col for col in allmetadata_df.columns if col.startswith(field_prefix)]
+            # Stack all entries for columns, then take the first entry (not null) of each group.
+            # Reindex in case all columns have an empty value, which should never happen, but better to be safe
+            allmetadata_df["interim"] =allmetadata_df[repeat_cols].stack().groupby(level=0).first().reindex(allmetadata_df.index)
+            #Remove all repeat columns
+            allmetadata_df.drop(columns=repeat_cols, inplace=True)
+            #Rename interim to original
+            allmetadata_df.rename(columns={'interim' :field_prefix}, inplace=True)
+
+        #Create an instance attribute
+        self.allmetadata_df = allmetadata_df
+
         #Fill in the nan values so the aggregation works
         allmetadata_df = allmetadata_df.fillna('None')
         print("Done")
         print("="*80)
+        
+        # Not sure this is going to be needed anymore as dashboard will show everything:::
 
-        print("Summarising rxn performed:")
+        # print("Summarising rxn performed:")
         # Group and aggregate the df to give a list of all experiments performed on each sample 
-        cols_to_retain = ['sample_id', 'extraction_id', 'swga_identifier', 'expt_assay', 'pcr_identifier',
-                          'seqlib_identifier']
-        self.agg_experiments_df = allmetadata_df[cols_to_retain].groupby(['sample_id', 'expt_assay']).agg(list).reset_index()
-        identifier_cols = [col for col in self.agg_experiments_df.columns if 'identifier' in col]
+        # print(expt_df["PCR"])
+        # print(self.allmetadata_df.columns)
+        # cols_to_retain = ['sample_id', 'extraction_id', 'swga_identifier_sWGA', 'expt_assay', 'pcr_identifier_PCR',
+        #                   'seqlib_identifier']
+        # self.agg_experiments_df = allmetadata_df[cols_to_retain].groupby(['sample_id', 'expt_assay']).agg(list).reset_index()
+        # identifier_cols = [col for col in self.agg_experiments_df.columns if 'identifier' in col]
 
-        for col in identifier_cols:
-            value = self._count_non_none_entries_in_dfcolumn(self.agg_experiments_df, col)
-            name = col.replace("_identifier","")
-            print(f"   {name}: {value}")
-        print("Done")
-        print("="*80)
+        # for col in identifier_cols:
+        #     value = self._count_non_none_entries_in_dfcolumn(self.agg_experiments_df, col)
+        #     name = col.replace("_identifier","")
+        #     print(f"   {name}: {value}")
+        # print("Done")
+        # print("="*80)
 
         #Optionally export the aggregate data
         if output_folder:
@@ -337,3 +366,56 @@ class ExpMetadataMerge:
 
         return [k for k,v in value_counts.items() if v > 1]
     
+class ExpDataSchema:
+    SAMPLEID = "Sample ID"
+    DATE = "Date Collected"
+    PARASITAEMIA = "Parasitaemia (p/ul)"
+    LOCATION = "Province"
+    MONTH = "Month"
+    YEAR = "Year"
+
+class SampleDataSchema:
+    SAMPLEID = "sample_id"
+
+class SampleMetadataExtract:
+    """
+    Extract sample metadata from csv file.
+
+    """
+
+    def __init__(self, sample_metadata_fn : Path):
+        # load the data from the CSV file
+        data = pd.read_csv(
+            sample_metadata_fn,
+            dtype={
+                ExpDataSchema.SAMPLEID: str,
+                ExpDataSchema.LOCATION: str,
+                ExpDataSchema.PARASITAEMIA: int,
+            },
+            parse_dates=[ExpDataSchema.DATE],
+        )
+        data[ExpDataSchema.YEAR] = data[ExpDataSchema.DATE].dt.year.astype(str)
+        data[ExpDataSchema.MONTH] = data[ExpDataSchema.DATE].dt.month.astype(str)
+        self.df = data
+
+class MergeSampleExpMetadata:
+    """
+    Merge the sample and experimental metadata into a cohesive dataframe.
+
+    """
+
+    def __init__(self, exp_metadata_df: pd.DataFrame, sample_metadata_df : pd.DataFrame):
+        """
+        Merge and fill in the blanks
+
+        """
+
+        #Combine the dataframes
+        comb = pd.merge(left=sample_metadata_df, right= exp_metadata_df, how='outer', 
+                 left_on=ExpDataSchema.SAMPLEID,
+                 right_on=SampleDataSchema.SAMPLEID
+                 )
+        
+        print(f"{comb.shape[0]} records")
+        comb.to_csv("output.csv")
+        

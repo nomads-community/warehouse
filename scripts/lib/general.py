@@ -1,8 +1,16 @@
-import re
+import re, os
 from pathlib import Path
 
-# regex for a NOMADS template file match
-id_regex = '(SW|PC|SL)[a-zA-Z]{2}[0-9]{3}.*.xlsx'
+class Regex_patterns():
+    #Identifying NOMADS specific files
+    EXPERIMENTALDATA_TEMPLATE = '(SW|PC|SL)[a-zA-Z]{2}[0-9]{3}.*.xlsx'
+    SEQDATASUMMARY_CSV='summary.*.csv'
+    NOMADS_EXP_TEMPLATE=re.compile(r"(SW|PC|SL)[a-zA-Z]{2}[0-9]{3}.*.xlsx")
+
+    #Files that are open
+    EXCEL_FILES = re.compile(r"^[/.|~]")
+    CSV_FILES = re.compile(r"~lock")
+    OPENFILES = re.compile("|".join([EXCEL_FILES.pattern, CSV_FILES.pattern]))
 
 def identify_exptid_from_fn(filename: Path):
     """
@@ -16,7 +24,7 @@ def identify_exptid_from_fn(filename: Path):
     """
 
     try:
-        match = re.search(id_regex, filename.name)
+        match = re.search(Regex_patterns.EXPERIMENTALDATA_TEMPLATE, filename.name)
         expt_id = match.group(0)
         return expt_id
     
@@ -24,79 +32,45 @@ def identify_exptid_from_fn(filename: Path):
         print(f"Unable to determine the ExpID from the filename for {filename.name}")
         return None
 
-def identify_nomads_files(metadata_folder: Path, expt_id: str = None):
-
+def identify_experiment_file(metadata_folder: Path, expt_id: str = None):
     """
-    Identify if there is a file containing the supplied ExpID or files that are NOMADS 
-    named templates"
+    Identify if there is a file with the ExpID in the list of filenames"
 
     Args:
-    metadata_folder (Path): path to the metadata folder.
-    expt_id (str): The experiment ID to search for (optional)
+    files_list (list): List of file paths.
+    expt_id (str): Experiment ID to search for (optional)
 
     Returns:
-        Path: The path to the matching file(s), or None if not found.
+        Path: The path to the matching file, or None if not found.
     """
-
-    openfile_pattern = re.compile(r"^[/.|~]")
-    num_targets = None
     
-    if expt_id is not None:
-        search_pattern = re.compile(f".*{expt_id}_.*.xlsx")
-        num_targets = 1
-    else:
-        search_pattern = re.compile(id_regex)
-
-    try:
-        #Create a list of all subfolders and parent
-        folders = [ metadata_folder] + _list_folders_in_dir(metadata_folder)  
-        matches = []
-        for folder in folders :
-            #List all  entries matching the searchpattern and add to list
-            new_matches = [f for f in folder.iterdir() if search_pattern.search(f.name)]
-            matches.extend(new_matches)
-
-        #List all open Excel files
-        openfiles = [f for f in matches if openfile_pattern.findall(f.name)]
-
-        #Ensure there are not any open files
-        if openfiles:
-            raise ValueError(f"{len(openfiles)} open Excel files identified. Please close and run again:")
-        
-        #Ensure there are no duplicate filenames
-        dupes = _check_duplicate_names(matches)
-        if dupes :
-            raise ValueError(f"Identical files identified: {dupes}. Please resolve and run again:")
-        
-        #Esnure there is at least one match
-        if len(matches) == 0:
-            raise ValueError(f"No matching files found.")
-        
-        #Feedback to user what has been found
-        #For multiple targets:
-        if num_targets == None:
-            print(f"Found {len(matches)} matching files")
-            return matches 
-        
-        #For defined num of targets 
-        if len(matches) == num_targets:
-            match = matches[0]
-            print(f"Found: {match.name}")
-            return match 
-
+    matches = identify_files_by_search(metadata_folder, Regex_patterns.NOMADS_EXP_TEMPLATE)
+    search_pattern = re.compile(f".*{expt_id}_.*.xlsx")
+    matches = [f for f in matches if search_pattern.search(os.path.basename(f))]
+    
+    #Esnure there is at least one match
+    if len(matches) == 0:
+        raise ValueError(f"No matching files found.")
+    
+    if len(matches) > 1:
         raise ValueError(f"Multiple matches found: {matches}")
 
-    except FileNotFoundError:
-        print(f"Error: Folder '{metadata_folder.name}' not found.")
+    #Feedback to user what has been found
+    print(f"Found {len(matches)} file")
+    
+    #Extract path from the list object
+    path = matches[0]
+    return path
 
-    except StopIteration:
-        print("No matching file found")
-        return None
 
-    except ValueError as error_msg:
-        print(str(error_msg))
-        raise
+def _check_no_openfiles_identified(fn_list : list) :
 
+    #List all open files
+    openfiles = [f for f in fn_list if Regex_patterns.OPENFILES.match(f.name)]
+    #Ensure there are not any open files in the supplied list
+    if openfiles:
+        raise ValueError(f"{len(openfiles)} open files identified. Please close and run again:")
+        
 def _list_folders_in_dir(directory: Path) :
     """
     Lists all folders within a given directory using pathlib.
@@ -131,3 +105,66 @@ def _check_duplicate_names(entries):
     else:
         seen_names.add(filename)
   return duplicates
+
+def check_file_present (filename: Path) -> bool :
+    """
+    Checks for the presence of a file using pathlib.
+  
+    Args:
+    directory (Path): path to the file.
+    
+    Returns:
+    Bool: true if file exists, false if not.
+    """
+    if not filename.exists():
+        raise ValueError(f"{filename} does not exist. Exiting...")
+    return filename.exists()
+
+def identify_files_by_search(folder_path: Path, pattern: str):
+
+    """
+    Identify all files in a folder (plus one level down) based on a search pattern"
+
+    Args:
+    folder (Path): path to the search folder.
+    pattern (re.pattern): Compiled RE pattern to match filename against
+    
+    Returns:
+        Path: The path to the matching file(s), or None if not found.
+    """
+    
+    try:
+        #Create a list of all subfolders and parent
+        folders = [ folder_path] + _list_folders_in_dir(folder_path)
+        
+        matches = []
+        for folder in folders :
+            #List all  entries matching the searchpattern and add to list
+            new_matches = [f for f in folder.iterdir() if pattern.search(f.name)]
+            matches.extend(new_matches)
+        
+        #Check that there are no open files
+        _check_no_openfiles_identified(matches)
+
+        #Check there are no duplicate names
+        _check_duplicate_names(matches)
+
+        #Esnure there is at least one match
+        if len(matches) == 0:
+            raise ValueError(f"No matching files found.")
+        
+        #Feedback to user what has been found
+        print(f"Found {len(matches)} matching files")
+        return matches 
+
+    except FileNotFoundError:
+        print(f"Error: Folder '{folder_path.name}' not found.")
+
+    except StopIteration:
+        print("No matching file found")
+        return None
+
+    except ValueError as error_msg:
+        print(str(error_msg))
+        raise
+

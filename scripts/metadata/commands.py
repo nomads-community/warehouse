@@ -1,6 +1,6 @@
 import click
 from pathlib import Path
-from lib.general import identify_nomads_files
+from lib.general import identify_files_by_search, Regex_patterns, identify_experiment_file
 
 @click.command(short_help="Extract, validate and optionally export all metadata")
 @click.option(
@@ -38,13 +38,10 @@ def metadata(metadata_folder : Path, expt_id : str, output_folder : Path):
     
     #Extract all metadata
     if expt_id:
-        #For an individual expt identify the  matching file
-        matching_filepath = identify_nomads_files(metadata_folder, expt_id)
+        #Search for file with exptid in name
+        matching_filepath = identify_experiment_file(metadata_folder, expt_id)
         metadata = ExpMetadataParser(matching_filepath, output_folder)
-
     else:
-        #For all files in folder that match NOMADS template naming:
-        matching_filepaths = identify_nomads_files(metadata_folder)
-        #Extract all instances and merge data
-        metadata = ExpMetadataMerge(matching_filepaths, output_folder) 
+        matching_filepaths = identify_files_by_search(metadata_folder, Regex_patterns.NOMADS_EXP_TEMPLATE)
+        metadata = ExpMetadataMerge(matching_filepaths, output_folder)
 
