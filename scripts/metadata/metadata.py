@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 from itertools import chain
 from lib.exceptions import MetadataFormatError
-from lib.general import identify_exptid_from_fn
+from lib.general import identify_exptid_from_fn, identify_files_by_search, Regex_patterns
 
 class ExpMetadataParser:
     """
@@ -197,6 +197,20 @@ class ExpMetadataMerge:
         #Concatenate all the rxn level data into a df
         self.rxn_metadata_df = pd.concat(metadata_dict[key].rxn_df for key in metadata_dict )
 
+        # Create summaries of number of experiments and rxn performed
+        exp_counts = self.expt_metadata_df['expt_type'].value_counts().rename("experiments")
+        rxn_counts = self.rxn_metadata_df['expt_type'].value_counts().rename("reactions")
+        #sample_counts = sample_df['status'].value_counts().rename("samples")
+        #colour_series = pd.Series(colours, index=types).rename("colours")
+
+        # na cause the datatype to change to a float so combine all ints and change to int
+        self.summary_counts_df = pd.concat([exp_counts, rxn_counts],axis=1)
+        # # Reindex so the order is the same as the types, so plots will be from least -> sequenced
+        # temp = summary_counts_df.reindex(types)
+        # temp.index.name = "Experiment Type"
+        # # Add in the colours and index as column
+        # summary_counts_df = temp.reset_index()
+
         # Identify the expt_types present, create df for each and add df to the dict
         expt_df = { metadata_dict[key].expt_type : pd.DataFrame for key in metadata_dict }
         for expt_type in expt_df.keys():
@@ -366,7 +380,7 @@ class ExpMetadataMerge:
 
         return [k for k,v in value_counts.items() if v > 1]
     
-class ExpDataSchema:
+class SampleDataSchema:
     SAMPLEID = "Sample ID"
     DATE = "Date Collected"
     PARASITAEMIA = "Parasitaemia (p/ul)"
@@ -374,12 +388,13 @@ class ExpDataSchema:
     MONTH = "Month"
     YEAR = "Year"
 
-class SampleDataSchema:
-    SAMPLEID = "sample_id"
+class ExpDataSchema:
+    SAMPLEID = "sample_id",
+    EXPT_TYPE= "expt_type"
 
-class SampleMetadataExtract:
+class SampleMetadataParser:
     """
-    Extract sample metadata from csv file.
+    Extract sample metadata from a single csv file.
 
     """
 
@@ -388,15 +403,41 @@ class SampleMetadataExtract:
         data = pd.read_csv(
             sample_metadata_fn,
             dtype={
-                ExpDataSchema.SAMPLEID: str,
-                ExpDataSchema.LOCATION: str,
-                ExpDataSchema.PARASITAEMIA: int,
+                SampleDataSchema.SAMPLEID: str,
+                SampleDataSchema.LOCATION: str,
+                SampleDataSchema.PARASITAEMIA: int,
             },
-            parse_dates=[ExpDataSchema.DATE],
+            parse_dates=[SampleDataSchema.DATE],
         )
-        data[ExpDataSchema.YEAR] = data[ExpDataSchema.DATE].dt.year.astype(str)
-        data[ExpDataSchema.MONTH] = data[ExpDataSchema.DATE].dt.month.astype(str)
+        data[SampleDataSchema.YEAR] = data[SampleDataSchema.DATE].dt.year.astype(str)
+        data[SampleDataSchema.MONTH] = data[SampleDataSchema.DATE].dt.month.astype(str)
         self.df = data
+    
+class SequencingMetadataParser:
+    """
+    Extract sequencing data from one or more csv files.
+
+    """
+
+    def __init__(self, seqdata_folder : Path):
+        # Identify the files
+        print("Searching for bam_flagstats file(s)")
+        bamfiles=identify_files_by_search(seqdata_folder, Regex_patterns.SEQDATA_BAMSTATS_CSV)
+        print("Searching for bedcov file(s)")
+        bedcovfiles=identify_files_by_search(seqdata_folder, Regex_patterns.SEQDATA_BEDCOV_CSV)
+
+        # Extract data and concatenate
+        temp1 = pd.DataFrame()
+        for file in bamfiles :
+            data = pd.read_csv(file)
+            temp1 = pd.concat([temp1, data], ignore_index=True)
+        self.summary_bam = temp1
+
+        temp2 = pd.DataFrame()
+        for file in bedcovfiles :
+            data = pd.read_csv(file)
+            temp2 = pd.concat([temp2, data], ignore_index=True)
+        self.summary_bam = temp2
 
 class MergeSampleExpMetadata:
     """
@@ -412,8 +453,8 @@ class MergeSampleExpMetadata:
 
         #Combine the dataframes
         comb = pd.merge(left=sample_metadata_df, right= exp_metadata_df, how='outer', 
-                 left_on=ExpDataSchema.SAMPLEID,
-                 right_on=SampleDataSchema.SAMPLEID
+                 left_on=SampleDataSchema.SAMPLEID,
+                 right_on=ExpDataSchema.SAMPLEID
                  )
         
         print(f"{comb.shape[0]} records")

@@ -3,7 +3,8 @@ from pathlib import Path
 
 class Regex_patterns():
     #Identifying NOMADS specific files
-    SEQDATASUMMARY_CSV=re.compile(r'.*summary.*.csv')
+    SEQDATA_BAMSTATS_CSV=re.compile(r'.*bam_flagstats.*.csv')    
+    SEQDATA_BEDCOV_CSV=re.compile(r'.*summary.*bedcov.*.csv')
     NOMADS_EXP_TEMPLATE=re.compile(r"(SW|PC|SL)[a-zA-Z]{2}[0-9]{3}.*.xlsx")
 
     #Files that are open
@@ -54,9 +55,6 @@ def identify_experiment_file(metadata_folder: Path, expt_id: str = None):
     if len(matches) > 1:
         raise ValueError(f"Multiple matches found: {matches}")
 
-    #Feedback to user what has been found
-    print(f"Found {len(matches)} file")
-    
     #Extract path from the list object
     path = matches[0]
     return path
@@ -157,7 +155,7 @@ def identify_files_by_search(folder_path: Path, pattern: str):
             raise ValueError(f"No matching files found.")
         
         #Feedback to user what has been found
-        print(f"Found {len(matches)} matching files")
+        print(f"Found {len(matches)} matching file(s)")
         return matches 
 
     except FileNotFoundError:
