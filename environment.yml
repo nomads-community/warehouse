@@ -1,7 +1,7 @@
 name: warehouse
 channels:
- - default
  - conda-forge
+ - bioconda
 
 dependencies:
  - python >=3.10
@@ -10,4 +10,4 @@ dependencies:
  - openpyxl
  - dash
  - plotly
- 
+ - dash-bootstrap-components 
