@@ -311,7 +311,7 @@ class ExpMetadataMerge:
             #Aggregate
             agg_fn = "aggregate_metadata.csv"
             agg_path = output_folder / agg_fn
-            self.agg_experiments_df.to_csv(agg_path, index=False)  
+            self.all_df.to_csv(agg_path, index=False)  
             
             print("Done")
             print("="*80)

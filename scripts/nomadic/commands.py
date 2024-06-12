@@ -36,7 +36,6 @@ def nomadic(metadata_folder : Path , expt_id : str, output_folder: Path):
     """
     #Extract metadata
     matching_filepath = identify_experiment_file(metadata_folder, expt_id)
-    print("HERE")
     exp_metadata = ExpMetadataParser(matching_filepath)
     print("="*80)
 
