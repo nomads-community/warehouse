@@ -1,0 +1,38 @@
+/* Overall styling ------------------------------------------------------------------ */
+
+:root {
+    --grey: #ecebeb;
+}
+
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: var(--grey);
+}
+
+#overall {
+    margin: 20px;
+    padding: 20px;
+    border-radius: 20px;
+    background: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Banner ------------------------------------------------------------------ */
+
+.logo-and-summary {
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 20px;
+}
+
+#logo {
+    margin-left: 0px;
+    width: 500px;
+    flex: 0.1;
+}
+
+#expt-summary {
+    margin-left: 20px;
+    flex: 0.9;
+}

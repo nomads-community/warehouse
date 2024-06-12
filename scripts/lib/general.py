@@ -5,6 +5,7 @@ class Regex_patterns():
     #Identifying NOMADS specific files
     SEQDATA_BAMSTATS_CSV=re.compile(r'.*bam_flagstats.*.csv')    
     SEQDATA_BEDCOV_CSV=re.compile(r'.*summary.*bedcov.*.csv')
+    NOMADS_EXPID=re.compile(r"(SW|PC|SL)[a-zA-Z]{2}[0-9]{3}")
     NOMADS_EXP_TEMPLATE=re.compile(r"(SW|PC|SL)[a-zA-Z]{2}[0-9]{3}.*.xlsx")
 
     #Files that are open
@@ -12,24 +13,45 @@ class Regex_patterns():
     CSV_FILES = re.compile(r"~lock")
     OPENFILES = re.compile("|".join([EXCEL_FILES.pattern, CSV_FILES.pattern]))
 
-def identify_exptid_from_fn(filename: Path):
+def identify_exptid_from_folder(path: Path) -> str:
     """
-    Extract the experimental ID from a filename
+    Extract the experimental ID from a path
 
     Args:
-    filename (Path): path to the file
+        path (Path): path to the folder
 
     Returns:
-        expt_id: the extracted experiment id or None if not found
+        expt_id (str): the extracted experiment id or None if not found
     """
 
     try:
-        match = re.search(Regex_patterns.NOMADS_EXP_TEMPLATE, filename.name)
+        match = re.search(Regex_patterns.NOMADS_EXPID, path.name)
         expt_id = match.group(0)
         return expt_id
     
     except StopIteration:
-        print(f"Unable to determine the ExpID from the filename for {filename.name}")
+        print(f"Unable to identify an ExpID in: {path.name}")
+        return None
+
+
+def identify_exptid_from_fn(path: Path) -> str:
+    """
+    Extract the experimental ID from a filename
+
+    Args:
+        path (Path): path to the file
+
+    Returns:
+        expt_id (str): the extracted experiment id or None if not found
+    """
+
+    try:
+        match = re.search(Regex_patterns.NOMADS_EXP_TEMPLATE, path.name)
+        expt_id = match.group(0)
+        return expt_id
+    
+    except StopIteration:
+        print(f"Unable to identify an ExpID in: {path.name}")
         return None
 
 def identify_experiment_file(metadata_folder: Path, expt_id: str = None):

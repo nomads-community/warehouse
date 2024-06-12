@@ -1,8 +1,10 @@
 import click
 from pathlib import Path
-import pandas as pd
+from dash import Dash, html
 from lib.general import check_file_present, Regex_patterns, identify_files_by_search
-from metadata.metadata import ExpMetadataMerge, SampleMetadataExtract
+from metadata.metadata import ExpMetadataMerge, SampleMetadataParser, SequencingMetadataParser
+from .layout import create_layout
+
 
 @click.command(short_help="Dashboard to visualise summary data from NOMADS assays")
 
@@ -33,35 +35,43 @@ from metadata.metadata import ExpMetadataMerge, SampleMetadataExtract
 def visualise(metadata_folder : Path, sample_metadata_fn : Path, seqdata_folder : Path ):
 
     print("Extracting experimental data")
-    print("")
-    matching_filepaths = identify_files_by_search(metadata_folder, Regex_patterns.NOMADS_EXP_TEMPLATE)
-    exp_metadata = ExpMetadataMerge(matching_filepaths, output_folder=None)
+    exp_fns = identify_files_by_search(metadata_folder, Regex_patterns.NOMADS_EXP_TEMPLATE)
+    exp_class = ExpMetadataMerge(exp_fns, output_folder=None)
 
     print("Extracting sample metadata")
     check_file_present(sample_metadata_fn)
-    sample_metadata = SampleMetadataExtract(sample_metadata_fn)
-    print(f"   Found {sample_metadata.df.shape[0]} entries")
+    sample_class = SampleMetadataParser(sample_metadata_fn, exp_class.rxns_df)
+    print(f"   Found {sample_class.df.shape[0]} entries")
     print("="*80)
 
     print("Extracting sequence summary data")
-    seqdata = identify_files_by_search(seqdata_folder, Regex_patterns.SEQDATASUMMARY_CSV)
-    print(seqdata)
+    sequence_class= SequencingMetadataParser(seqdata_folder, exp_class.rxns_df)
+    print("="*80)
 
     # OUTPUTS FOR NOTEBOOK ETC
+    import os
+    nb_folder = Path("./notebooks")
+    exp_class.swga_df.to_csv(nb_folder.joinpath("rxn_swga_df.csv"),index=False)
+    exp_class.pcr_df.to_csv(nb_folder.joinpath("rxn_pcr_df.csv"),index=False)
+    exp_class.seqlib_df.to_csv(nb_folder.joinpath("rxn_seqlib_df.csv"),index=False)
+    
+    exp_class.rxns_df.to_csv(nb_folder.joinpath("rxn_metadata_df.csv"),index=False)
+    exp_class.expts_df.to_csv(nb_folder.joinpath("exp_metadata_df.csv"),index=False)
+    exp_class.all_df.to_csv(nb_folder.joinpath("exp_allmetadata_df.csv"),index=False)
+    
+    exp_class.swga_df.to_csv(nb_folder.joinpath("swga_df.csv"),index=False)
+    exp_class.pcr_df.to_csv(nb_folder.joinpath("pcr_df.csv"),index=False)
+    exp_class.seqlib_df.to_csv(nb_folder.joinpath("seqlib_df.csv"),index=False)
 
-    # exp_metadata.swga_df.to_csv("rxn_swga_df.csv")
-    # exp_metadata.pcr_df.to_csv("rxn_pcr_df.csv")
-    # exp_metadata.seqlib_df.to_csv("rxn_seqlib_df.csv")
-    
-    # exp_metadata.rxn_metadata_df.to_csv("rxn_metadata_df.csv")
-    # exp_metadata.expt_metadata_df.to_csv("exp_metadata_df.csv")
-    # exp_metadata.allmetadata_df.to_csv('allmetadata_df.csv')
-    # print("="*80)
-    #Build a bar chart of the aggregate data
-    
-    # Combine all data and filter results to samples
-    # Can we run bamboo by default?
-    # Dashboard to show
-    # Summary of numbers run for each stage eg swga etc
+    sample_class.df.to_csv(nb_folder.joinpath("samples_df.csv"),index=False)
+    sequence_class.summary_bam.to_csv(nb_folder.joinpath("seq_bam.csv"),index=False)
+    sequence_class.summary_bedcov.to_csv(nb_folder.joinpath("seq_bedcov.csv"),index=False)
+
+    print("Starting the warehouse dashboard")
+    app = Dash()
+    app.title = "Warehouse"
+    app.layout = create_layout(app, sample_class, exp_class, sequence_class)
+    app.run()
+
     # Summary of results with ability to stratify by a particular output eg sex?
     # Change nomadic to savannah call
