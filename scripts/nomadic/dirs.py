@@ -1,5 +1,8 @@
 import os
 from pathlib import Path
+import configparser
+# import dataclass
+from dataclasses import dataclass
 
 
 def produce_dir(*args):
@@ -25,8 +28,17 @@ def produce_dir(*args):
     # Create if doesn't exist
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
+        print(f"   {dir_name}")
 
     return dir_name
+
+@dataclass
+class DataStructure:
+    #Create config object and pull in ini
+    config = configparser.ConfigParser()
+    config.read('./default_dir_structure.ini')  # Replace 'config.ini' with your actual file path
+    print(config)
+
 
 
 class ExperimentDirectories:
@@ -34,7 +46,7 @@ class ExperimentDirectories:
 
     """
 
-    def __init__(self, expt_name: str, root_folder: Path):
+    def __init__(self, expt_name: str, root_folder: Path, dir_ini: Path ):
         """
         Initialise all the required directories
 
@@ -49,19 +61,49 @@ class ExperimentDirectories:
         # Experiment directory
         self.expt_name = expt_name
         self.expt_dir = produce_dir(self.experiments_dir, expt_name)
-
-        # Metadata directory
-        self.metadata_dir = produce_dir(self.expt_dir, "metadata")
         
-        # MinKNOW directory
-        self.minknow_dir = produce_dir(self.expt_dir, "minknow")
+        if dir_ini is None:
+            print(" No ini file given, searching for default")
+            script_dir = Path.cwd()
+            dir_ini = script_dir / "scripts/nomadic/dir_structure.ini"
 
-        # Guppy directory
-        self.guppy_dir = produce_dir(self.expt_dir, "guppy")
+        if not os.path.exists(dir_ini) :
+            print(" Default ini missing using standard structure")
+            # Metadata directory
+            self.metadata_dir = produce_dir(self.expt_dir, "metadata")
+            
+            # MinKNOW directory
+            self.minknow_dir = produce_dir(self.expt_dir, "minknow")
 
-        # NOMADIC directories
-        self.nomadic_dir = produce_dir(self.expt_dir, "nomadic")
-        _ = produce_dir(self.nomadic_dir, "mpi")
-        _ = produce_dir(self.nomadic_dir, "nmec")
+            # Guppy directory
+            self.guppy_dir = produce_dir(self.expt_dir, "guppy")
+
+            # NOMADIC directories
+            self.nomadic_dir = produce_dir(self.expt_dir, "nomadic")
+            _ = produce_dir(self.nomadic_dir, "mpi")
+            _ = produce_dir(self.nomadic_dir, "nmec")
+        else:
+            print(" Found default .ini file")
+        
+
+        print(" Importing .ini file")
+        config = configparser.ConfigParser()
+        config.read(dir_ini)
+
+        for default_key, default_value in config.items("default"):
+            #Produce the relevent directories
+            produce_dir(self.expt_dir, default_value)
+            #set an attribute for further ref
+            att_name = default_key + "_dir"
+            att_value = self.expt_dir + "/" + default_value
+            setattr(self, att_name, att_value)
+            
+            #Produce the relevent sub-directories
+            if config.has_section(default_key):
+                for sub_key, sub_value in config.items(default_key):
+                    produce_dir(self.expt_dir, default_value, sub_value)
+            
+
+        
 
         

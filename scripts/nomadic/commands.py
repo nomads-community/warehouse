@@ -30,7 +30,15 @@ from lib.exceptions import MetadataFormatError
     help="Base folder to output experimental directory structure to."
 )
 
-def nomadic(metadata_folder : Path , expt_id : str, output_folder: Path):
+@click.option(
+    "-d",
+    "--dir_structure",
+    type=Path,
+    required=False,
+    help="Directory structure settings from .ini file."
+)
+
+def nomadic(metadata_folder : Path , expt_id : str, output_folder: Path, dir_structure: Path = None):
     """
     Create nomadic file structure including relevent metadata 
     """
@@ -53,8 +61,10 @@ def nomadic(metadata_folder : Path , expt_id : str, output_folder: Path):
     #Define experiment name    
     expt_name = create_experiment_name(exp_metadata.expt_date, expt_id, exp_metadata.expt_summary)
     
-    #Create file hierarchy
-    expt_dirs = create_nomadic_file_structure(expt_name, output_folder)
+    #Import data structure
+
+    print("Creating NOMADS experiment folder structure...")
+    expt_dirs = ExperimentDirectories(expt_name, output_folder, dir_structure)
     print("Done")
     print("="*80)
 
@@ -70,16 +80,3 @@ def create_experiment_name(expt_date: str, expt_id: str, expt_summary) -> str:
 
     """
     return f"{expt_date}_{expt_id.upper()}_{expt_summary}"
-
-def create_nomadic_file_structure(expt_name: str, output_folder: Path):
-    """
-    Build the correct file hierarchy and return directory structure
-    """
-    print("Creating NOMADS experiment folder structure...")
-    expt_dirs = ExperimentDirectories(expt_name, output_folder)
-    print(f"  Experiment: {expt_dirs.expt_dir}")
-    print(f"  Metadata: {expt_dirs.metadata_dir}")
-    print(f"  Guppy: {expt_dirs.guppy_dir}")
-    print(f"  NOMADIC: {expt_dirs.nomadic_dir}")
-
-    return expt_dirs
