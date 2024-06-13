@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 from itertools import chain
 from lib.exceptions import MetadataFormatError
-from lib.general import identify_exptid_from_fn, identify_files_by_search, Regex_patterns, identify_exptid_from_folder
+from lib.general import identify_exptid_from_fn, identify_files_by_search, Regex_patterns, identify_exptid_from_folder, produce_dir
 from lib.dataschemas import ExpDataSchema, SampleDataSchema, SeqDataSchema, ExpThroughputDataScheme
 
 class ExpMetadataParser:
@@ -67,6 +67,7 @@ class ExpMetadataParser:
         self.rxn_df[ExpDataSchema.EXP_TYPE] = self.rxn_df.get(ExpDataSchema.EXP_TYPE, self.expt_type)
 
         if output_folder is not None:
+            produce_dir(output_folder)    
             print(f"      Outputting data to folder: {output_folder.name}")
             output_dict = { "expt" : self.expt_df, "rxn" : self.rxn_df }
             for output in output_dict:
@@ -218,7 +219,7 @@ class ExpMetadataMerge:
                                 "left_df": expt_df_dict["sWGA"], 
                                 "right_df" : expt_df_dict["PCR"],
                                 "on" : ExpDataSchema.SWGA_IDENTIFIER, 
-                                "cols" : [ ExpDataSchema.SAMPLEID, ExpDataSchema.EXTRACTIONID],
+                                "cols" : [ ExpDataSchema.SAMPLE_ID, ExpDataSchema.EXTRACTIONID],
                                 "suffixes" : ["_sWGA", "_PCR"]
                                 } 
         if "PCR" in expt_df_dict and "seqlib" in expt_df_dict :
@@ -226,7 +227,7 @@ class ExpMetadataMerge:
                                 "left_df":  expt_df_dict["PCR"], 
                                 "right_df" :  expt_df_dict["seqlib"], 
                                 "on" : ExpDataSchema.PCR_IDENTIFIER, 
-                                "cols" : [ ExpDataSchema.SAMPLEID, ExpDataSchema.EXTRACTIONID],
+                                "cols" : [ ExpDataSchema.SAMPLE_ID, ExpDataSchema.EXTRACTIONID],
                                 "suffixes" : ["_PCR", "_seqlib"]
                                 }
         
@@ -367,7 +368,7 @@ class SampleMetadataParser:
         data = pd.read_csv(
             sample_metadata_fn,
             dtype={
-                SampleDataSchema.SAMPLEID: str,
+                SampleDataSchema.SAMPLE_ID: str,
                 SampleDataSchema.LOCATION: str,
                 SampleDataSchema.PARASITAEMIA: int,
             },
@@ -379,20 +380,19 @@ class SampleMetadataParser:
         # Determine the point each sample has got through to in testing
         if rxn_df is not None :
             # Create status column and fill with not tested
-            data["status"] = data.get("status", default=ExpThroughputDataScheme.EXP_TYPES[0])
+            data[SampleDataSchema.STATUS] = data.get(SampleDataSchema.STATUS, default=ExpThroughputDataScheme.EXP_TYPES[0])
             
             # Define what is present
             types_present = rxn_df[ExpDataSchema.EXP_TYPE].unique()
             for type in ExpThroughputDataScheme.EXP_TYPES: # Ensure order is followed
                 if type in types_present :
                     #Get a list of samples that have the same matching expt_type
-                    samplelist=rxn_df[rxn_df[ExpDataSchema.EXP_TYPE] == type][ExpDataSchema.SAMPLEID].tolist()
+                    samplelist=rxn_df[rxn_df[ExpDataSchema.EXP_TYPE] == type][ExpDataSchema.SAMPLE_ID].tolist()
                     #Enter result into df overwriting previous entries
-                    data.loc[data[SampleDataSchema.SAMPLEID].isin(samplelist), SampleDataSchema.STATUS] = type
+                    data.loc[data[SampleDataSchema.SAMPLE_ID].isin(samplelist), SampleDataSchema.STATUS] = type
         
         # Define dataframe
         self.df = data
-
     
 class SequencingMetadataParser:
     """
@@ -403,7 +403,7 @@ class SequencingMetadataParser:
     def __init__(self, seqdata_folder : Path, Exp_alldata : pd.DataFrame):
         
         # Trim exp dataframe to relevent columns and rows
-        cols = [ExpDataSchema.EXTRACTIONID, ExpDataSchema.SAMPLEID, ExpDataSchema.EXP_ID, ExpDataSchema.BARCODE] 
+        cols = [ExpDataSchema.EXTRACTIONID, ExpDataSchema.SAMPLE_ID, ExpDataSchema.EXP_ID, ExpDataSchema.BARCODE] 
         match_df = Exp_alldata.copy()
         match_df = match_df[cols]
         match_df = match_df.dropna(subset=[ExpDataSchema.BARCODE])
