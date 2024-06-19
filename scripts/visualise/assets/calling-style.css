@@ -2,6 +2,7 @@
 
 :root {
     --grey: #ecebeb;
+    --red: #ff0000;
 }
 
 
@@ -20,7 +21,7 @@ body {
 
 /* Banner ------------------------------------------------------------------ */
 
-.logo-and-summary {
+/* .logo-and-summary {
     display: flex;
     flex-direction: row;
     margin-bottom: 20px;
@@ -35,4 +36,8 @@ body {
 #expt-summary {
     margin-left: 20px;
     flex: 0.9;
+} */
+
+.wide_dropdown{
+    width: 500px;
 }

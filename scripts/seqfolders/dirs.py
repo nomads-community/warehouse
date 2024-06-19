@@ -27,9 +27,9 @@ class ExperimentDirectories:
         if dir_ini is None:
             print(" No .ini file supplied")
             script_dir = Path.cwd()
-            dir_ini = script_dir / "scripts/nomadic/dir_structure.ini"
+            dir_ini = script_dir / "scripts/seqfolders/dir_structure.ini"
             print(" Using default .ini file")
-
+        
         if not os.path.exists(dir_ini) :
             print(" Default ini file not found, using standard structure")
             #Create hard coded default dirs
@@ -37,7 +37,6 @@ class ExperimentDirectories:
             self.minknow_dir = produce_dir(self.expt_dir, "minknow")
             self.nomadic_dir = produce_dir(self.expt_dir, "nomadic")
         
-        print(" Importing .ini file")
         config = configparser.ConfigParser()
         config.read(dir_ini)
 
@@ -54,3 +53,6 @@ class ExperimentDirectories:
             if config.has_section(default_key):
                 for sub_key, sub_value in config.items(default_key):
                     produce_dir(self.expt_dir, default_value, sub_value)
+        
+        print(f" All folders created / available in:")
+        print(f"   {self.expt_dir}")

@@ -1,34 +1,11 @@
 import click
 from pathlib import Path
 from metadata.metadata import ExpMetadataParser
-from nomadic.dirs import ExperimentDirectories
+from .dirs import ExperimentDirectories
 from lib.general import identify_experiment_file
-from lib.exceptions import MetadataFormatError
+from lib.exceptions import DataFormatError
 
-@click.command(short_help="Create nomadic directory structure and copy metadata from a sequencing experiment")
-@click.option(
-    "-m",
-    "--metadata_folder",
-    type=Path,
-    required=True,
-    help="Path to folder containing Sequencing Library Excel files."
-)
-
-@click.option(
-    "-e",
-    "--expt_id",
-    type=str,
-    required=True,
-    help="Experiment ID. For example SLMM005."
-)
-
-@click.option(
-    "-o",
-    "--output_folder",
-    type=Path,
-    required=False,
-    help="Base folder to output experimental directory structure to."
-)
+@click.command(short_help="Create appropriate NOMADS directory structure for a sequencing run")
 
 @click.option(
     "-d",
@@ -38,18 +15,42 @@ from lib.exceptions import MetadataFormatError
     help="Directory structure settings from .ini file."
 )
 
-def nomadic(metadata_folder : Path , expt_id : str, output_folder: Path, dir_structure: Path = None):
+@click.option(
+    "-e",
+    "--exp_folder",
+    type=Path,
+    required=True,
+    help="Path to folder containing completed experimental Excel template files."
+)
+
+@click.option(
+    "-i",
+    "--expt_id",
+    type=str,
+    required=True,
+    help="Experiment ID. For example SLJS034."
+)
+
+@click.option(
+    "-o",
+    "--output_folder",
+    type=Path,
+    required=False,
+    help="Base folder to output sequencing directory structure to."
+)
+
+def seqfolders(exp_folder : Path , expt_id : str, output_folder: Path, dir_structure: Path = None):
     """
-    Create nomadic file structure including relevent metadata 
+    Create NOMADS sequencing folder structure including relevent data 
     """
     #Extract metadata
-    matching_filepath = identify_experiment_file(metadata_folder, expt_id)
+    matching_filepath = identify_experiment_file(exp_folder, expt_id)
     exp_metadata = ExpMetadataParser(matching_filepath)
     print("="*80)
 
     #Make sure it is a seqlib expt
     if not exp_metadata.expt_type == "seqlib":
-        raise MetadataFormatError(f"{matching_filepath.name} is not a seqlib expt")
+        raise DataFormatError(f"{matching_filepath.name} is not a seqlib expt")
     
     #Give user feedback
     print(f"Experiment details for {exp_metadata.expt_id}")
@@ -63,13 +64,13 @@ def nomadic(metadata_folder : Path , expt_id : str, output_folder: Path, dir_str
     
     #Import data structure
 
-    print("Creating NOMADS experiment folder structure...")
+    print("Creating NOMADS sequencing folder structure...")
     expt_dirs = ExperimentDirectories(expt_name, output_folder, dir_structure)
     print("Done")
     print("="*80)
 
     # Copying metadata
-    print("Exporting metadata for nomadic...")
+    print("Exporting sequencing library information for downstream tools e.g. nomadic...")
     exp_metadata.df.to_csv(f"{expt_dirs.metadata_dir}/sample_info.csv", index=False)
     print("Done")
     print("="*80)

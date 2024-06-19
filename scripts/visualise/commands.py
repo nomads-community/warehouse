@@ -1,77 +1,95 @@
 import click
 from pathlib import Path
 from dash import Dash, html
+import pandas as pd
+from lib.dataschemas import ExpDataSchema, SampleDataSchema, SeqDataSchema
 from lib.general import check_file_present, Regex_patterns, identify_files_by_search
 from metadata.metadata import ExpMetadataMerge, SampleMetadataParser, SequencingMetadataParser
 from .layout import create_layout
-
+CSS_STYLE=["scripts/visualise/assets/calling-style.css"]
 
 @click.command(short_help="Dashboard to visualise summary data from NOMADS assays")
 
 @click.option(
+    "-e",
+    "--exp_folder",
+    type=Path,
+    required=True,
+    help="Path to folder containing completed experimental Excel template files."
+)
+
+@click.option(
     "-s",
-    "--sample_metadata_fn",
+    "--seq_folder",
+    type=Path,
+    required=True,
+    help="Path to folder containing outputs from Nomadic / Savannah."
+)
+
+@click.option(
+    "-c",
+    "--sample_csv",
     type=Path,
     required=True,
     help="Path to csv file containing sample metadata information."
 )
 
-@click.option(
-    "-m",
-    "--metadata_folder",
-    type=Path,
-    required=True,
-    help="Path to folder containing Excel metadata files from experiments."
-)
-
-@click.option(
-    "-d",
-    "--seqdata_folder",
-    type=Path,
-    required=True,
-    help="Path to folder containing .csv outputs from Nomadic / Savannah."
-)
-
-def visualise(metadata_folder : Path, sample_metadata_fn : Path, seqdata_folder : Path ):
-
+def visualise(exp_folder : Path, sample_csv : Path, seq_folder : Path ):
+    
     print("Extracting experimental data")
-    exp_fns = identify_files_by_search(metadata_folder, Regex_patterns.NOMADS_EXP_TEMPLATE)
-    exp_class = ExpMetadataMerge(exp_fns, output_folder=None)
+    exp_fns = identify_files_by_search(exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE)
+    expdata_class = ExpMetadataMerge(exp_fns, output_folder=None)
 
     print("Extracting sample metadata")
-    check_file_present(sample_metadata_fn)
-    sample_class = SampleMetadataParser(sample_metadata_fn, exp_class.rxns_df)
-    print(f"   Found {sample_class.df.shape[0]} entries")
+    check_file_present(sample_csv)
+    sampledata_class = SampleMetadataParser(sample_csv, expdata_class.rxns_df)
+    print(f"   Found {sampledata_class.df.shape[0]} entries")
     print("="*80)
 
     print("Extracting sequence summary data")
-    sequence_class= SequencingMetadataParser(seqdata_folder, exp_class.rxns_df)
+    sequencedata_class= SequencingMetadataParser(seq_folder, expdata_class.rxns_df)
     print("="*80)
+
+    print("Combining all data")
+    # Add in the sequence data
+    alldata_df = pd.merge(expdata_class.all_df, sequencedata_class.summary_bam, 
+                        left_on=[ExpDataSchema.BARCODE, ExpDataSchema.EXP_ID + "_seqlib", ExpDataSchema.SAMPLE_ID],
+                        right_on=[SeqDataSchema.BARCODE, SeqDataSchema.EXP_ID, SeqDataSchema.SAMPLE_ID],
+                        how ="outer")
+    # Add in the sample data 
+    alldata_df = pd.merge(alldata_df, sampledata_class.df, 
+                        left_on=[ExpDataSchema.SAMPLE_ID],
+                        right_on=[SampleDataSchema.SAMPLE_ID],
+                        how="outer")
 
     # OUTPUTS FOR NOTEBOOK ETC
     import os
     nb_folder = Path("./notebooks")
-    exp_class.swga_df.to_csv(nb_folder.joinpath("rxn_swga_df.csv"),index=False)
-    exp_class.pcr_df.to_csv(nb_folder.joinpath("rxn_pcr_df.csv"),index=False)
-    exp_class.seqlib_df.to_csv(nb_folder.joinpath("rxn_seqlib_df.csv"),index=False)
+    expdata_class.swga_df.to_csv(nb_folder.joinpath("rxn_swga_df.csv"),index=False)
+    expdata_class.pcr_df.to_csv(nb_folder.joinpath("rxn_pcr_df.csv"),index=False)
+    expdata_class.seqlib_df.to_csv(nb_folder.joinpath("rxn_seqlib_df.csv"),index=False)
     
-    exp_class.rxns_df.to_csv(nb_folder.joinpath("rxn_metadata_df.csv"),index=False)
-    exp_class.expts_df.to_csv(nb_folder.joinpath("exp_metadata_df.csv"),index=False)
-    exp_class.all_df.to_csv(nb_folder.joinpath("exp_allmetadata_df.csv"),index=False)
+    expdata_class.rxns_df.to_csv(nb_folder.joinpath("rxns_df.csv"),index=False)
+    expdata_class.expts_df.to_csv(nb_folder.joinpath("exps_df.csv"),index=False)
+    expdata_class.all_df.to_csv(nb_folder.joinpath("exp_all_df.csv"),index=False)
     
-    exp_class.swga_df.to_csv(nb_folder.joinpath("swga_df.csv"),index=False)
-    exp_class.pcr_df.to_csv(nb_folder.joinpath("pcr_df.csv"),index=False)
-    exp_class.seqlib_df.to_csv(nb_folder.joinpath("seqlib_df.csv"),index=False)
+    expdata_class.swga_df.to_csv(nb_folder.joinpath("swga_df.csv"),index=False)
+    expdata_class.pcr_df.to_csv(nb_folder.joinpath("pcr_df.csv"),index=False)
+    expdata_class.seqlib_df.to_csv(nb_folder.joinpath("seqlib_df.csv"),index=False)
 
-    sample_class.df.to_csv(nb_folder.joinpath("samples_df.csv"),index=False)
-    sequence_class.summary_bam.to_csv(nb_folder.joinpath("seq_bam.csv"),index=False)
-    sequence_class.summary_bedcov.to_csv(nb_folder.joinpath("seq_bedcov.csv"),index=False)
+    sampledata_class.df.to_csv(nb_folder.joinpath("samples_df.csv"),index=False)
+    sequencedata_class.summary_bam.to_csv(nb_folder.joinpath("seq_bam.csv"),index=False)
+    sequencedata_class.summary_bedcov.to_csv(nb_folder.joinpath("seq_bedcov.csv"),index=False)
 
     print("Starting the warehouse dashboard")
-    app = Dash()
+    app = Dash(__name__, external_stylesheets=CSS_STYLE)
     app.title = "Warehouse"
-    app.layout = create_layout(app, sample_class, exp_class, sequence_class)
+    app.layout = create_layout(app, sampledata_class, expdata_class, sequencedata_class, alldata_df)
     app.run()
 
     # Summary of results with ability to stratify by a particular output eg sex?
     # Change nomadic to savannah call
+
+    # Lists all attributes of class to make a list if they have been updated and don't
+    # want to manually edit
+    # print(SeqDataSchema.get_all_variables())

@@ -1,5 +1,6 @@
 import re, os
 from pathlib import Path
+from .exceptions import DataFormatError
 
 class Regex_patterns():
     #Identifying NOMADS specific files
@@ -13,9 +14,9 @@ class Regex_patterns():
     CSV_FILES = re.compile(r"~lock")
     OPENFILES = re.compile("|".join([EXCEL_FILES.pattern, CSV_FILES.pattern]))
 
-def identify_exptid_from_folder(path: Path) -> str:
+def identify_exptid_from_path (path: Path) -> str:
     """
-    Extract the experimental ID from a path
+    Extract the experimental ID from a file or folder
 
     Args:
         path (Path): path to the folder
@@ -25,13 +26,20 @@ def identify_exptid_from_folder(path: Path) -> str:
     """
 
     try:
+        #First try with the path name
         match = re.search(Regex_patterns.NOMADS_EXPID, path.name)
-        expt_id = match.group(0)
-        return expt_id
+        if match is None:
+            #Second try with the full path
+            match = re.search(Regex_patterns.NOMADS_EXPID, str(path))
+        if match is None:
+            raise DataFormatError(f"Unable to identify an ExpID in: {path}")
+        
+        return match.group(0)
+        
     
     except StopIteration:
-        print(f"Unable to identify an ExpID in: {path.name}")
-        return None
+        # print(f"Unable to identify an ExpID in: {path.name}")
+        raise DataFormatError(f"Unable to identify an ExpID in: {path.name}")
 
 
 def identify_exptid_from_fn(path: Path) -> str:
@@ -144,10 +152,31 @@ def check_file_present (filename: Path) -> bool :
         raise ValueError(f"{filename} does not exist. Exiting...")
     return filename.exists()
 
+def identify_all_files (folder : Path):
+    """
+    Identify all files in a folder"
+
+    Args:
+    folder (Path): path to the search folder.
+    
+    Returns:
+        Path: The path to the matching file(s), or None if not found.
+    """
+
+    all_files = []
+    for entry in folder.iterdir():
+        if entry.is_file():
+            all_files.append(entry)
+        elif entry.is_dir():
+        # Recursively search subdirectories
+            all_files.extend(identify_all_files(entry))
+    return all_files
+
+    
 def identify_files_by_search(folder_path: Path, pattern: str):
 
     """
-    Identify all files in a folder (plus one level down) based on a search pattern"
+    Identify all files in a folder that match a search pattern"
 
     Args:
     folder (Path): path to the search folder.
@@ -158,14 +187,8 @@ def identify_files_by_search(folder_path: Path, pattern: str):
     """
     
     try:
-        #Create a list of all subfolders and parent
-        folders = [ folder_path] + _list_folders_in_dir(folder_path)
-        matches = []
-        for folder in folders :
-            #List all  entries matching the searchpattern and add to list
-            new_matches = [f for f in folder.iterdir() if pattern.search(f.name)]
-            matches.extend(new_matches)
-        
+        matches = [f for f in identify_all_files(folder_path) if pattern.search(f.name)]
+            
         #Check that there are no open files
         _check_no_openfiles_identified(matches)
 
@@ -191,6 +214,9 @@ def identify_files_by_search(folder_path: Path, pattern: str):
         print(str(error_msg))
         raise
 
+
+
+
 def produce_dir(*args):
     """
     Produce a new directory by concatenating `args`,
@@ -214,6 +240,6 @@ def produce_dir(*args):
     # Create if doesn't exist
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
-        print(f"   {dir_name}")
+        print(f"   {dir_name} created")
 
     return dir_name
