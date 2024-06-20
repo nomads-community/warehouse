@@ -43,6 +43,6 @@ def metadata(exp_folder : Path, expt_id : str, output_folder : Path):
         matching_filepath = identify_experiment_file(exp_folder, expt_id)
         metadata = ExpMetadataParser(matching_filepath, output_folder)
     else:
-        matching_filepaths = identify_files_by_search(exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE)
+        matching_filepaths = identify_files_by_search(exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True)
         metadata = ExpMetadataMerge(matching_filepaths, output_folder)
 

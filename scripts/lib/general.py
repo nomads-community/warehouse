@@ -7,7 +7,7 @@ class Regex_patterns():
     SEQDATA_BAMSTATS_CSV=re.compile(r'.*bam_flagstats.*.csv')    
     SEQDATA_BEDCOV_CSV=re.compile(r'.*summary.*bedcov.*.csv')
     NOMADS_EXPID=re.compile(r"(SW|PC|SL)[a-zA-Z]{2}[0-9]{3}")
-    NOMADS_EXP_TEMPLATE=re.compile(r"(SW|PC|SL)[a-zA-Z]{2}[0-9]{3}.*.xlsx")
+    NOMADS_EXP_TEMPLATE=re.compile(r".*(SW|PC|SL)[a-zA-Z]{2}[0-9]{3}.*.xlsx")
 
     #Files that are open
     EXCEL_FILES = re.compile(r"^[/.|~]")
@@ -62,9 +62,9 @@ def identify_exptid_from_fn(path: Path) -> str:
         print(f"Unable to identify an ExpID in: {path.name}")
         return None
 
-def identify_experiment_file(metadata_folder: Path, expt_id: str = None):
+def identify_experiment_file(folder: Path, expt_id: str = None):
     """
-    Identify if there is a file with the ExpID in the list of filenames"
+    Identify if there is an Excel file with a matching ExpID pattern in the list of filenames"
 
     Args:
     files_list (list): List of file paths.
@@ -73,10 +73,14 @@ def identify_experiment_file(metadata_folder: Path, expt_id: str = None):
     Returns:
         Path: The path to the matching file, or None if not found.
     """
-    
-    matches = identify_files_by_search(metadata_folder, Regex_patterns.NOMADS_EXP_TEMPLATE)
-    search_pattern = re.compile(f".*{expt_id}_.*.xlsx")
-    matches = [f for f in matches if search_pattern.search(os.path.basename(f))]
+    print("Searching for all NOMADS template files")
+    matches = identify_files_by_search(folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True)
+    # search_pattern = re.compile(f".*{expt_id}_.*.xlsx")
+
+    print(f"Searching for files with {expt_id} in name")
+    search_pattern = re.compile(f"{expt_id}")
+    # matches = [f for f in matches if search_pattern.search(os.path.basename(f))]
+    matches = [f for f in matches if search_pattern.search(f.name)]
     
     #Esnure there is at least one match
     if len(matches) == 0:
@@ -102,22 +106,6 @@ def _check_no_openfiles_identified(fn_list : list) :
     #Ensure there are not any open files in the supplied list
     if openfiles:
         raise ValueError(f"{len(openfiles)} open files identified. Please close and run again:")
-        
-def _list_folders_in_dir(directory: Path) :
-    """
-    Lists all folders within a given directory using pathlib.
-  
-    Args:
-    directory (Path): path to the directory.
-    
-    Returns:
-    folders (list): pathlib paths to matching folders.
-    """
-    folders = []
-    for entry in Path(directory).iterdir():
-        if entry.is_dir():
-            folders.append(entry)
-    return folders
 
 def _check_duplicate_names(entries):
   """Checks for duplicate names in a list of pathlib entries.
@@ -152,12 +140,13 @@ def check_file_present (filename: Path) -> bool :
         raise ValueError(f"{filename} does not exist. Exiting...")
     return filename.exists()
 
-def identify_all_files (folder : Path):
+def identify_all_files (folder : Path, recursive : bool = False) -> list:
     """
     Identify all files in a folder"
 
     Args:
     folder (Path): path to the search folder.
+    recursive (Bool): Select whether search should be recursive
     
     Returns:
         Path: The path to the matching file(s), or None if not found.
@@ -168,12 +157,12 @@ def identify_all_files (folder : Path):
         if entry.is_file():
             all_files.append(entry)
         elif entry.is_dir():
-        # Recursively search subdirectories
-            all_files.extend(identify_all_files(entry))
+            if recursive:
+                # Recursively search subdirectories
+                all_files.extend(identify_all_files(entry, True))
     return all_files
-
     
-def identify_files_by_search(folder_path: Path, pattern: str):
+def identify_files_by_search(folder_path: Path, pattern: str, recursive : bool = False):
 
     """
     Identify all files in a folder that match a search pattern"
@@ -181,13 +170,14 @@ def identify_files_by_search(folder_path: Path, pattern: str):
     Args:
     folder (Path): path to the search folder.
     pattern (re.pattern): Compiled RE pattern to match filename against
+    recursive (Bool): Select whether search should be recursive
     
     Returns:
         Path: The path to the matching file(s), or None if not found.
     """
     
     try:
-        matches = [f for f in identify_all_files(folder_path) if pattern.search(f.name)]
+        matches = [f for f in identify_all_files(folder_path, recursive) if pattern.search(f.name)]
             
         #Check that there are no open files
         _check_no_openfiles_identified(matches)
@@ -213,9 +203,6 @@ def identify_files_by_search(folder_path: Path, pattern: str):
     except ValueError as error_msg:
         print(str(error_msg))
         raise
-
-
-
 
 def produce_dir(*args):
     """

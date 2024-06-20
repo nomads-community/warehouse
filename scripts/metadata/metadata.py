@@ -23,6 +23,9 @@ class ExpMetadataParser:
         print(f"{metadata_file.name}")
         self.tabnames = ["expt_metadata", "rxn_metadata"]
 
+        #Store filename
+        self.filename = metadata_file.name
+
         #Extract sheetnames
         sheets = pd.ExcelFile(metadata_file).sheet_names
         #Check both sheets / tabs are present
@@ -188,9 +191,9 @@ class ExpMetadataMerge:
     Extract metadata from multiple files, merge into a coherent dataframe, and optionally export the data
     """
 
-    def __init__(self, matching_filepaths, output_folder : Path):
+    def __init__(self, filepaths, output_folder : Path):
         #Extract each file into a dictionary 
-        metadata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in matching_filepaths }
+        metadata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in filepaths }
         print("="*80)
         
         #Check that there aren't duplicate experiment IDs 
@@ -214,105 +217,111 @@ class ExpMetadataMerge:
             expt_df_dict[expt_type] = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == expt_type )
             # Add instance attribute for each expt_type to self
             setattr(self, expt_type.lower() + "_df", expt_df_dict[expt_type])
-        
-        #Create joins dict according to experiment types present
-        joins = {}
-        if "sWGA" in expt_df_dict and "PCR" in expt_df_dict :
-            joins["sWGA and PCR"] = {"joining": ["sWGA", "PCR"],
-                                "left_df": expt_df_dict["sWGA"], 
-                                "right_df" : expt_df_dict["PCR"],
-                                "on" : ExpDataSchema.SWGA_IDENTIFIER, 
-                                "cols" : [ ExpDataSchema.SAMPLE_ID, ExpDataSchema.EXTRACTIONID],
-                                "suffixes" : ["_sWGA", "_PCR"]
-                                } 
-        if "PCR" in expt_df_dict and "seqlib" in expt_df_dict :
-            joins["PCR and seqlib"] = {"joining": ["PCR", "seqlib"],
-                                "left_df":  expt_df_dict["PCR"], 
-                                "right_df" :  expt_df_dict["seqlib"], 
-                                "on" : ExpDataSchema.PCR_IDENTIFIER, 
-                                "cols" : [ ExpDataSchema.SAMPLE_ID, ExpDataSchema.EXTRACTIONID],
-                                "suffixes" : ["_PCR", "_seqlib"]
-                                }
-        
-        print(f"Checking for data validity and merging dataframes for:")
-        
-        #Cycle through all of the joins required based on the data present. Enumerate from 1
-        for count,join in enumerate(joins, start=1):
-            #Load the current join from the dict
-            join_dict=joins[join]
-            print(f"   {join_dict['joining'][0]} and {join_dict['joining'][1]}")
 
-            #Join the two df together
-            data_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'],how='outer', on=join_dict['on'], 
-                               suffixes=join_dict['suffixes'], indicator=True)
+        #Provide for a case where only a single expt type is present
+        if len(self.expt_types) == 1:
+            print(f"Only a single expt type ({expt_type}) identified")
+            allmetadata_df = expt_df_dict[expt_type]
+        else:
+            #Create joins dict according to experiment types present
+            joins = {}
+            if "sWGA" in expt_df_dict and "PCR" in expt_df_dict :
+                joins["sWGA and PCR"] = {"joining": ["sWGA", "PCR"],
+                                    "left_df": expt_df_dict["sWGA"],
+                                    "right_df" : expt_df_dict["PCR"],
+                                    "on" : ExpDataSchema.SWGA_IDENTIFIER,
+                                    "cols" : [ ExpDataSchema.SAMPLE_ID, ExpDataSchema.EXTRACTIONID],
+                                    "suffixes" : ["_sWGA", "_PCR"]
+                                    }
+            if "PCR" in expt_df_dict and "seqlib" in expt_df_dict :
+                joins["PCR and seqlib"] = {"joining": ["PCR", "seqlib"],
+                                    "left_df":  expt_df_dict["PCR"],
+                                    "right_df" :  expt_df_dict["seqlib"],
+                                    "on" : ExpDataSchema.PCR_IDENTIFIER,
+                                    "cols" : [ ExpDataSchema.SAMPLE_ID, ExpDataSchema.EXTRACTIONID],
+                                    "suffixes" : ["_PCR", "_seqlib"]
+                                    }
             
-            #Create df with unmatched records from the right
-            # NOT left as this would highlight all that have not been completed / advanced i.e. sWGA performed, but not PCR
-            missing_records_df = data_df[data_df['_merge'] == 'right_only']
-            
-            # Identify names of key columns for reporting back to user and to check for mismatches
-            # Above join appends suffix to column names so create correct list of names
-            key_cols = [item + suffix for item in join_dict['cols'] for suffix in join_dict['suffixes'] ]
-            expt_id_cols = [ "expt_id" + suffix for suffix in join_dict['suffixes'] ]
-            #Combine for user feedback
-            show_cols = expt_id_cols + key_cols
+            print(f"Checking for data validity and merging dataframes for:")
 
-            # Ensure that only empty sWGA entries are mismatched?
-            if join == "sWGA and PCR":
-                missing_records_df = missing_records_df[missing_records_df['swga_identifier'].str.lower() != 'no swga']
+            #Cycle through all of the joins required based on the data present. Enumerate from 1
+            for count,join in enumerate(joins, start=1):
+                #Load the current join from the dict
+                join_dict=joins[join]
+                print(f"   {join_dict['joining'][0]} and {join_dict['joining'][1]}")
 
-            # Give user feedback
-            if len(missing_records_df) > 0 :
-                print(f"   WARNING: {join_dict['joining'][0]} data missing (present in {join_dict['joining'][1]} dataframe)")
-                print(missing_records_df[show_cols].to_string(index=False))
-                print("")
+                #Join the two df together
+                data_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'],how='outer', on=join_dict['on'],
+                                suffixes=join_dict['suffixes'], indicator=True)
+                
+                #Create df with unmatched records from the right
+                # NOT left as this would highlight all that have not been completed / advanced i.e. sWGA performed, but not PCR
+                missing_records_df = data_df[data_df['_merge'] == 'right_only']
 
-            #Create df with matched records
-            matched_df = data_df[data_df['_merge'] == 'both' ]
-            #Identify any mismatched records for the key columns
-            for c in join_dict['cols']:
-                #Pull out the two dataseries to compare
-                col1 = matched_df[f"{c}{join_dict['suffixes'][0]}"]
-                col2 = matched_df[f"{c}{join_dict['suffixes'][1]}"]
-                #Identify all that don't match
-                mismatches_df = matched_df.loc[(col1 != col2) ] 
-                #Feedback to user
-                if mismatches_df.shape[0] > 0:
-                    print(f"   WARNING: Mismatches identified for {c}")
-                    print(f"   {mismatches_df[show_cols].to_string(index=False)}")
+                # Identify names of key columns for reporting back to user and to check for mismatches
+                # Above join appends suffix to column names so create correct list of names
+                key_cols = [item + suffix for item in join_dict['cols'] for suffix in join_dict['suffixes'] ]
+                expt_id_cols = [ "expt_id" + suffix for suffix in join_dict['suffixes'] ]
+                #Combine for user feedback
+                show_cols = expt_id_cols + key_cols
+
+                # Ensure that only empty sWGA entries are mismatched?
+                if join == "sWGA and PCR":
+                    missing_records_df = missing_records_df[missing_records_df['swga_identifier'].str.lower() != 'no swga']
+
+                # Give user feedback
+                if len(missing_records_df) > 0 :
+                    print(f"   WARNING: {join_dict['joining'][0]} data missing (present in {join_dict['joining'][1]} dataframe)")
+                    print(missing_records_df[show_cols].to_string(index=False))
                     print("")
-            
-            #To ensure that all columns have the correct suffix, you need to rejoin the columns with or wthout 
-            # suffixes depending on whether it is the first (right hand df has no suffix) or last join (both given suffixes)
-            if count < len(joins):
-                # Another df to add so leave common fields without a suffix
-                allmetadata_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'], 
-                                          how="outer",on=join_dict['on'], suffixes=([join_dict['suffixes'][0], None]))
-            else:
-                # Last df being merged so give all a suffix
-                allmetadata_df = pd.merge(left=allmetadata_df,right=join_dict['right_df'],
-                                          how="outer",on=join_dict['on'], suffixes=(join_dict['suffixes']))
 
-        #Remove the expt_type fields as they are not informative in a merged df
-        dropcols = [col for col in allmetadata_df.columns if col.startswith('expt_type')]
-        allmetadata_df.drop(dropcols, axis=1, inplace=True)
-        
-        # Some fields are duplicated through merging and appended with a suffix e.g. _pcr
-        # These need to be collapsed so that a single column captures the details needed
-        field_prefixes = ['sample_id' ]
-        for field_prefix in field_prefixes:
-            # Identify all the fields
-            repeat_cols = [col for col in allmetadata_df.columns if col.startswith(field_prefix)]
-            # Stack all entries for columns, then take the first entry (not null) of each group.
-            # Reindex in case all columns have an empty value, which should never happen, but better to be safe
-            allmetadata_df["interim"] = allmetadata_df[repeat_cols].stack().groupby(level=0).first().reindex(allmetadata_df.index)
-            #Remove all repeat columns
-            allmetadata_df.drop(columns=repeat_cols, inplace=True)
-            #Rename interim to original
-            allmetadata_df.rename(columns={'interim' :field_prefix}, inplace=True)
-        
-        #Fill in the nan values so the aggregation works
-        allmetadata_df = allmetadata_df.fillna('None')
+                #Create df with matched records
+                matched_df = data_df[data_df['_merge'] == 'both' ]
+                #Identify any mismatched records for the key columns
+                for c in join_dict['cols']:
+                    #Pull out the two dataseries to compare
+                    col1 = matched_df[f"{c}{join_dict['suffixes'][0]}"]
+                    col2 = matched_df[f"{c}{join_dict['suffixes'][1]}"]
+                    #Identify all that don't match
+                    mismatches_df = matched_df.loc[(col1 != col2) ] 
+                    #Feedback to user
+                    if mismatches_df.shape[0] > 0:
+                        print(f"   WARNING: Mismatches identified for {c}")
+                        print(f"   {mismatches_df[show_cols].to_string(index=False)}")
+                        print("")
+
+                #To ensure that all columns have the correct suffix, you need to rejoin the columns with or wthout
+                # suffixes depending on whether it is the first (right hand df has no suffix) or last join (both given suffixes)
+                if count < len(joins):
+                    # Another df to add so leave common fields without a suffix
+                    allmetadata_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'], 
+                                            how="outer",on=join_dict['on'], suffixes=([join_dict['suffixes'][0], None]))
+                else:
+                    # Last df being merged so give all a suffix
+                    allmetadata_df = pd.merge(left=allmetadata_df,right=join_dict['right_df'],
+                                            how="outer",on=join_dict['on'], suffixes=(join_dict['suffixes']))
+                    
+                #Remove the expt_type fields as they are not informative in a merged df
+                dropcols = [col for col in allmetadata_df.columns if col.startswith('expt_type')]
+                allmetadata_df.drop(dropcols, axis=1, inplace=True)
+
+                # Some fields are duplicated through merging and appended with a suffix e.g. _pcr
+                # These need to be collapsed so that a single column captures the details needed
+                field_prefixes = ['sample_id' ]
+                for field_prefix in field_prefixes:
+                    # Identify all the fields
+                    repeat_cols = [col for col in allmetadata_df.columns if col.startswith(field_prefix)]
+                    # Stack all entries for columns, then take the first entry (not null) of each group.
+                    # Reindex in case all columns have an empty value, which should never happen, but better to be safe
+                    allmetadata_df["interim"] = allmetadata_df[repeat_cols].stack().groupby(level=0).first().reindex(allmetadata_df.index)
+                    #Remove all repeat columns
+                    allmetadata_df.drop(columns=repeat_cols, inplace=True)
+                    #Rename interim to original
+                    allmetadata_df.rename(columns={'interim' :field_prefix}, inplace=True)
+
+                #Fill in the nan values so the aggregation works
+                allmetadata_df = allmetadata_df.fillna('None')
+
         #Create an instance attribute
         self.all_df = allmetadata_df
         print("Done")
@@ -360,7 +369,7 @@ class ExpMetadataMerge:
                     value_counts[value] += 1
                 else:
                     value_counts[value] = 1
-
+        
         return [k for k,v in value_counts.items() if v > 1]
     
     def _summarise_furthest_state(self, status_str):
