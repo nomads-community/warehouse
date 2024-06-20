@@ -54,7 +54,7 @@ def identify_exptid_from_fn(path: Path) -> str:
     """
 
     try:
-        match = re.search(Regex_patterns.NOMADS_EXP_TEMPLATE, path.name)
+        match = re.search(Regex_patterns.NOMADS_EXPID, path.name)
         expt_id = match.group(0)
         return expt_id
     
@@ -79,7 +79,6 @@ def identify_experiment_file(folder: Path, expt_id: str = None):
 
     print(f"Searching for files with {expt_id} in name")
     search_pattern = re.compile(f"{expt_id}")
-    # matches = [f for f in matches if search_pattern.search(os.path.basename(f))]
     matches = [f for f in matches if search_pattern.search(f.name)]
     
     #Esnure there is at least one match
