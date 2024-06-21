@@ -375,13 +375,13 @@ class ExpMetadataMerge:
         #For each entry, try to get the key and add to counts
         for key, object in dt.items():
             #Pull out the value
-            expt_id = getattr(object, attribute)
-            if expt_id:
+            value = getattr(object, attribute)
+            if value:
                 if key in values_dict:
                     values_dict[value] += 1
                 else:
                     values_dict[value] = 1
-                    
+
         return [k for k,v in values_dict.items() if v > 1]
     
     def _summarise_furthest_state(self, status_str):
