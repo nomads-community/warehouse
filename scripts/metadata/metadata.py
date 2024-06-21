@@ -13,27 +13,27 @@ class ExpMetadataParser:
 
     """
     
-    def __init__(self, metadata_file: Path, 
+    def __init__(self, file_path: Path, 
                  output_folder : Path = None,
                  include_unclassified: bool = False):
         """
         Load and sanity check the metadata
 
         """
-        print(f"{metadata_file.name}")
+        print(f"{file_path.name}")
         self.tabnames = ["expt_metadata", "rxn_metadata"]
 
         #Store filename
-        self.filename = metadata_file.name
+        self.filepath = file_path
 
         #Extract sheetnames
-        sheets = pd.ExcelFile(metadata_file).sheet_names
+        sheets = pd.ExcelFile(file_path).sheet_names
         #Check both sheets / tabs are present
         if not (self.tabnames[0] in sheets and self.tabnames[1] in sheets):
-            raise DataFormatError(f"Missing tabs in {metadata_file}")
+            raise DataFormatError(f"Missing tabs in {file_path}")
 
-        #Load expt metadata
-        self.expt_df = self._extract_excel_data(metadata_file, self.tabnames[0])
+        #Load expt data
+        self.expt_df = self._extract_excel_data(file_path, self.tabnames[0])
         self.expt_id = self.expt_df["expt_id"].iloc[0]
         self.expt_date = self.expt_df["expt_date"].iloc[0]
         self._check_valid_date_format(self.expt_date)
@@ -41,16 +41,18 @@ class ExpMetadataParser:
         self.expt_type = self.expt_df["expt_type"].iloc[0]
         self.num_rxn = self.expt_df["expt_rxns"].iloc[0]
 
-        #Check validity of expt metadata
+        #Check validity of expt data
         self._define_expt_variables()
         self._check_for_columns(self.expt_req_cols, self.expt_df)
         self.expt_rows = self._check_number_rows(1, self.expt_df)
+        self._check_expt_id_fn_sheet()
+
         print("      Experimental metadata passed formatting checks.")
 
-        #Load rxn metadata
-        self.rxn_df = self._extract_excel_data(metadata_file, self.tabnames[1])
+        #Load rxn data
+        self.rxn_df = self._extract_excel_data(file_path, self.tabnames[1])
 
-        #Check validity of rxn metadata
+        #Check validity of rxn data
         self._check_for_columns(self.rxn_req_cols, self.rxn_df)
         self.rxn_rows = self._check_number_rows(self.num_rxn, self.rxn_df)
         self._check_entries_unique(self.rxn_unique_cols, self.rxn_df)
@@ -184,7 +186,16 @@ class ExpMetadataParser:
         for c in columns:
             df_filtered = df[df[c].isnull()]
             if df_filtered.shape[0] >0 :
-                raise DataFormatError(f"Column {c} contains empty data for {self.expt_id}:\n{df_filtered}")          
+                raise DataFormatError(f"Column {c} contains empty data for {self.expt_id}:\n{df_filtered}")
+
+    def _check_expt_id_fn_sheet(self):
+        """
+        Check that the expt_id in the filename is the same as the expt_id given in the spreadsheet
+        """
+        filename_expt_id = identify_exptid_from_fn(self.filepath)
+
+        if not filename_expt_id == self.expt_id:
+            raise DataFormatError(f"Exp ID from filename ({filename_expt_id}) and spreadsheet tab ({self.expt_id}) do NOT match")
     
 class ExpMetadataMerge:
     """
@@ -193,28 +204,28 @@ class ExpMetadataMerge:
 
     def __init__(self, filepaths, output_folder : Path):
         #Extract each file into a dictionary 
-        metadata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in filepaths }
+        expdata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in filepaths }
         print("="*80)
-        
+
         #Check that there aren't duplicate experiment IDs 
-        dupes = self._check_duplicate_entries(metadata_dict, ExpDataSchema.EXP_ID)
+        dupes = self._check_duplicate_entries(expdata_dict, ExpDataSchema.EXP_ID)
         if dupes :
             raise ValueError(f"{len(dupes)} duplicate expt_id identfied: {dupes}")
 
         #Concatenate all the exp level data into a df
-        self.expts_df = pd.concat(metadata_dict[key].expt_df for key in metadata_dict )
+        self.expts_df = pd.concat(expdata_dict[key].expt_df for key in expdata_dict )
         #Concatenate all the rxn level data into a df
-        self.rxns_df = pd.concat(metadata_dict[key].rxn_df for key in metadata_dict )
+        self.rxns_df = pd.concat(expdata_dict[key].rxn_df for key in expdata_dict )
 
         # Identify the expt_types present, create and create an empty df for each
-        expt_df_dict = { metadata_dict[key].expt_type : pd.DataFrame for key in metadata_dict }
+        expt_df_dict = { expdata_dict[key].expt_type : pd.DataFrame for key in expdata_dict }
         #Create attribute of expt_types for knowing columns generated
         self.expt_types = list(expt_df_dict.keys())
 
         # Populate df with the appropriate entries
         for expt_type in expt_df_dict.keys():
             #Concatenate data from the same expt_types into the dataframe dict
-            expt_df_dict[expt_type] = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == expt_type )
+            expt_df_dict[expt_type] = pd.concat(expdata_dict[key].df for key in expdata_dict if expdata_dict[key].expt_type == expt_type )
             # Add instance attribute for each expt_type to self
             setattr(self, expt_type.lower() + "_df", expt_df_dict[expt_type])
 
@@ -359,18 +370,19 @@ class ExpMetadataMerge:
         """
         
         # Dictionary to store counts of attribute
-        value_counts = {}  
-
-        #For each entry, try to get the key and add to counts
-        for _, object in dt.items():
-            value = getattr(object, attribute)
-            if value:
-                if value in value_counts:
-                    value_counts[value] += 1
-                else:
-                    value_counts[value] = 1
+        values_dict = {}
         
-        return [k for k,v in value_counts.items() if v > 1]
+        #For each entry, try to get the key and add to counts
+        for key, object in dt.items():
+            #Pull out the value
+            expt_id = getattr(object, attribute)
+            if expt_id:
+                if key in values_dict:
+                    values_dict[value] += 1
+                else:
+                    values_dict[value] = 1
+                    
+        return [k for k,v in values_dict.items() if v > 1]
     
     def _summarise_furthest_state(self, status_str):
             order = ["seqlib", "pcr", "swga"]
