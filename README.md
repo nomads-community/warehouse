@@ -20,7 +20,26 @@ Sample data can also be pulled into the `visualise` command from a csv file. Cur
 ### Sequence analysis outputs
 Finally outputs from sequencing runs can also be pulled into warehouse through the `visualise` command from the standard NOMADS folder structure (outlined below).
 
-## Install
+## Identifiers
+The standardisation that warehouse promotes relies on a number of identifiers:
+
+### Experiment ID
+Every experiment is given a unique ID composed of:
+- Experiment type (2 letters) e.g. SW (sWGA), PC (PCR), SL (Sequence Library)
+- Users initials (2 letters) e.g. Bwalya Kabale would be BW
+- Three digit incremental count for each experiment type e.g. 001 
+The third PCR for Bwalya Kabale would therefore be PCBW003. Most of this is automatically generated through the Excel templates. 
+
+### Sample ID
+Each sample must have a unique sampleID that can consist of any combination of characters. It is recommended that this should be the 'master' id assigned during sample collection and the reference for any sample metadata collected.
+
+### Extraction ID
+It is assumed that every mosquito / blood spot sample will need to have DNA extracted from it before testing. Multiple extractions may be made from a single sample therefore each needs a unique reference. It is recommended that a simple system is adopted to geenrate the extraction ID so that is can be transcribed onto tubes / plates as necessary. NOMADS recommend using a two letter prefix and then number extracts sequentially with three digits e.g. AA001, AA002 etc.
+
+### Reaction Identifiers
+To track the movement of samples / extracts through different experiments, a unique identifier is used for each. This is composed of the experiment id and the well or reaction number e.g. the pcr_identifier for the sample tested in well A1 in PCBW003 would be `PCBW003_A1`
+
+## Installation
 
 #### Requirements
 
