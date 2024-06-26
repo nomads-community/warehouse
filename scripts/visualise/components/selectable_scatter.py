@@ -14,8 +14,8 @@ def create_scatter(df : pd.DataFrame, x_series = None, y_series = None, colour_s
     if colour_series is None:
         colour_series = ExpDataSchema.EXP_ID + "_seqlib"
 
-    print(f"Plotting x: {x_series}, y: {y_series}, colour: {colour_series}")    
-
+    #print(f"Plotting x: {x_series}, y: {y_series}, colour: {colour_series}")
+    # Plot the values
     fig = px.scatter(df, 
                     x=x_series,
                     y=y_series,

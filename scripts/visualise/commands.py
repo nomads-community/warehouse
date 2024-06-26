@@ -4,6 +4,7 @@ from dash import Dash, html
 import pandas as pd
 from lib.dataschemas import ExpDataSchema, SampleDataSchema, SeqDataSchema
 from lib.general import check_file_present, Regex_patterns, identify_files_by_search
+from lib.controls import load_controls
 from metadata.metadata import ExpMetadataMerge, SampleMetadataParser, SequencingMetadataParser
 from .layout import create_layout
 CSS_STYLE=["scripts/visualise/assets/calling-style.css"]
@@ -34,10 +35,14 @@ CSS_STYLE=["scripts/visualise/assets/calling-style.css"]
     help="Path to csv file containing sample metadata information."
 )
 
-def visualise(exp_folder : Path, sample_csv : Path, seq_folder : Path ):
+def visualise(exp_folder : Path, sample_csv : Path = None, seq_folder : Path = None ):
+    
+    print("Loading controls data")
+    controls = load_controls()
+    print("="*80)
     
     print("Extracting experimental data")
-    exp_fns = identify_files_by_search(exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE)
+    exp_fns = identify_files_by_search(exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True)
     expdata_class = ExpMetadataMerge(exp_fns, output_folder=None)
 
     print("Extracting sample metadata")
@@ -50,7 +55,7 @@ def visualise(exp_folder : Path, sample_csv : Path, seq_folder : Path ):
     sequencedata_class= SequencingMetadataParser(seq_folder, expdata_class.rxns_df)
     print("="*80)
 
-    print("Combining all data")
+    print("Combining data sources")
     # Add in the sequence data
     alldata_df = pd.merge(expdata_class.all_df, sequencedata_class.summary_bam, 
                         left_on=[ExpDataSchema.BARCODE, ExpDataSchema.EXP_ID + "_seqlib", ExpDataSchema.SAMPLE_ID],
@@ -63,32 +68,29 @@ def visualise(exp_folder : Path, sample_csv : Path, seq_folder : Path ):
                         how="outer")
 
     # OUTPUTS FOR NOTEBOOK ETC
-    import os
-    nb_folder = Path("./notebooks")
-    expdata_class.swga_df.to_csv(nb_folder.joinpath("rxn_swga_df.csv"),index=False)
-    expdata_class.pcr_df.to_csv(nb_folder.joinpath("rxn_pcr_df.csv"),index=False)
-    expdata_class.seqlib_df.to_csv(nb_folder.joinpath("rxn_seqlib_df.csv"),index=False)
-    
-    expdata_class.rxns_df.to_csv(nb_folder.joinpath("rxns_df.csv"),index=False)
-    expdata_class.expts_df.to_csv(nb_folder.joinpath("exps_df.csv"),index=False)
-    expdata_class.all_df.to_csv(nb_folder.joinpath("exp_all_df.csv"),index=False)
-    
-    expdata_class.swga_df.to_csv(nb_folder.joinpath("swga_df.csv"),index=False)
-    expdata_class.pcr_df.to_csv(nb_folder.joinpath("pcr_df.csv"),index=False)
-    expdata_class.seqlib_df.to_csv(nb_folder.joinpath("seqlib_df.csv"),index=False)
-
-    sampledata_class.df.to_csv(nb_folder.joinpath("samples_df.csv"),index=False)
-    sequencedata_class.summary_bam.to_csv(nb_folder.joinpath("seq_bam.csv"),index=False)
-    sequencedata_class.summary_bedcov.to_csv(nb_folder.joinpath("seq_bedcov.csv"),index=False)
+    debug=False
+    if debug:
+        print("Exporting data for debugging")
+        import os
+        nb_folder = Path("./notebooks")
+        expdata_class.swga_df.to_csv(nb_folder.joinpath("rxn_swga_df.csv"),index=False)
+        expdata_class.pcr_df.to_csv(nb_folder.joinpath("rxn_pcr_df.csv"),index=False)
+        expdata_class.seqlib_df.to_csv(nb_folder.joinpath("rxn_seqlib_df.csv"),index=False)
+        expdata_class.rxns_df.to_csv(nb_folder.joinpath("rxns_df.csv"),index=False)
+        expdata_class.expts_df.to_csv(nb_folder.joinpath("exps_df.csv"),index=False)
+        expdata_class.all_df.to_csv(nb_folder.joinpath("exp_all_df.csv"),index=False)
+        expdata_class.swga_df.to_csv(nb_folder.joinpath("swga_df.csv"),index=False)
+        expdata_class.pcr_df.to_csv(nb_folder.joinpath("pcr_df.csv"),index=False)
+        expdata_class.seqlib_df.to_csv(nb_folder.joinpath("seqlib_df.csv"),index=False)
+        sampledata_class.df.to_csv(nb_folder.joinpath("samples_df.csv"),index=False)
+        sequencedata_class.summary_bam.to_csv(nb_folder.joinpath("seq_bam.csv"),index=False)
+        sequencedata_class.summary_bedcov.to_csv(nb_folder.joinpath("seq_bedcov.csv"),index=False)
 
     print("Starting the warehouse dashboard")
     app = Dash(__name__, external_stylesheets=CSS_STYLE)
     app.title = "Warehouse"
     app.layout = create_layout(app, sampledata_class, expdata_class, sequencedata_class, alldata_df)
     app.run()
-
-    # Summary of results with ability to stratify by a particular output eg sex?
-    # Change nomadic to savannah call
 
     # Lists all attributes of class to make a list if they have been updated and don't
     # want to manually edit

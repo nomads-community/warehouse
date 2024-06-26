@@ -32,7 +32,7 @@ def generate_fig(df, values_col):
     #Calculate the total
     total = df[values_col].sum().astype(int).astype(str)
     
-    
+    #Create fig
     fig = px.pie(df, values=values_col, names=names_col, hole =.4)
 
     # Add a title

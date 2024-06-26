@@ -3,13 +3,13 @@ from dash.dependencies import Output, Input
 import plotly.express as px
 import pandas as pd
 from . import ids, colours
-from lib.dataschemas import SeqDataSchema
+from lib.dataschemas import SeqDataSchema, DataSources
 
 color_map = {
-    SeqDataSchema.N_UNMAPPED: colours.GREY,
-    SeqDataSchema.N_PRIMARY: colours.BLUE_DARK,
-    SeqDataSchema.N_SECONDARY: colours.BLUE_MEDIUM,
-    SeqDataSchema.N_CHIMERA: colours.BLUE_LIGHT,
+    SeqDataSchema.ALL_VARS_DICT.get(SeqDataSchema.N_UNMAPPED): colours.GREY,
+    SeqDataSchema.ALL_VARS_DICT.get(SeqDataSchema.N_PRIMARY): colours.BLUE_DARK,
+    SeqDataSchema.ALL_VARS_DICT.get(SeqDataSchema.N_SECONDARY): colours.BLUE_MEDIUM,
+    SeqDataSchema.ALL_VARS_DICT.get(SeqDataSchema.N_CHIMERA): colours.BLUE_LIGHT,
 }
 
 def render(app: Dash, seq_df : pd.DataFrame) -> html.Div:
@@ -37,19 +37,22 @@ def render(app: Dash, seq_df : pd.DataFrame) -> html.Div:
 
     #Sort by Category into a custom order 
     df.sort_values(by="category", key=lambda col: col.map(SeqDataSchema.MAPPED_LIST.index), inplace=True)
+    #Replace Category name to user friendly version
+    df["category_label"] = df['category'].replace(DataSources.ALL_VARS_DICT)
     
     # Create the stacked bar graph
     fig = px.bar(
         df,
         x=SeqDataSchema.EXP_ID,
         y="count",
-        color="category",
+        color="category_label",
         color_discrete_map=color_map,
         barmode="stack",
     )
 
     # Customize plot
     fig.update_xaxes(title="Experiment ID")
+    fig.update_layout(legend_title_text="Mapped Reads")
 
     return html.Div(
         children=[

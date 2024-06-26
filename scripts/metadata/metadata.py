@@ -460,10 +460,10 @@ class SequencingMetadataParser:
             return merged
         
         print("   Searching for bam_flagstats file(s)")
-        bamfiles=identify_files_by_search(seqdata_folder, Regex_patterns.SEQDATA_BAMSTATS_CSV)
+        bamfiles=identify_files_by_search(seqdata_folder, Regex_patterns.SEQDATA_BAMSTATS_CSV, recursive=True)
         self.summary_bam = extract_add_concat(bamfiles, match_df)
         
         print("   Searching for bedcov file(s)")
-        bedcovfiles=identify_files_by_search(seqdata_folder, Regex_patterns.SEQDATA_BEDCOV_CSV)
+        bedcovfiles=identify_files_by_search(seqdata_folder, Regex_patterns.SEQDATA_BEDCOV_CSV, recursive=True)
         self.summary_bedcov = extract_add_concat(bedcovfiles, match_df)
         
