@@ -2,7 +2,7 @@ import click
 from pathlib import Path
 from dash import Dash, html
 import pandas as pd
-from lib.dataschemas import ExpDataSchema, SampleDataSchema, SeqDataSchema
+from lib.dataschemas import ExpDataSchema, SampleDataSchema, SeqDataSchema, SampleFields
 from lib.general import check_file_present, Regex_patterns, identify_files_by_search
 from lib.controls import load_controls
 from metadata.metadata import ExpMetadataMerge, SampleMetadataParser, SequencingMetadataParser
@@ -45,10 +45,10 @@ def visualise(exp_folder : Path, sample_csv : Path = None, seq_folder : Path = N
     exp_fns = identify_files_by_search(exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True)
     expdata_class = ExpMetadataMerge(exp_fns, output_folder=None)
 
-    print("Extracting sample metadata")
+    print("Extracting sample data")
     check_file_present(sample_csv)
     sampledata_class = SampleMetadataParser(sample_csv, expdata_class.rxns_df)
-    print(f"   Found {sampledata_class.df.shape[0]} entries")
+    print(f"   with {sampledata_class.df.shape[0]} entries")
     print("="*80)
 
     print("Extracting sequence summary data")

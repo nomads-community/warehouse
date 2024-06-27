@@ -1,3 +1,9 @@
+import configparser
+import os
+from pathlib import Path
+from lib.general import identify_files_by_search
+import re
+
 class SampleDataSchema:
     #### REFERENCES FOR ALL SAMPLE METADATA #####
     SAMPLE_ID = "Sample ID"
@@ -13,6 +19,69 @@ class SampleDataSchema:
                    MONTH : "Month collected",
                    YEAR : "Year collected" 
                    }
+
+#This class is not currently used, but aim is for user to be able to define the data they input.
+class SampleFields:
+    """
+    Define sample metadata fields to import and reference 
+    """
+
+    def __init__(self, samples_ini: Path = None) -> dict:
+        """
+        Pull in controls data from .ini file
+
+        """
+        if samples_ini is None:
+            script_dir = Path.cwd()
+            samples_ini = script_dir / "example_data/sample/samples.ini"
+            if not os.path.exists(samples_ini) :
+                raise ValueError(f"Unable to find {samples_ini}")
+            else:
+                print(" Using default .ini file")
+        else:
+            print(f" Looking for .ini file in {samples_ini.parent}")
+            samples_ini = identify_files_by_search(samples_ini.parent, re.compile(r'.*.ini'))
+
+        config = configparser.ConfigParser()
+        config.read(samples_ini)
+
+        # Create an empty dictionary to store data
+        labels_dict = {}
+
+        # Iterate through sections and items
+        for section, items in config.items():
+            if section == "fields":
+                for key, value in items.items():
+                    #Want upper case values to keep the same as other static refs
+                    key = key.upper()
+                    setattr(self, key, value)
+            elif section == "labels":
+                # Create labels dictionary from "labels" section
+                for key, value in items.items():
+                    #Note that we want the value from the fields section as the key and not the labels key
+                    # So get the self attribute using the key
+                    self_key = getattr(self, key.upper())
+                    labels_dict[self_key] = value
+
+        #Create dict containing all key values
+        self.ALL_VARS_DICT = labels_dict
+        
+        #Example .ini file
+        #This file defines the column names (fields) in the sample metadata file that should be assessed
+        # # a more human readable label (labels) can also be defined
+
+        # [fields]
+        # SAMPLE_ID=Sample ID
+        # DATE=Date Collected
+        # PARASITAEMIA=Parasitaemia (p/ul)
+        # LOCATION=Province
+        # MONTH=Month
+        # YEAR=Year
+        # STATUS=Status
+
+        # [labels]
+        # SAMPLE_ID=Sample ID
+        # DATE=Date
 
 class ExpDataSchema:
     #### REFERENCES FOR ALL EXPERIMENTAL DATA INCLUDING EXPT LEVEL AND INDIVIDUAL RXN #####
