@@ -1,4 +1,4 @@
-from dash import Dash, html, dcc
+from dash import Dash, html
 from dash.dependencies import Input, Output
 from . import ids
 

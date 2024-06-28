@@ -13,7 +13,6 @@ color_map = {
 }
 
 def render(app: Dash, seq_df : pd.DataFrame) -> html.Div:
-    SCALE_OPTIONS = ["Linear", "Log"]
 
     @app.callback(
         Output(ids.SEQ_OUTPUT, "figure"),

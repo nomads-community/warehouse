@@ -1,8 +1,8 @@
 import click
 from pathlib import Path
-from dash import Dash, html
+from dash import Dash
 import pandas as pd
-from lib.dataschemas import ExpDataSchema, SampleDataSchema, SeqDataSchema, SampleFields
+from lib.dataschemas import ExpDataSchema, SampleDataSchema, SeqDataSchema
 from lib.general import check_file_present, Regex_patterns, identify_files_by_search
 from lib.controls import load_controls
 from metadata.metadata import ExpMetadataMerge, SampleMetadataParser, SequencingMetadataParser
@@ -71,7 +71,6 @@ def visualise(exp_folder : Path, sample_csv : Path = None, seq_folder : Path = N
     debug=False
     if debug:
         print("Exporting data for debugging")
-        import os
         nb_folder = Path("./notebooks")
         expdata_class.swga_df.to_csv(nb_folder.joinpath("rxn_swga_df.csv"),index=False)
         expdata_class.pcr_df.to_csv(nb_folder.joinpath("rxn_pcr_df.csv"),index=False)

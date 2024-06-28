@@ -54,5 +54,5 @@ class ExperimentDirectories:
                 for sub_key, sub_value in config.items(default_key):
                     produce_dir(self.expt_dir, default_value, sub_value)
         
-        print(f" All folders created / available in:")
+        print(" All folders created / available in:")
         print(f"   {self.expt_dir}")

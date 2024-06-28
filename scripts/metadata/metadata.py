@@ -253,7 +253,7 @@ class ExpMetadataMerge:
                                     "suffixes" : ["_PCR", "_seqlib"]
                                     }
             
-            print(f"Checking for data validity and merging dataframes for:")
+            print("Checking for data validity and merging dataframes for:")
 
             #Cycle through all of the joins required based on the data present. Enumerate from 1
             for count,join in enumerate(joins, start=1):

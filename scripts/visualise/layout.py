@@ -1,5 +1,4 @@
-from dash import Dash, html, dcc
-from pathlib import Path
+from dash import Dash, html
 from .components import (
     pie_expt_types,
     scale_switcher_button,
@@ -7,7 +6,6 @@ from .components import (
     selectable_scatter,
     selectables_dropdowns
 )
-from lib.dataschemas import DataSources
 
 LOGO_PATH = "assets/warehouse_logo.png"
 

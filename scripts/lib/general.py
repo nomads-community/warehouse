@@ -1,4 +1,5 @@
-import re, os
+import re
+import os
 from pathlib import Path
 from .exceptions import DataFormatError
 
@@ -83,7 +84,7 @@ def identify_experiment_file(folder: Path, expt_id: str = None):
     
     #Esnure there is at least one match
     if len(matches) == 0:
-        raise ValueError(f"No matching files found.")
+        raise ValueError("No matching files found.")
     
     if len(matches) > 1:
         raise ValueError(f"Multiple matches found: {matches}")
@@ -186,7 +187,7 @@ def identify_files_by_search(folder_path: Path, pattern: str, recursive : bool =
 
         #Esnure there is at least one match
         if len(matches) == 0:
-            raise ValueError(f"No matching files found.")
+            raise ValueError("No matching files found.")
         
         #Feedback to user what has been found
         print(f"Found {len(matches)} matching file(s)")
