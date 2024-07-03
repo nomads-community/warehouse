@@ -82,19 +82,26 @@ class ExpMetadataParser:
                 
         print("Done")
 
-    def _extract_excel_data(self, filename, tabname):
+    def _extract_excel_data(self, filename : Path, tabname : str) -> pd.DataFrame:
 
-            """
-            Extract data from valid Excel sheets and return a dataframe.
-            """
+        """
+        Extract data from valid Excel sheets and return a dataframe.
 
-            #Extract data and drop empty rows
-            data =  pd.read_excel(filename, sheet_name=tabname)
-            data.dropna(how='all', inplace=True)
+        Args:
+            filename(Path): Path object to file
+            tabname(str): Excel tab in sheet
 
-            return data
+        Returns:
+            dataframe: Data from Excel tab
+        """
 
-    def _define_expt_variables(self):
+        #Extract data and drop empty rows
+        data =  pd.read_excel(filename, sheet_name=tabname)
+        data.dropna(how='all', inplace=True)
+
+        return data
+
+    def _define_expt_variables(self) -> None:
         """
         Define all required fields, counts etc for the exp type.
 
@@ -122,9 +129,13 @@ class ExpMetadataParser:
         else:
             raise DataFormatError(f"Error experiment type given as {self.expt_type}, expected seqlib, PCR or sWGA.")
         
-    def _check_number_rows(self, num_rows, df):
+    def _check_number_rows(self, num_rows : int, df : pd.DataFrame) -> None:
         """
-        Check if correct number of rows are present
+        Check if correct number of rows are present in df
+
+        Args:
+            num_rows(int): Number of rows expected
+            df(dataframe): dataframe to assess
 
         """
         found_rows = df.shape[0]
@@ -132,21 +143,27 @@ class ExpMetadataParser:
             print(f"WARNING: Expected {num_rows} rows, but found {found_rows}!")
             # raise MetadataFormatError(f"Expected {num_rows} rows, but found {found_rows}!")
 
-    def _check_for_columns(self, columns, df):
+    def _check_for_columns(self, columns : list, df : pd.DataFrame) -> None:
         """
         Check the correct columns are present
 
+        Args:
+            columns(list): List of column names
+            df(dataframe): dataframe to assess
         """
         for c in columns:
             if c not in df:
                 raise DataFormatError(f"Metadata must contain column called {c}!")
 
-    def _check_entries_unique(self, columns, df):
+    def _check_entries_unique(self, columns : list, df : pd.DataFrame) -> None :
         """
         Check entires of the required columns are unique
-
+        
+        Args:
+            columns(list): List of column names
+            df(dataframe): dataframe to assess
+        
         TODO: this will also disallow missing?
-
         """
 
         for c in columns:
@@ -159,7 +176,7 @@ class ExpMetadataParser:
                     )
                 observed_entries.append(entry)
 
-    def _check_barcodes_valid(self):
+    def _check_barcodes_valid(self) -> None:
         """
         Check the barcode entries are valid
 
@@ -178,9 +195,13 @@ class ExpMetadataParser:
         except ValueError:
             raise DataFormatError(f"Date {date} does not adhere to expected format: {format}.")
     
-    def _check_entries_not_blank(self, columns, df):
+    def _check_entries_not_blank(self, columns : list, df : pd.DataFrame) -> None:
         """
         Check that all entries in these columns are not blank
+
+        Args:
+            columns
+            df (dataframe)
         """
         
         for c in columns:
@@ -188,7 +209,7 @@ class ExpMetadataParser:
             if df_filtered.shape[0] >0 :
                 raise DataFormatError(f"Column {c} contains empty data for {self.expt_id}:\n{df_filtered}")
 
-    def _check_expt_id_fn_sheet(self):
+    def _check_expt_id_fn_sheet(self) -> None:
         """
         Check that the expt_id in the filename is the same as the expt_id given in the spreadsheet
         """
@@ -338,25 +359,44 @@ class ExpMetadataMerge:
         if output_folder:
             print(f"Outputting all data to folder: {output_folder.name}")
             
-            #Aggregate
-            agg_fn = "all_data.csv"
-            agg_path = output_folder / agg_fn
-            self.all_df.to_csv(agg_path, index=False)
-
+            self._export_df_to_csv(self.all_df, output_folder, "experimental_data_all.csv")
+            self._export_df_to_csv(self.exp_summary_df, output_folder, "experimental_data_summary.csv")
             #Summary
-            sum_fn = "experiments_summary.csv"
-            sum_path = output_folder / sum_fn
-            self.exp_summary_df.to_csv(sum_path, index=False)
+            # sum_fn = "experimental_data_summary.csv"
+            # sum_path = output_folder / sum_fn
+            #       self.exp_summary_df.to_csv(sum_path, index=False)
             
             print("Done")
             print("="*80)
 
+    def _export_df_to_csv(self, df : pd.DataFrame, folder: Path, filename: str) -> None:
+        """
+        Export a df to a csv file
+        Args:
+            df (pd.DataFrame): The pandas DataFrame to export.
+            folder (Path): Path object folder where the CSV will be saved.
+            filename (str):  .csv filename to be created.
+
+        Returns:    
+            None
+        """
+        
+        path = folder / filename
+        df.to_csv(path, index=False)
+
     def collapse_columns(self, df : pd.DataFrame, field_roots : list) -> pd.DataFrame:
-        '''
+        """
         Merging dataframes creates duplicated fields that only differ by suffix e.g. _pcr. 
         These need to be collapsed so that a single column captures the details needed.
-                
-        '''
+
+        Args:
+            df (pd.DataFrame): The pandas DataFrame to collapse columns in.
+            field_roots (list): List of root fieldnames e.g. sample_id
+
+        Returns:    
+            df (pd.DataFrame): The pandas DataFrame with the duplicate columns dropped.     
+        """
+
         for root in field_roots:
             # Identify all the fields
             repeat_cols = [col for col in df.columns if col.startswith(root)]
@@ -370,16 +410,22 @@ class ExpMetadataMerge:
 
         return df
 
-
-    def _count_non_none_entries_in_dfcolumn (self, df, column):
-        '''
+    def _count_non_none_entries_in_dfcolumn (self, df : pd.DataFrame, column : str) -> int:
+        """
         Function counts the number of non none entries in a column of a dataframe
-        '''
+        Args:
+            df (pd.DataFrame): The pandas DataFrame to export.
+            column (str): Name of the column to assess
+        
+        Returns:
+            int : Count of entries in the column that are not None.
+        """
         
         return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not item=="None"]) 
     
     def _check_duplicate_entries(self, dt : dict, attribute : str) -> list :
-        """Checks for duplicate entries for a defined key in a dictionary.
+        """
+        Checks for duplicate entries for a defined key in a dictionary.
 
         Args:
             dt: A populated dictionary.
@@ -403,13 +449,6 @@ class ExpMetadataMerge:
                     values_dict[value] = 1
 
         return [k for k,v in values_dict.items() if v > 1]
-    
-    def _summarise_furthest_state(self, status_str):
-            order = ["seqlib", "pcr", "swga"]
-            for o in order:
-                if o in status_str.lower():
-                    return o
-            return "NA"
    
 class SampleMetadataParser:
     """
