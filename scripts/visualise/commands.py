@@ -43,7 +43,7 @@ def visualise(exp_folder : Path, sample_csv : Path = None, seq_folder : Path = N
     
     print("Extracting experimental data")
     exp_fns = identify_files_by_search(exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True)
-    expdata_class = ExpMetadataMerge(exp_fns, output_folder=None)
+    expdata_class = ExpMetadataMerge(exp_fns)
 
     print("Extracting sample data")
     check_file_present(sample_csv)

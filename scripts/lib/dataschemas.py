@@ -114,6 +114,7 @@ class ExpDataSchema:
     SWGA_RXN_VOL_ul = "swga_rxnvol_ul"	
     SWGA_TARGETMASS = "swga_targetmass_ng"
     # PCR Specific
+    PCR_ASSAY="expt_assay"
     PCR_PRIMERS = "pcr_primers"
     PCR_PRIMER_SOURCE = "pcr_primersource"
     PCR_TARGETPANEL = "pcr_targetpanel"
@@ -156,7 +157,8 @@ class ExpDataSchema:
                         SWGA_TEMPLATE_VOL: "Template volume (ul)",
                         SWGA_PRODUCT_ngul : "DNA conc of product (ng/ul)" 
                         } | EXP_COMMON_FIELDS_SWGA
-    PCR_VARS_DICT = { PCR_PRIMERS : "Primer Set",
+    PCR_VARS_DICT = { PCR_ASSAY: "Assay Name",
+                     PCR_PRIMERS : "Primer Set",
                        PCR_PRIMER_SOURCE : "Primer source",
                        PCR_TARGETPANEL : "NOMADS Target", 
                        PCR_ENZYME : "Enzyme used", 

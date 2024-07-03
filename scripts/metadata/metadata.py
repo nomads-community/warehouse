@@ -202,7 +202,7 @@ class ExpMetadataMerge:
     Extract metadata from multiple files, merge into a coherent dataframe, and optionally export the data
     """
 
-    def __init__(self, filepaths, output_folder : Path):
+    def __init__(self, filepaths, output_folder : Path = None):
         #Extract each file into a dictionary 
         expdata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in filepaths }
         print("="*80)
@@ -232,7 +232,7 @@ class ExpMetadataMerge:
         #Provide for a case where only a single expt type is present
         if len(self.expt_types) == 1:
             print(f"Only a single expt type ({expt_type}) identified")
-            allmetadata_df = expt_df_dict[expt_type]
+            alldata_df = expt_df_dict[expt_type]
         else:
             #Create joins dict according to experiment types present
             joins = {}
@@ -272,7 +272,7 @@ class ExpMetadataMerge:
                 # Identify names of key columns for reporting back to user and to check for mismatches
                 # Above join appends suffix to column names so create correct list of names
                 key_cols = [item + suffix for item in join_dict['cols'] for suffix in join_dict['suffixes'] ]
-                expt_id_cols = [ "expt_id" + suffix for suffix in join_dict['suffixes'] ]
+                expt_id_cols = [ ExpDataSchema.EXP_ID + suffix for suffix in join_dict['suffixes'] ]
                 #Combine for user feedback
                 show_cols = expt_id_cols + key_cols
 
@@ -305,50 +305,70 @@ class ExpMetadataMerge:
                 # suffixes depending on whether it is the first (right hand df has no suffix) or last join (both given suffixes)
                 if count < len(joins):
                     # Another df to add so leave common fields without a suffix
-                    allmetadata_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'], 
+                    alldata_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'], 
                                             how="outer",on=join_dict['on'], suffixes=([join_dict['suffixes'][0], None]))
                 else:
                     # Last df being merged so give all a suffix
-                    allmetadata_df = pd.merge(left=allmetadata_df,right=join_dict['right_df'],
+                    alldata_df = pd.merge(left=alldata_df,right=join_dict['right_df'],
                                             how="outer",on=join_dict['on'], suffixes=(join_dict['suffixes']))
                     
-                #Remove the expt_type fields as they are not informative in a merged df
-                dropcols = [col for col in allmetadata_df.columns if col.startswith('expt_type')]
-                allmetadata_df.drop(dropcols, axis=1, inplace=True)
+            #Collapse columns where multiple entries exist
+            alldata_df = self.collapse_columns(alldata_df, [ ExpDataSchema.SAMPLE_ID ])
 
-                # Some fields are duplicated through merging and appended with a suffix e.g. _pcr
-                # These need to be collapsed so that a single column captures the details needed
-                field_prefixes = ['sample_id' ]
-                for field_prefix in field_prefixes:
-                    # Identify all the fields
-                    repeat_cols = [col for col in allmetadata_df.columns if col.startswith(field_prefix)]
-                    # Stack all entries for columns, then take the first entry (not null) of each group.
-                    # Reindex in case all columns have an empty value, which should never happen, but better to be safe
-                    allmetadata_df["interim"] = allmetadata_df[repeat_cols].stack().groupby(level=0).first().reindex(allmetadata_df.index)
-                    #Remove all repeat columns
-                    allmetadata_df.drop(columns=repeat_cols, inplace=True)
-                    #Rename interim to original
-                    allmetadata_df.rename(columns={'interim' :field_prefix}, inplace=True)
+            #Remove the expt_type fields as they are not informative in a merged df
+            dropcols = [col for col in alldata_df.columns if col.startswith(ExpDataSchema.EXP_TYPE)]
+            alldata_df.drop(dropcols, axis=1, inplace=True)
 
-                #Fill in the nan values so the aggregation works
-                allmetadata_df = allmetadata_df.fillna('None')
+            #Fill in the nan values
+            alldata_df = alldata_df.fillna('None')
+            
+            print("Summarising rxn performed")
+            # Group and aggregate the df to give a list of all experiments performed on each sample 
+            col_roots = [ExpDataSchema.SAMPLE_ID, ExpDataSchema.EXTRACTIONID, ExpDataSchema.PCR_ASSAY, ExpDataSchema.SWGA_IDENTIFIER, 
+                              ExpDataSchema.PCR_IDENTIFIER, ExpDataSchema.SEQLIB_IDENTIFIER]
+            collapsed_df = self.collapse_columns(alldata_df, col_roots)
+            self.exp_summary_df = collapsed_df[col_roots].groupby([ExpDataSchema.SAMPLE_ID, 'expt_assay']).agg(list).reset_index()
 
         #Create an instance attribute
-        self.all_df = allmetadata_df
+        self.all_df = alldata_df
         print("Done")
         print("="*80)
 
         #Optionally export the aggregate data
         if output_folder:
-            print(f"Outputting aggregate data to folder: {output_folder.name}")
+            print(f"Outputting all data to folder: {output_folder.name}")
             
             #Aggregate
-            agg_fn = "aggregate_metadata.csv"
+            agg_fn = "all_data.csv"
             agg_path = output_folder / agg_fn
-            self.all_df.to_csv(agg_path, index=False)  
+            self.all_df.to_csv(agg_path, index=False)
+
+            #Summary
+            sum_fn = "experiments_summary.csv"
+            sum_path = output_folder / sum_fn
+            self.exp_summary_df.to_csv(sum_path, index=False)
             
             print("Done")
             print("="*80)
+
+    def collapse_columns(self, df : pd.DataFrame, field_roots : list) -> pd.DataFrame:
+        '''
+        Merging dataframes creates duplicated fields that only differ by suffix e.g. _pcr. 
+        These need to be collapsed so that a single column captures the details needed.
+                
+        '''
+        for root in field_roots:
+            # Identify all the fields
+            repeat_cols = [col for col in df.columns if col.startswith(root)]
+            # Stack all entries for columns, then take the first entry (not null) of each group.
+            # Reindex in case all columns have an empty value, which should never happen, but better to be safe
+            df["interim"] = df[repeat_cols].stack().groupby(level=0).first().reindex(df.index)
+            #Remove all repeat columns
+            df.drop(columns=repeat_cols, inplace=True)
+            #Rename interim to original
+            df.rename(columns={'interim' :root}, inplace=True)
+
+        return df
 
 
     def _count_non_none_entries_in_dfcolumn (self, df, column):

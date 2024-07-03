@@ -1,7 +1,9 @@
 import os
 from pathlib import Path
 import configparser
+from lib.decorators import singleton
 
+@singleton
 class load_controls:
     """
     Load information on control strains used in the project so that they can be isolated from samples.
