@@ -1,14 +1,24 @@
 import click
 from pathlib import Path
-from lib.general import identify_nomads_files
+from lib.general import identify_files_by_search, Regex_patterns, identify_experiment_file
 
-@click.command(short_help="Extract, validate and optionally export all metadata")
+@click.command(short_help="Extract, validate and optionally export experimental data")
+
 @click.option(
-    "-m",
-    "--metadata_folder",
+    "-e",
+    "--exp_folder",
     type=Path,
     required=True,
-    help="Path to folder containing Excel metadata files."
+    help="Path to folder containing completed experimental Excel template files."
+)
+
+@click.option(
+    "-i",
+    "--expt_id",
+    type=str,
+    required=False,
+    default = "",
+    help="Experiment ID. For example SLJS034."
 )
 
 @click.option(
@@ -19,16 +29,7 @@ from lib.general import identify_nomads_files
     help="Output individual and aggregated metadata files."
 )
 
-@click.option(
-    "-e",
-    "--expt_id",
-    type=str,
-    required=False,
-    default = "",
-    help="Experiment ID. For example SLMM005."
-)
-
-def metadata(metadata_folder : Path, expt_id : str, output_folder : Path):
+def metadata(exp_folder : Path, expt_id : str, output_folder : Path):
     """
     Extract, combine and validate all metadata
     """
@@ -38,13 +39,10 @@ def metadata(metadata_folder : Path, expt_id : str, output_folder : Path):
     
     #Extract all metadata
     if expt_id:
-        #For an individual expt identify the  matching file
-        matching_filepath = identify_nomads_files(metadata_folder, expt_id)
-        metadata = ExpMetadataParser(matching_filepath, output_folder)
-
+        #Search for file with exptid in name
+        matching_filepath = identify_experiment_file(exp_folder, expt_id)
+        ExpMetadataParser(matching_filepath, output_folder)
     else:
-        #For all files in folder that match NOMADS template naming:
-        matching_filepaths = identify_nomads_files(metadata_folder)
-        #Extract all instances and merge data
-        metadata = ExpMetadataMerge(matching_filepaths, output_folder) 
+        matching_filepaths = identify_files_by_search(exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True)
+        ExpMetadataMerge(matching_filepaths, output_folder)
 

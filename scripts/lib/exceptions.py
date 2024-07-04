@@ -1,7 +1,7 @@
 
 
-class MetadataFormatError(Exception):
-    """Error in format or contents of the metadata"""
+class DataFormatError(Exception):
+    """Error in format or contents of the data"""
     pass
 
 class DateFormatError(Exception):

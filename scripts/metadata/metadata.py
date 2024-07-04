@@ -3,8 +3,9 @@ from pathlib import Path
 import pandas as pd
 from datetime import datetime
 from itertools import chain
-from lib.exceptions import MetadataFormatError
-from lib.general import identify_exptid_from_fn
+from lib.exceptions import DataFormatError
+from lib.general import identify_exptid_from_fn, identify_files_by_search, Regex_patterns, identify_exptid_from_path, produce_dir
+from lib.dataschemas import ExpDataSchema, SampleDataSchema, SeqDataSchema, ExpThroughputDataScheme
 
 class ExpMetadataParser:
     """
@@ -12,24 +13,27 @@ class ExpMetadataParser:
 
     """
     
-    def __init__(self, metadata_file: Path, 
+    def __init__(self, file_path: Path, 
                  output_folder : Path = None,
                  include_unclassified: bool = False):
         """
         Load and sanity check the metadata
 
         """
-        print(f"{metadata_file.name}")
+        print(f"{file_path.name}")
         self.tabnames = ["expt_metadata", "rxn_metadata"]
 
+        #Store filename
+        self.filepath = file_path
+
         #Extract sheetnames
-        sheets = pd.ExcelFile(metadata_file).sheet_names
+        sheets = pd.ExcelFile(file_path).sheet_names
         #Check both sheets / tabs are present
         if not (self.tabnames[0] in sheets and self.tabnames[1] in sheets):
-            raise MetadataFormatError(f"Missing tabs in {metadata_file}")
+            raise DataFormatError(f"Missing tabs in {file_path}")
 
-        #Load expt metadata
-        self.expt_df = self._extract_excel_data(metadata_file, self.tabnames[0])
+        #Load expt data
+        self.expt_df = self._extract_excel_data(file_path, self.tabnames[0])
         self.expt_id = self.expt_df["expt_id"].iloc[0]
         self.expt_date = self.expt_df["expt_date"].iloc[0]
         self._check_valid_date_format(self.expt_date)
@@ -37,15 +41,18 @@ class ExpMetadataParser:
         self.expt_type = self.expt_df["expt_type"].iloc[0]
         self.num_rxn = self.expt_df["expt_rxns"].iloc[0]
 
-        #Check validity of expt metadata
+        #Check validity of expt data
         self._define_expt_variables()
         self._check_for_columns(self.expt_req_cols, self.expt_df)
         self.expt_rows = self._check_number_rows(1, self.expt_df)
+        self._check_expt_id_fn_sheet()
+
         print("      Experimental metadata passed formatting checks.")
 
-        #Load rxn metadata
-        self.rxn_df = self._extract_excel_data(metadata_file, self.tabnames[1])
-        #Check validity of rxn metadata
+        #Load rxn data
+        self.rxn_df = self._extract_excel_data(file_path, self.tabnames[1])
+
+        #Check validity of rxn data
         self._check_for_columns(self.rxn_req_cols, self.rxn_df)
         self.rxn_rows = self._check_number_rows(self.num_rxn, self.rxn_df)
         self._check_entries_unique(self.rxn_unique_cols, self.rxn_df)
@@ -60,7 +67,12 @@ class ExpMetadataParser:
         print(f"      Merging experimental and rxn data for {self.expt_id}...")
         self.df = pd.merge(self.expt_df, self.rxn_df, on='expt_id', how='inner')
 
+        # Add expt_type back into the rxn dataframe after the merge otherwise there 
+        # will be duplicate expt_type cols
+        self.rxn_df[ExpDataSchema.EXP_TYPE] = self.rxn_df.get(ExpDataSchema.EXP_TYPE, self.expt_type)
+
         if output_folder is not None:
+            produce_dir(output_folder)    
             print(f"      Outputting data to folder: {output_folder.name}")
             output_dict = { "expt" : self.expt_df, "rxn" : self.rxn_df }
             for output in output_dict:
@@ -70,19 +82,26 @@ class ExpMetadataParser:
                 
         print("Done")
 
-    def _extract_excel_data(self, filename, tabname):
+    def _extract_excel_data(self, filename : Path, tabname : str) -> pd.DataFrame:
 
-            """
-            Extract data from valid Excel sheets and return a dataframe.
-            """
+        """
+        Extract data from valid Excel sheets and return a dataframe.
 
-            #Extract data and drop empty rows
-            data =  pd.read_excel(filename, sheet_name=tabname)
-            data.dropna(how='all', inplace=True)
+        Args:
+            filename(Path): Path object to file
+            tabname(str): Excel tab in sheet
 
-            return data
+        Returns:
+            dataframe: Data from Excel tab
+        """
 
-    def _define_expt_variables(self):
+        #Extract data and drop empty rows
+        data =  pd.read_excel(filename, sheet_name=tabname)
+        data.dropna(how='all', inplace=True)
+
+        return data
+
+    def _define_expt_variables(self) -> None:
         """
         Define all required fields, counts etc for the exp type.
 
@@ -108,11 +127,15 @@ class ExpMetadataParser:
             self.rxn_notblank_cols = ["sample_id","extraction_id","swga_identifier"]
             self.barcode_pattern = ""
         else:
-            raise MetadataFormatError(f"Error experiment type given as {self.expt_type}, expected seqlib, PCR or sWGA.")
+            raise DataFormatError(f"Error experiment type given as {self.expt_type}, expected seqlib, PCR or sWGA.")
         
-    def _check_number_rows(self, num_rows, df):
+    def _check_number_rows(self, num_rows : int, df : pd.DataFrame) -> None:
         """
-        Check if correct number of rows are present
+        Check if correct number of rows are present in df
+
+        Args:
+            num_rows(int): Number of rows expected
+            df(dataframe): dataframe to assess
 
         """
         found_rows = df.shape[0]
@@ -120,21 +143,27 @@ class ExpMetadataParser:
             print(f"WARNING: Expected {num_rows} rows, but found {found_rows}!")
             # raise MetadataFormatError(f"Expected {num_rows} rows, but found {found_rows}!")
 
-    def _check_for_columns(self, columns, df):
+    def _check_for_columns(self, columns : list, df : pd.DataFrame) -> None:
         """
         Check the correct columns are present
 
+        Args:
+            columns(list): List of column names
+            df(dataframe): dataframe to assess
         """
         for c in columns:
             if c not in df:
-                raise MetadataFormatError(f"Metadata must contain column called {c}!")
+                raise DataFormatError(f"Metadata must contain column called {c}!")
 
-    def _check_entries_unique(self, columns, df):
+    def _check_entries_unique(self, columns : list, df : pd.DataFrame) -> None :
         """
         Check entires of the required columns are unique
-
+        
+        Args:
+            columns(list): List of column names
+            df(dataframe): dataframe to assess
+        
         TODO: this will also disallow missing?
-
         """
 
         for c in columns:
@@ -142,12 +171,12 @@ class ExpMetadataParser:
             observed_entries = []
             for entry in all_entries:
                 if entry in observed_entries:
-                    raise MetadataFormatError(
+                    raise DataFormatError(
                         f"Column {c} entries should be unique, but {entry} is duplicated."
                     )
                 observed_entries.append(entry)
 
-    def _check_barcodes_valid(self):
+    def _check_barcodes_valid(self) -> None:
         """
         Check the barcode entries are valid
 
@@ -157,163 +186,246 @@ class ExpMetadataParser:
                 continue
             m = re.match(self.barcode_pattern, str(barcode))
             if m is None:
-                raise MetadataFormatError(f"Error in barcode name for {barcode}. To be valid, must match this regexp: {self.barcode_pattern}.")
+                raise DataFormatError(f"Error in barcode name for {barcode}. To be valid, must match this regexp: {self.barcode_pattern}.")
 
     def _check_valid_date_format(self, date: str, format: str="%Y-%m-%d") -> None:
         """ Check that a `date` adheres to a given `format` """
         try:
             datetime.strptime(date, format)
         except ValueError:
-            raise MetadataFormatError(f"Date {date} does not adhere to expected format: {format}.")
+            raise DataFormatError(f"Date {date} does not adhere to expected format: {format}.")
     
-    def _check_entries_not_blank(self, columns, df):
+    def _check_entries_not_blank(self, columns : list, df : pd.DataFrame) -> None:
         """
         Check that all entries in these columns are not blank
+
+        Args:
+            columns
+            df (dataframe)
         """
         
         for c in columns:
             df_filtered = df[df[c].isnull()]
             if df_filtered.shape[0] >0 :
-                raise MetadataFormatError(f"Column {c} contains empty data for {self.expt_id}:\n{df_filtered}")
-            
+                raise DataFormatError(f"Column {c} contains empty data for {self.expt_id}:\n{df_filtered}")
+
+    def _check_expt_id_fn_sheet(self) -> None:
+        """
+        Check that the expt_id in the filename is the same as the expt_id given in the spreadsheet
+        """
+        filename_expt_id = identify_exptid_from_fn(self.filepath)
+
+        if not filename_expt_id == self.expt_id:
+            raise DataFormatError(f"Exp ID from filename ({filename_expt_id}) and spreadsheet tab ({self.expt_id}) do NOT match")
     
 class ExpMetadataMerge:
     """
     Extract metadata from multiple files, merge into a coherent dataframe, and optionally export the data
     """
-    def __init__(self, matching_filepaths, output_folder : Path):
+
+    def __init__(self, filepaths, output_folder : Path = None):
         #Extract each file into a dictionary 
-        metadata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in matching_filepaths }
+        expdata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in filepaths }
         print("="*80)
 
         #Check that there aren't duplicate experiment IDs 
-        
-        dupes = self._check_duplicate_entries(metadata_dict, "expt_id")
+        dupes = self._check_duplicate_entries(expdata_dict, ExpDataSchema.EXP_ID)
         if dupes :
             raise ValueError(f"{len(dupes)} duplicate expt_id identfied: {dupes}")
-        
-        # Identify the expt_types present, create df for each and populate the df
-        expt_df = { metadata_dict[key].expt_type : pd.DataFrame for key in metadata_dict }
-        for expt_type in expt_df.keys():
+
+        #Concatenate all the exp level data into a df
+        self.expts_df = pd.concat(expdata_dict[key].expt_df for key in expdata_dict )
+        #Concatenate all the rxn level data into a df
+        self.rxns_df = pd.concat(expdata_dict[key].rxn_df for key in expdata_dict )
+
+        # Identify the expt_types present, create and create an empty df for each
+        expt_df_dict = { expdata_dict[key].expt_type : pd.DataFrame for key in expdata_dict }
+        #Create attribute of expt_types for knowing columns generated
+        self.expt_types = list(expt_df_dict.keys())
+
+        # Populate df with the appropriate entries
+        for expt_type in expt_df_dict.keys():
             #Concatenate data from the same expt_types into the dataframe dict
-            expt_df[expt_type] = pd.concat(metadata_dict[key].df for key in metadata_dict if metadata_dict[key].expt_type == expt_type )
+            expt_df_dict[expt_type] = pd.concat(expdata_dict[key].df for key in expdata_dict if expdata_dict[key].expt_type == expt_type )
+            # Add instance attribute for each expt_type to self
+            setattr(self, expt_type.lower() + "_df", expt_df_dict[expt_type])
 
-        #Create joins dict according to experiment types present
-        joins = {}
-        if "sWGA" in expt_df and "PCR" in expt_df :
-            joins["sWGA and PCR"] = {"joining": ["sWGA", "PCR"],
-                                "left_df": expt_df["sWGA"], 
-                                "right_df" : expt_df["PCR"],
-                                "on" : "swga_identifier", 
-                                "cols" : [ 'sample_id', 'extraction_id'],
-                                "suffixes" : ["", "_PCR"]
-                                } 
-        if "PCR" in expt_df and "seqlib" in expt_df :
-            joins["PCR and seqlib"] = {"joining": ["PCR", "seqlib"],
-                                "left_df":  expt_df["PCR"], 
-                                "right_df" :  expt_df["seqlib"], 
-                                "on" : "pcr_identifier", 
-                                "cols" : [ 'sample_id', 'extraction_id'],
-                                "suffixes" : ["", "_seqlib"]
-                                }
-        
-        print(f"Checking for data validity and merging dataframes for:")
-        #Cycle through all of the joins required based on the data present
-        for count,join in enumerate(joins):
-            #Load the current join from the dict
-            join_dict=joins[join]
-            print(f"   {join_dict['joining'][0]} and {join_dict['joining'][1]}")
-            print("   ------------------")
-
-            #Join the two df together
-            data_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'],how='outer', on=join_dict['on'], 
-                               suffixes=join_dict['suffixes'], indicator=True)
-            #Above join appends suffix to column names so create correct list of names
-            key_cols = [item + suffix for item in join_dict['cols'] for suffix in join_dict['suffixes'] ]
-            expt_id_cols = [ "expt_id" + suffix for suffix in join_dict['suffixes'] ]
-            #Combine for user feedback
-            show_cols = expt_id_cols + key_cols
+        #Provide for a case where only a single expt type is present
+        if len(self.expt_types) == 1:
+            print(f"Only a single expt type ({expt_type}) identified")
+            alldata_df = expt_df_dict[expt_type]
+        else:
+            #Create joins dict according to experiment types present
+            joins = {}
+            if "sWGA" in expt_df_dict and "PCR" in expt_df_dict :
+                joins["sWGA and PCR"] = {"joining": ["sWGA", "PCR"],
+                                    "left_df": expt_df_dict["sWGA"],
+                                    "right_df" : expt_df_dict["PCR"],
+                                    "on" : ExpDataSchema.SWGA_IDENTIFIER,
+                                    "cols" : [ ExpDataSchema.SAMPLE_ID, ExpDataSchema.EXTRACTIONID],
+                                    "suffixes" : ["_sWGA", "_PCR"]
+                                    }
+            if "PCR" in expt_df_dict and "seqlib" in expt_df_dict :
+                joins["PCR and seqlib"] = {"joining": ["PCR", "seqlib"],
+                                    "left_df":  expt_df_dict["PCR"],
+                                    "right_df" :  expt_df_dict["seqlib"],
+                                    "on" : ExpDataSchema.PCR_IDENTIFIER,
+                                    "cols" : [ ExpDataSchema.SAMPLE_ID, ExpDataSchema.EXTRACTIONID],
+                                    "suffixes" : ["_PCR", "_seqlib"]
+                                    }
             
-            #Create df with unmatched records from the right
-            # NOT left as this would highlight all that have not been completed / advanced i.e. sWGA performed, but not PCR
-            missing_records_df = data_df[data_df['_merge'] == 'right_only']
+            print("Checking for data validity and merging dataframes for:")
 
-            # Ensure that only empty sWGA entries are mismatched?
-            if join == "sWGA and PCR":
-                missing_records_df = missing_records_df[missing_records_df['swga_identifier'].str.lower() != 'no swga']
+            #Cycle through all of the joins required based on the data present. Enumerate from 1
+            for count,join in enumerate(joins, start=1):
+                #Load the current join from the dict
+                join_dict=joins[join]
+                print(f"   {join_dict['joining'][0]} and {join_dict['joining'][1]}")
 
-            # Give user feedback
-            if len(missing_records_df) > 0 :
-                print(f"   WARNING: {join_dict['joining'][0]} data missing (present in {join_dict['joining'][1]} dataframe)")
-                print(missing_records_df[show_cols].to_string(index=False))
-                print("")
+                #Join the two df together
+                data_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'],how='outer', on=join_dict['on'],
+                                suffixes=join_dict['suffixes'], indicator=True)
+                
+                #Create df with unmatched records from the right
+                # NOT left as this would highlight all that have not been completed / advanced i.e. sWGA performed, but not PCR
+                missing_records_df = data_df[data_df['_merge'] == 'right_only']
 
-            #Create df with matched records
-            matched_df = data_df[data_df['_merge'] == 'both' ]
-            #Identify any mismatched records for the key columns
-            for c in join_dict['cols']:
-                #Pull out the two dataseries to compare
-                col1 = matched_df[f"{c}{join_dict['suffixes'][0]}"]
-                col2 = matched_df[f"{c}{join_dict['suffixes'][1]}"]
-                #Identify all that don't match
-                mismatches_df = matched_df.loc[(col1 != col2) ] 
-                #Feedbacl to user
-                if mismatches_df.shape[0] > 0:
-                    print(f"   WARNING: Mismatches identified for {c}")
-                    print(f"   {mismatches_df[show_cols].to_string(index=False)}")
+                # Identify names of key columns for reporting back to user and to check for mismatches
+                # Above join appends suffix to column names so create correct list of names
+                key_cols = [item + suffix for item in join_dict['cols'] for suffix in join_dict['suffixes'] ]
+                expt_id_cols = [ ExpDataSchema.EXP_ID + suffix for suffix in join_dict['suffixes'] ]
+                #Combine for user feedback
+                show_cols = expt_id_cols + key_cols
+
+                # Ensure that only empty sWGA entries are mismatched?
+                if join == "sWGA and PCR":
+                    missing_records_df = missing_records_df[missing_records_df['swga_identifier'].str.lower() != 'no swga']
+
+                # Give user feedback
+                if len(missing_records_df) > 0 :
+                    print(f"   WARNING: {join_dict['joining'][0]} data missing (present in {join_dict['joining'][1]} dataframe)")
+                    print(missing_records_df[show_cols].to_string(index=False))
                     print("")
 
-            #Recreat and merge the dataframes together            
-            if count == 0:
-                allmetadata_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'], 
-                                          how="outer",on=join_dict['on'], suffixes=(join_dict['suffixes']))
-            else:
-                allmetadata_df = pd.merge(left=allmetadata_df,right=join_dict['right_df'],
-                                          how="outer",on=join_dict['on'], suffixes=(join_dict['suffixes']))
-            print("   Done")
-            print("")
+                #Create df with matched records
+                matched_df = data_df[data_df['_merge'] == 'both' ]
+                #Identify any mismatched records for the key columns
+                for c in join_dict['cols']:
+                    #Pull out the two dataseries to compare
+                    col1 = matched_df[f"{c}{join_dict['suffixes'][0]}"]
+                    col2 = matched_df[f"{c}{join_dict['suffixes'][1]}"]
+                    #Identify all that don't match
+                    mismatches_df = matched_df.loc[(col1 != col2) ] 
+                    #Feedback to user
+                    if mismatches_df.shape[0] > 0:
+                        print(f"   WARNING: Mismatches identified for {c}")
+                        print(f"   {mismatches_df[show_cols].to_string(index=False)}")
+                        print("")
 
-        #Fill in the nan values so the aggregation works
-        allmetadata_df = allmetadata_df.fillna('None')
-        print("Done")
-        print("="*80)
+                #To ensure that all columns have the correct suffix, you need to rejoin the columns with or wthout
+                # suffixes depending on whether it is the first (right hand df has no suffix) or last join (both given suffixes)
+                if count < len(joins):
+                    # Another df to add so leave common fields without a suffix
+                    alldata_df = pd.merge(left=join_dict['left_df'],right=join_dict['right_df'], 
+                                            how="outer",on=join_dict['on'], suffixes=([join_dict['suffixes'][0], None]))
+                else:
+                    # Last df being merged so give all a suffix
+                    alldata_df = pd.merge(left=alldata_df,right=join_dict['right_df'],
+                                            how="outer",on=join_dict['on'], suffixes=(join_dict['suffixes']))
+                    
+            #Collapse columns where multiple entries exist
+            alldata_df = self.collapse_columns(alldata_df, [ ExpDataSchema.SAMPLE_ID ])
 
-        print("Summarising rxn performed:")
-        # Group and aggregate the df to give a list of all experiments performed on each sample 
-        cols_to_retain = ['sample_id', 'extraction_id', 'swga_identifier', 'expt_assay', 'pcr_identifier',
-                          'seqlib_identifier']
-        self.agg_experiments_df = allmetadata_df[cols_to_retain].groupby(['sample_id', 'expt_assay']).agg(list).reset_index()
-        identifier_cols = [col for col in self.agg_experiments_df.columns if 'identifier' in col]
+            #Remove the expt_type fields as they are not informative in a merged df
+            dropcols = [col for col in alldata_df.columns if col.startswith(ExpDataSchema.EXP_TYPE)]
+            alldata_df.drop(dropcols, axis=1, inplace=True)
 
-        for col in identifier_cols:
-            value = self._count_non_none_entries_in_dfcolumn(self.agg_experiments_df, col)
-            name = col.replace("_identifier","")
-            print(f"   {name}: {value}")
+            #Fill in the nan values
+            alldata_df = alldata_df.fillna('None')
+            
+            print("Summarising rxn performed")
+            # Group and aggregate the df to give a list of all experiments performed on each sample 
+            col_roots = [ExpDataSchema.SAMPLE_ID, ExpDataSchema.EXTRACTIONID, ExpDataSchema.PCR_ASSAY, ExpDataSchema.SWGA_IDENTIFIER, 
+                              ExpDataSchema.PCR_IDENTIFIER, ExpDataSchema.SEQLIB_IDENTIFIER]
+            collapsed_df = self.collapse_columns(alldata_df, col_roots)
+            self.exp_summary_df = collapsed_df[col_roots].groupby([ExpDataSchema.SAMPLE_ID, 'expt_assay']).agg(list).reset_index()
+
+        #Create an instance attribute
+        self.all_df = alldata_df
         print("Done")
         print("="*80)
 
         #Optionally export the aggregate data
         if output_folder:
-            print(f"Outputting aggregate data to folder: {output_folder.name}")
+            print(f"Outputting all data to folder: {output_folder.name}")
             
-            #Aggregate
-            agg_fn = "aggregate_metadata.csv"
-            agg_path = output_folder / agg_fn
-            self.agg_experiments_df.to_csv(agg_path, index=False)  
+            self._export_df_to_csv(self.all_df, output_folder, "experimental_data_all.csv")
+            self._export_df_to_csv(self.exp_summary_df, output_folder, "experimental_data_summary.csv")
+            #Summary
+            # sum_fn = "experimental_data_summary.csv"
+            # sum_path = output_folder / sum_fn
+            #       self.exp_summary_df.to_csv(sum_path, index=False)
             
             print("Done")
             print("="*80)
 
+    def _export_df_to_csv(self, df : pd.DataFrame, folder: Path, filename: str) -> None:
+        """
+        Export a df to a csv file
+        Args:
+            df (pd.DataFrame): The pandas DataFrame to export.
+            folder (Path): Path object folder where the CSV will be saved.
+            filename (str):  .csv filename to be created.
 
-    def _count_non_none_entries_in_dfcolumn (self, df, column):
-        '''
+        Returns:    
+            None
+        """
+        
+        path = folder / filename
+        df.to_csv(path, index=False)
+
+    def collapse_columns(self, df : pd.DataFrame, field_roots : list) -> pd.DataFrame:
+        """
+        Merging dataframes creates duplicated fields that only differ by suffix e.g. _pcr. 
+        These need to be collapsed so that a single column captures the details needed.
+
+        Args:
+            df (pd.DataFrame): The pandas DataFrame to collapse columns in.
+            field_roots (list): List of root fieldnames e.g. sample_id
+
+        Returns:    
+            df (pd.DataFrame): The pandas DataFrame with the duplicate columns dropped.     
+        """
+
+        for root in field_roots:
+            # Identify all the fields
+            repeat_cols = [col for col in df.columns if col.startswith(root)]
+            # Stack all entries for columns, then take the first entry (not null) of each group.
+            # Reindex in case all columns have an empty value, which should never happen, but better to be safe
+            df["interim"] = df[repeat_cols].stack().groupby(level=0).first().reindex(df.index)
+            #Remove all repeat columns
+            df.drop(columns=repeat_cols, inplace=True)
+            #Rename interim to original
+            df.rename(columns={'interim' :root}, inplace=True)
+
+        return df
+
+    def _count_non_none_entries_in_dfcolumn (self, df : pd.DataFrame, column : str) -> int:
+        """
         Function counts the number of non none entries in a column of a dataframe
-        '''
+        Args:
+            df (pd.DataFrame): The pandas DataFrame to export.
+            column (str): Name of the column to assess
+        
+        Returns:
+            int : Count of entries in the column that are not None.
+        """
         
         return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not item=="None"]) 
     
     def _check_duplicate_entries(self, dt : dict, attribute : str) -> list :
-        """Checks for duplicate entries for a defined key in a dictionary.
+        """
+        Checks for duplicate entries for a defined key in a dictionary.
 
         Args:
             dt: A populated dictionary.
@@ -324,16 +436,93 @@ class ExpMetadataMerge:
         """
         
         # Dictionary to store counts of attribute
-        value_counts = {}  
-
+        values_dict = {}
+        
         #For each entry, try to get the key and add to counts
-        for _, object in dt.items():
+        for key, object in dt.items():
+            #Pull out the value
             value = getattr(object, attribute)
             if value:
-                if value in value_counts:
-                    value_counts[value] += 1
+                if key in values_dict:
+                    values_dict[value] += 1
                 else:
-                    value_counts[value] = 1
+                    values_dict[value] = 1
 
-        return [k for k,v in value_counts.items() if v > 1]
+        return [k for k,v in values_dict.items() if v > 1]
+   
+class SampleMetadataParser:
+    """
+    Extract sample metadata from a single csv file and determine experimental status (if passed data).
+
+    """
+
+    def __init__(self, sample_metadata_fn : Path, rxn_df : pd.DataFrame = None):
+        # load the data from the CSV file
+        data = pd.read_csv(
+            sample_metadata_fn,
+            dtype={
+                SampleDataSchema.SAMPLE_ID: str,
+                SampleDataSchema.LOCATION: str,
+                SampleDataSchema.PARASITAEMIA: int,
+            },
+            parse_dates=[SampleDataSchema.DATE],
+        )
+        data[SampleDataSchema.YEAR] = data[SampleDataSchema.DATE].dt.year.astype(str)
+        data[SampleDataSchema.MONTH] = data[SampleDataSchema.DATE].dt.month.astype(str)
+        
+        # Determine the point each sample has got through to in testing
+        if rxn_df is not None :
+            # Create status column and fill with not tested
+            data[SampleDataSchema.STATUS] = data.get(SampleDataSchema.STATUS, default=ExpThroughputDataScheme.EXP_TYPES[0])
+            
+            # Define what is present
+            types_present = rxn_df[ExpDataSchema.EXP_TYPE].unique()
+            for type in ExpThroughputDataScheme.EXP_TYPES: # Ensure order is followed
+                if type in types_present :
+                    #Get a list of samples that have the same matching expt_type
+                    samplelist=rxn_df[rxn_df[ExpDataSchema.EXP_TYPE] == type][ExpDataSchema.SAMPLE_ID].tolist()
+                    #Enter result into df overwriting previous entries
+                    data.loc[data[SampleDataSchema.SAMPLE_ID].isin(samplelist), SampleDataSchema.STATUS] = type
+        
+        # Define dataframe
+        self.df = data
     
+class SequencingMetadataParser:
+    """
+    Extract sequencing data from one or more csv files.
+
+    """
+
+    def __init__(self, seqdata_folder : Path, Exp_alldata : pd.DataFrame):
+        
+        # Trim exp dataframe to relevent columns and rows
+        cols = [ExpDataSchema.EXTRACTIONID, ExpDataSchema.SAMPLE_ID, ExpDataSchema.EXP_ID, ExpDataSchema.BARCODE] 
+        match_df = Exp_alldata.copy()
+        match_df = match_df[cols]
+        match_df = match_df.dropna(subset=[ExpDataSchema.BARCODE])
+        
+        def extract_add_concat(filelist, match_df) -> pd.DataFrame:
+            
+            temp = pd.DataFrame()
+            
+            # Extract data, add in experiment ID and concatenate all data
+            for file in filelist:
+                expid = identify_exptid_from_path(file)
+                data = pd.read_csv(file)
+                data[SeqDataSchema.EXP_ID] = expid
+                temp = pd.concat([temp, data], ignore_index=True)
+            
+            # Merge to add in additional cols 
+            merged = pd.merge(left=temp, right=match_df, 
+                              left_on=[ SeqDataSchema.EXP_ID, SeqDataSchema.BARCODE], right_on=[ExpDataSchema.EXP_ID, ExpDataSchema.BARCODE], 
+                              how="inner")
+            return merged
+        
+        print("   Searching for bam_flagstats file(s)")
+        bamfiles=identify_files_by_search(seqdata_folder, Regex_patterns.SEQDATA_BAMSTATS_CSV, recursive=True)
+        self.summary_bam = extract_add_concat(bamfiles, match_df)
+        
+        print("   Searching for bedcov file(s)")
+        bedcovfiles=identify_files_by_search(seqdata_folder, Regex_patterns.SEQDATA_BEDCOV_CSV, recursive=True)
+        self.summary_bedcov = extract_add_concat(bedcovfiles, match_df)
+        
