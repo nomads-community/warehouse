@@ -1,5 +1,6 @@
 import click
 from metadata.commands import metadata
+
 from seqfolders.commands import seqfolders
 from visualise.commands import visualise
 
@@ -25,7 +26,6 @@ def cli():
 cli.add_command(metadata)
 cli.add_command(seqfolders)
 cli.add_command(visualise)
-
 
 if __name__ == "__main__":
     cli()
