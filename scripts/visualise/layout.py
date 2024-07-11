@@ -9,7 +9,7 @@ from .components import (
 
 LOGO_PATH = "assets/warehouse_logo.png"
 
-def create_layout(app: Dash, sample_class, experiment_class, sequence_class, alldata_df) -> html.Div:
+def create_layout(app: Dash, sample_data, experiment_data, sequence_data, combined_data) -> html.Div:
     
     return html.Div(
         # className="app-div",
@@ -17,12 +17,12 @@ def create_layout(app: Dash, sample_class, experiment_class, sequence_class, all
             html.Img(src=LOGO_PATH),
             html.Hr(),
             html.H2("Throughput:"),
-            pie_expt_types.render(app, sample_class, experiment_class),
+            pie_expt_types.render(app, sample_data, experiment_data),
             html.Hr(),
-            coverage_by_expt.render(app, sequence_class.summary_bam),
+            coverage_by_expt.render(app, sequence_data),
             scale_switcher_button.render(app),
             html.Hr(),
-            selectables_dropdowns.render(app),
-            selectable_scatter.render(app, alldata_df),
+            selectables_dropdowns.render(app, combined_data),
+            selectable_scatter.render(app, combined_data),
         ]
     )

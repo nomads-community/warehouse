@@ -1,6 +1,5 @@
 from dash import Dash, html, dcc, Input, Output
 from . import ids  
-from lib.dataschemas import DataSources
 
 def create_dropdown(app: Dash, dropdown_id_prefix: str, dropdown_number: int, options: dict) -> dcc.Dropdown:
     """
@@ -26,7 +25,7 @@ def create_dropdown(app: Dash, dropdown_id_prefix: str, dropdown_number: int, op
 # def get_list_from_dict ():
 
 
-def render(app: Dash):
+def render(app: Dash, combined_data : object):
     """
     Renders identical dropdowns with sequential numbering.
 
@@ -47,16 +46,16 @@ def render(app: Dash):
         ],
     )
     def update_dropdowns(select1, select2, select3):
-        #Return the nested dict to populate the dropdown
-
-        return [DataSources.VAR_DICT_BY_SOURCE.get(select1,["Select datasource first"]),
-            DataSources.VAR_DICT_BY_SOURCE.get(select2, ["Select datasource first"]),
-            DataSources.VAR_DICT_BY_SOURCE.get(select3, ["Select datasource first"])
+        #Return the selection made to populate the dropdown with appropriate dict
+        return [combined_data.datasource_fields.get(select1,["Select datasource first"]),
+            combined_data.datasource_fields.get(select2, ["Select datasource first"]),
+            combined_data.datasource_fields.get(select3, ["Select datasource first"])
         ]
-
-    dropdown1 = create_dropdown(app, ids.DATASOURCE_DROPDOWN, 1, DataSources.DATA_SOURCE_DICT)
-    dropdown2 = create_dropdown(app, ids.DATASOURCE_DROPDOWN, 2, DataSources.DATA_SOURCE_DICT)
-    dropdown3 = create_dropdown(app, ids.DATASOURCE_DROPDOWN, 3, DataSources.DATA_SOURCE_DICT)
+    
+    combined_data
+    dropdown1 = create_dropdown(app, ids.DATASOURCE_DROPDOWN, 1, combined_data.datasources_dict)
+    dropdown2 = create_dropdown(app, ids.DATASOURCE_DROPDOWN, 2, combined_data.datasources_dict)
+    dropdown3 = create_dropdown(app, ids.DATASOURCE_DROPDOWN, 3, combined_data.datasources_dict )
 
     dynamic1 = create_dropdown(app, ids.COLUMN_DROPDOWN, 1, ["Select datasource first"])
     dynamic2 = create_dropdown(app, ids.COLUMN_DROPDOWN, 2, ["Select datasource first"])

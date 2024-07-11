@@ -1,4 +1,4 @@
-from lib.dataschemas import ExpThroughputDataScheme
+from metadata.metadata import ExpThroughputDataScheme
 
 #Tryptich across top of page
 TRYPTICH = "tryptich"

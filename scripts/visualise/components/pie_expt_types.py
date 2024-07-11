@@ -2,17 +2,17 @@ from dash import Dash, html, dcc
 import plotly.express as px
 import pandas as pd
 from . import ids
-from lib.dataschemas import ExpThroughputDataScheme, ExpDataSchema, SampleDataSchema
+from metadata.metadata import ExpThroughputDataScheme
 
-def render(app: Dash, sample_class, experiment_class):
+def render(app: Dash, sample_data, experiment_data):
     
     #Generate summary table    
-    df = summarise_exp_throughput(sample_class.df, experiment_class)
+    df = summarise_exp_throughput(sample_data, experiment_data)
     
     # Pull in other values / variables
     values_cols= [ ExpThroughputDataScheme.EXPERIMENTS, ExpThroughputDataScheme.REACTIONS, ExpThroughputDataScheme.SAMPLES]
     triptych = [ ]
-
+    
     # Generate the figs
     for values_col in values_cols:
         fig = generate_fig(df.copy(), values_col)
@@ -52,14 +52,28 @@ def generate_fig(df, values_col):
                     direction='clockwise')
     return fig
 
-def summarise_exp_throughput(sample_df, experiment_class):
+def summarise_exp_throughput(sample_data : object, experiment_data : object) -> pd.DataFrame:
+    """
+    Summarizes the throughput of an experiment based on sample and experiment data.
 
+    Args:
+        sample_data (object): An instance of a class containing sample data.
+        experiment_data (object): An instance of a class containing experiment data.
+
+    Returns:
+        dict: A dictionary containing summary counts 
+    """
+    
+    #Define colours
     colours = ['black', 'yellow', 'orange', 'green']
+    #Define key fields
+    SampleDataSchema = sample_data.DataSchema
+    ExpDataSchema = experiment_data.DataSchema
     
     # Create summaries of number of experiments and rxn performed
-    exp_counts = experiment_class.expts_df[ExpDataSchema.EXP_TYPE].value_counts().rename("experiments")
-    rxn_counts = experiment_class.rxns_df[ExpDataSchema.EXP_TYPE].value_counts().rename("reactions")
-    sample_counts = sample_df[SampleDataSchema.STATUS].value_counts().rename("samples")
+    exp_counts = experiment_data.expts_df[ExpDataSchema.EXP_TYPE[0]].value_counts().rename("experiments")
+    rxn_counts = experiment_data.rxns_df[ExpDataSchema.EXP_TYPE[0]].value_counts().rename("reactions")
+    sample_counts = sample_data.df[SampleDataSchema.STATUS[0]].value_counts().rename("samples")
     colour_series = pd.Series(colours, index=ExpThroughputDataScheme.EXP_TYPES).rename("colours")
     
     # na cause the datatype to change to a float so combine all ints and change to int
