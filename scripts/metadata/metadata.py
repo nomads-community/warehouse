@@ -8,11 +8,11 @@ from lib.general import identify_files_by_search, create_dict_from_ini, identify
 from lib.regex import Regex_patterns
 from lib.decorators import singleton
 
-# import pretty_errors
-# pretty_errors.configure(
-#     stack_depth=1,
-#     display_locals=1
-# )
+import pretty_errors
+pretty_errors.configure(
+    stack_depth=1,
+    display_locals=1
+)
 
 default_ini_folder=Path("./scripts/metadata/dataschemas/")
 

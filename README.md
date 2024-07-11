@@ -112,7 +112,7 @@ nomadic - outputs from nomadic should be stored here
 A `.ini` file can be used to define the desired folder structure, including sub-folders (see `resources/seqfolders` for an example), but the default ini produces the above.
 
 ### visualise
-- View dashboard of all experimental, sample and sequence data available: 
+- View dashboard of all experimental, sample and sequence data available. To understand the sample data columns, a .ini file must be placed in the sample folder. Only entries in this file will be accessible in warehouse (see an example in `example_data/sample/`). To run the code: 
 ```
 python scripts/warehouse.py visualise -e example_data/experimental/no_errors/ -s example_data/seqdata/ -c example_data/sample/sample_metadata.csv 
 
