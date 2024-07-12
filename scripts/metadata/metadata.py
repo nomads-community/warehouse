@@ -75,28 +75,30 @@ class ExpMetadataParser():
             raise DataFormatError(f"Missing tabs in {file_path}")
         
         #Load expt data
+        ###################
         self.expt_df = self._extract_excel_data(file_path, self.tabnames[0])
         self.expt_id = self.expt_df[ExpDataSchema.EXP_ID[0]].iloc[0]
         self.expt_date = self.expt_df[ExpDataSchema.EXP_DATE[0]].iloc[0]
         self._check_valid_date_format(self.expt_date)
         self.expt_summary = self.expt_df[ExpDataSchema.EXP_SUMMARY[0]].iloc[0]
         self.expt_type = self.expt_df[ExpDataSchema.EXP_TYPE[0]].iloc[0]
-        self.num_rxn = self.expt_df[ExpDataSchema.EXP_RXNS[0]].iloc[0]
-
+        #Save the number of samples entered into the assay tab
+        num_rxn = self.expt_df[ExpDataSchema.EXP_RXNS[0]].iloc[0]
         #Check validity of expt data
+        ###################
         self._define_expt_variables()
         self._check_for_columns(self.expt_req_cols, self.expt_df)
-        self.expt_rows = self._check_number_rows(1, self.expt_df)
+        self._check_number_rows(1, self.expt_df, self.filepath)
         self._check_expt_id_fn_sheet()
-
         print("      Experimental metadata passed formatting checks.")
 
         #Load rxn data
+        ###################
         self.rxn_df = self._extract_excel_data(file_path, self.tabnames[1])
-
         #Check validity of rxn data
+        ###################
         self._check_for_columns(self.rxn_req_cols, self.rxn_df)
-        self.rxn_rows = self._check_number_rows(self.num_rxn, self.rxn_df)
+        self.rxn_rows = self._check_number_rows(num_rxn, self.rxn_df, self.filepath)
         self._check_entries_unique(self.rxn_unique_cols, self.rxn_df)
         self._check_entries_not_blank(self.rxn_notblank_cols, self.rxn_df)
         if len(self.barcode_pattern) > 0  :
@@ -108,10 +110,8 @@ class ExpMetadataParser():
 
         print(f"      Merging experimental and rxn data for {self.expt_id}...")
         self.df = pd.merge(self.expt_df, self.rxn_df, on='expt_id', how='inner')
-
         # Add expt_type back into the rxn dataframe after the merge otherwise there 
         # will be duplicate expt_type cols
-
         self.rxn_df[ExpDataSchema.EXP_TYPE[0]] = self.rxn_df.get(ExpDataSchema.EXP_TYPE[0], self.expt_type)
 
         if output_folder is not None:
@@ -172,20 +172,27 @@ class ExpMetadataParser():
         else:
             raise DataFormatError(f"Error experiment type given as {self.expt_type}, expected seqlib, PCR or sWGA.")
         
-    def _check_number_rows(self, num_rows : int, df : pd.DataFrame) -> None:
+    def _check_number_rows(self, num_rows : int, df : pd.DataFrame, filename : Path) -> int:
         """
         Check if correct number of rows are present in df
 
         Args:
             num_rows(int): Number of rows expected
             df(dataframe): dataframe to assess
-
+        
+        Returns:
+            found_rows(int)
         """
         found_rows = df.shape[0]
+
         if found_rows != num_rows:
             print(f"WARNING: Expected {num_rows} rows, but found {found_rows}!")
-            # raise MetadataFormatError(f"Expected {num_rows} rows, but found {found_rows}!")
-
+        
+        if found_rows == 0:
+            raise DataFormatError(f"No rows found in {filename}!")
+        
+        return found_rows
+        
     def _check_for_columns(self, columns : list, df : pd.DataFrame) -> None:
         """
         Check the correct columns are present
@@ -267,15 +274,19 @@ class ExpMetadataMerge():
     """
 
     def __init__(self, filepaths, output_folder : Path = None):
+        
+        #Pull in the dynamically created ExpDataSchema as an object
+        ExpDataSchema = ExpDataSchemaFields()
+        self.DataSchema = ExpDataSchema
+        
+        # Check that there aren't duplicate experiment IDs 
+        self._check_duplicate_expid(filepaths)
+        
         #Extract each file as an object into a dictionary 
         expdata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in filepaths }
+        # expdata_dict = self.create_expobj_dict(filepaths, output_folder)
         print("="*80)
         
-        #Check that there aren't duplicate experiment IDs 
-        dupes = self._check_duplicate_entries(expdata_dict, "expt_id")
-        if dupes :
-            raise ValueError(f"{len(dupes)} duplicate expt_id identfied: {dupes}")
-
         #Concatenate all the exp level data into a df
         self.expts_df = pd.concat(expdata_dict[key].expt_df for key in expdata_dict )
         #Concatenate all the rxn level data into a df
@@ -292,10 +303,6 @@ class ExpMetadataMerge():
             expt_df_dict[expt_type] = pd.concat(expdata_dict[key].df for key in expdata_dict if expdata_dict[key].expt_type == expt_type )
             # Add instance attribute for each expt_type to self
             setattr(self, expt_type.lower() + "_df", expt_df_dict[expt_type])
-        
-        #Pull in the dynamically created ExpDataSchema as an object
-        ExpDataSchema = ExpDataSchemaFields()
-        self.DataSchema = ExpDataSchema
                 
         #Provide for a case where only a single expt type is present
         if len(self.expt_types) == 1:
@@ -312,7 +319,8 @@ class ExpMetadataMerge():
                                     "cols" : [ ExpDataSchema.SAMPLE_ID[0], 
                                               ExpDataSchema.EXTRACTION_ID[0]
                                               ],
-                                    "suffixes" : ["_sWGA", "_PCR"]
+                                    "suffixes" : ["_sWGA", "_PCR"],
+                                    "mismatch_escape" : (ExpDataSchema.SWGA_IDENTIFIER[0],"no swga")
                                     }
             if "PCR" in expt_df_dict and "seqlib" in expt_df_dict :
                 joins["PCR and seqlib"] = {"joining": ["PCR", "seqlib"],
@@ -322,7 +330,8 @@ class ExpMetadataMerge():
                                     "cols" : [ ExpDataSchema.SAMPLE_ID[0], 
                                               ExpDataSchema.EXTRACTION_ID[0]
                                               ],
-                                    "suffixes" : ["_PCR", "_seqlib"]
+                                    "suffixes" : ["_PCR", "_seqlib"],
+                                    "mismatch_escape" : (ExpDataSchema.PCR_IDENTIFIER[0],"no pcr")
                                     }
             
             print("Checking for data validity and merging dataframes for:")
@@ -353,9 +362,10 @@ class ExpMetadataMerge():
                 #Combine for user feedback and include the join column for quick referencing in spreadsheet
                 show_cols = [join_dict['on']] + expt_id_cols + key_cols
 
-                # Ensure that only empty sWGA entries are mismatched?
-                if join == "sWGA and PCR":
-                    missing_records_df = missing_records_df[missing_records_df['swga_identifier'].str.lower() != 'no swga']
+                # Ensure that only empty entries are mismatched and not those that should not have a match
+                escape = join_dict.get("mismatch_escape", None)
+                missing_records_df = missing_records_df[missing_records_df[escape[0]].str.lower() != escape[1]]
+
 
                 # Give user feedback
                 if len(missing_records_df) > 0 :
@@ -488,32 +498,28 @@ class ExpMetadataMerge():
         
         return len([item for item in list(chain.from_iterable(df[f"{column}"])) if not item=="None"]) 
     
-    def _check_duplicate_entries(self, dt : dict, attribute : str) -> list :
+    def _check_duplicate_expid(self, filepaths : list[Path]) -> None :
         """
-        Checks for duplicate entries for a defined key in a dictionary.
+        Checks for duplicate expids in list of filename paths
 
         Args:
-            dt: A populated dictionary.
-            attribute: attribute of the object in dt to look for duplicates in
-
-        Returns:
-            A list of values that have duplicate entries
+            filepaths (list[Path]): List of Path objects
+            
         """
+        if isinstance(filepaths, str):
+            filepaths = [filepaths]
         
-        # Dictionary to store counts of attribute
-        values_dict = {}
-        
-        #For each entry, try to get the key and add to counts
-        for key, object in dt.items():
-            #Pull out the value
-            value = getattr(object, attribute)
-            if value:
-                if key in values_dict:
-                    values_dict[value] += 1
-                else:
-                    values_dict[value] = 1
+        #Create an empty set and dict
+        expid_dict = {}
+        keys_seen = set()
 
-        return [k for k,v in values_dict.items() if v > 1]
+        for filepath in filepaths:
+            expid = identify_exptid_from_fn(filepath)
+            if expid in keys_seen:
+                raise ValueError(f"Duplicate expt_id identfied: {expid} in files: {filepath.name} and {expid_dict[expid]}")
+            #Add to set for checking and to dict for printing out filename
+            keys_seen.add(expid)
+            expid_dict[expid] = filepath.name
 
 @singleton           
 class SampleDataSchemaFields:
