@@ -8,11 +8,11 @@ from lib.general import identify_files_by_search, create_dict_from_ini, identify
 from lib.regex import Regex_patterns
 from lib.decorators import singleton
 
-import pretty_errors
-pretty_errors.configure(
-    stack_depth=1,
-    display_locals=1
-)
+    # import pretty_errors
+    # pretty_errors.configure(
+    #     stack_depth=1,
+    #     display_locals=1
+    # )
 
 default_ini_folder=Path("./scripts/metadata/dataschemas/")
 
@@ -39,7 +39,7 @@ class ExpDataSchemaFields:
             #Reformat to single level dict
             libdict = reformat_nested_dict(libdict,"field","label")
             setattr(self, libname, libdict)
-
+        
         #Need list for all fields
         self.dataschema_dict = create_dict_from_ini(ini_files)
         
@@ -151,26 +151,53 @@ class ExpMetadataParser():
         """
         print(f"      Identified as {self.expt_type} type experiment")
         self.rxn_identifier_col = self.expt_type + "_identifier"
+        ExpDataSchema = ExpDataSchemaFields()
+        
         if self.expt_type == "seqlib":
-            self.expt_req_cols = ["expt_id", "expt_date"]
-            self.rxn_req_cols = ["barcode", "seqlib_identifier", "sample_id","extraction_id"]
-            self.rxn_unique_cols = ["barcode", "seqlib_identifier"]
-            self.rxn_notblank_cols = ["sample_id","extraction_id", "pcr_identifier","seqlib_identifier"]
+            self.expt_req_cols = [ExpDataSchema.EXP_ID[0], ExpDataSchema.EXP_ID[0]]
+            self.rxn_req_cols = [ExpDataSchema.BARCODE[0], ExpDataSchema.SEQLIB_IDENTIFIER[0], ExpDataSchema.SAMPLE_ID[0], 
+                                 ExpDataSchema.EXTRACTION_ID[0]]
+            self.rxn_unique_cols = [ExpDataSchema.BARCODE[0], ExpDataSchema.SEQLIB_IDENTIFIER[0]]
+            self.rxn_notblank_cols = [ExpDataSchema.SAMPLE_ID[0], ExpDataSchema.SEQLIB_IDENTIFIER[0], 
+                                      ExpDataSchema.PCR_IDENTIFIER[0], ExpDataSchema.SEQLIB_IDENTIFIER[0]]
             self.barcode_pattern = "barcode[0-9]{2}"
         elif self.expt_type == "PCR":
-            self.expt_req_cols = ["expt_id", "expt_date"]
-            self.rxn_req_cols = ["pcr_identifier", "sample_id","extraction_id"]
-            self.rxn_unique_cols = ["pcr_identifier"]
-            self.rxn_notblank_cols = ["sample_id","extraction_id", "pcr_identifier"]
+            self.expt_req_cols = [ExpDataSchema.EXP_ID[0], ExpDataSchema.EXP_ID[0]]
+            self.rxn_req_cols = [ExpDataSchema.PCR_IDENTIFIER[0], ExpDataSchema.SAMPLE_ID[0], ExpDataSchema.EXTRACTION_ID[0]]
+            self.rxn_unique_cols = [ExpDataSchema.PCR_IDENTIFIER[0]]
+            self.rxn_notblank_cols = [ExpDataSchema.SAMPLE_ID[0], ExpDataSchema.EXTRACTION_ID[0], 
+                                      ExpDataSchema.PCR_IDENTIFIER[0]]
             self.barcode_pattern = ""
         elif self.expt_type == "sWGA":
-            self.expt_req_cols = ["expt_id", "expt_date"]
-            self.rxn_req_cols = ["swga_identifier", "sample_id","extraction_id"]
-            self.rxn_unique_cols = ["swga_identifier"]
-            self.rxn_notblank_cols = ["sample_id","extraction_id","swga_identifier"]
+            self.expt_req_cols = [ExpDataSchema.EXP_ID[0], ExpDataSchema.EXP_ID[0]]
+            self.rxn_req_cols = [ExpDataSchema.SWGA_IDENTIFIER[0], ExpDataSchema.SAMPLE_ID[0],
+                                 ExpDataSchema.EXTRACTION_ID[0]]
+            self.rxn_unique_cols = [ExpDataSchema.SWGA_IDENTIFIER[0]]
+            self.rxn_notblank_cols = [ExpDataSchema.SAMPLE_ID[0], ExpDataSchema.EXTRACTION_ID[0], ExpDataSchema.SWGA_IDENTIFIER[0]]
             self.barcode_pattern = ""
         else:
             raise DataFormatError(f"Error experiment type given as {self.expt_type}, expected seqlib, PCR or sWGA.")
+
+        # if self.expt_type == "seqlib":
+        #     self.expt_req_cols = ["expt_id", "expt_date"]
+        #     self.rxn_req_cols = ["barcode", "seqlib_identifier", "sample_id","extraction_id"]
+        #     self.rxn_unique_cols = ["barcode", "seqlib_identifier"]
+        #     self.rxn_notblank_cols = ["sample_id","extraction_id", "pcr_identifier","seqlib_identifier"]
+        #     self.barcode_pattern = "barcode[0-9]{2}"
+        # elif self.expt_type == "PCR":
+        #     self.expt_req_cols = ["expt_id", "expt_date"]
+        #     self.rxn_req_cols = ["pcr_identifier", "sample_id","extraction_id"]
+        #     self.rxn_unique_cols = ["pcr_identifier"]
+        #     self.rxn_notblank_cols = ["sample_id","extraction_id", "pcr_identifier"]
+        #     self.barcode_pattern = ""
+        # elif self.expt_type == "sWGA":
+        #     self.expt_req_cols = ["expt_id", "expt_date"]
+        #     self.rxn_req_cols = ["swga_identifier", "sample_id","extraction_id"]
+        #     self.rxn_unique_cols = ["swga_identifier"]
+        #     self.rxn_notblank_cols = ["sample_id","extraction_id","swga_identifier"]
+        #     self.barcode_pattern = ""
+        # else:
+        #     raise DataFormatError(f"Error experiment type given as {self.expt_type}, expected seqlib, PCR or sWGA.")
         
     def _check_number_rows(self, num_rows : int, df : pd.DataFrame, filename : Path) -> int:
         """
@@ -562,7 +589,6 @@ class SampleMetadataParser():
         #Load dataschema for sample set and save as attribute
         SampleDataSchema = SampleDataSchemaFields(sample_csv_path)
         self.DataSchema = SampleDataSchema
-        # self.dataschema_dict = SampleDataSchema.dataschema_dict
         
         ExpDataSchema = ExpDataSchemaFields()
 
@@ -586,14 +612,8 @@ class SampleMetadataParser():
         
         # Determine the point each sample has got through to in testing
         if rxn_df is not None :
-            #Define column name to reference and add to dict
-            # SampleDataSchema.STATUS
-            # status = "Status"
-            # self.dataschema_dict.setdefault("STATUS", {"field": status, "datatype": "str", "label": "Sample Test Status"})
-
             # Create status column and fill with not tested
             df[SampleDataSchema.STATUS[0]] = df.get(SampleDataSchema.STATUS[0], default=ExpThroughputDataScheme.EXP_TYPES[0])
-            
             # Define what is present
             types_present = rxn_df[ExpDataSchema.EXP_TYPE[0]].unique()
             for type in ExpThroughputDataScheme.EXP_TYPES: # Ensure order is followed
@@ -601,8 +621,8 @@ class SampleMetadataParser():
                     #Get a list of samples that have the same matching expt_type
                     samplelist=rxn_df[rxn_df[ExpDataSchema.EXP_TYPE[0]] == type][ExpDataSchema.SAMPLE_ID[0]].tolist()
                     #Enter result into df overwriting previous entries
-                    df.loc[df['sample_id'].isin(samplelist), SampleDataSchema.STATUS[0]] = type
-        
+                    df.loc[df[SampleDataSchema.SAMPLE_ID[0]].isin(samplelist), SampleDataSchema.STATUS[0]] = type
+                    # df.loc[df['sample_id'].isin(samplelist), SampleDataSchema.STATUS[0]] = type
         # Define attributes
         self.df = df
         
