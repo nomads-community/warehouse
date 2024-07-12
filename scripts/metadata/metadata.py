@@ -347,10 +347,11 @@ class ExpMetadataMerge():
 
                 # Identify names of key columns for reporting back to user and to check for mismatches
                 # Above join appends suffix to column names so create correct list of names
-                key_cols = [item + suffix for item in join_dict['cols'] for suffix in join_dict['suffixes'] ]
+                key_cols = [item + suffix for item in join_dict['cols'] for suffix in join_dict['suffixes']]
                 expt_id_cols = [ ExpDataSchema.EXP_ID[0] + suffix for suffix in join_dict['suffixes'] ]
-                #Combine for user feedback
-                show_cols = expt_id_cols + key_cols
+                
+                #Combine for user feedback and include the join column for quick referencing in spreadsheet
+                show_cols = [join_dict['on']] + expt_id_cols + key_cols
 
                 # Ensure that only empty sWGA entries are mismatched?
                 if join == "sWGA and PCR":
