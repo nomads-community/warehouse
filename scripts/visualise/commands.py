@@ -1,7 +1,7 @@
 import click
 from pathlib import Path
 from dash import Dash
-from lib.general import identify_files_by_search, check_file_present
+from lib.general import identify_files_by_search, check_path_present
 from lib.regex import Regex_patterns
 from lib.controls import load_controls
 from metadata.metadata import ExpMetadataMerge, SequencingMetadataParser, SampleMetadataParser, CombinedData
@@ -44,7 +44,7 @@ def visualise(exp_folder : Path, sample_csv : Path, seq_folder : Path ):
     exp_data = ExpMetadataMerge(exp_fns)
 
     print("Extracting sample data")
-    check_file_present(sample_csv)
+    check_path_present(sample_csv, isfile=True)
     sample_data = SampleMetadataParser(sample_csv, exp_data.rxns_df)
     print(f"   with {sample_data.df.shape[0]} entries")
     print("="*80)

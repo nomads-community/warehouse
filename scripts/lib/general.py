@@ -2,7 +2,7 @@ import re
 import os
 import configparser
 from pathlib import Path
-from .exceptions import DataFormatError
+from .exceptions import DataFormatError, PathError
 from .regex import Regex_patterns
 
 def identify_exptid_from_path (path: Path) -> str:
@@ -115,19 +115,25 @@ def _check_duplicate_names(entries):
         seen_names.add(filename)
   return duplicates
 
-def check_file_present (filename: Path) -> bool :
+def check_path_present (path: Path, isfile: bool = False) -> bool :
     """
-    Checks for the presence of a file using pathlib.
+    Checks a path is present and whether it is a folder / file.
   
     Args:
-    directory (Path): path to the file.
+    path (Path): path to the file or folder.
+    isfile(bool): whether path is expected to be a file or not (default is not) 
     
     Returns:
-    Bool: true if file exists, false if not.
+    Bool: true if path exists, false if not.
     """
-    if not filename.exists():
-        raise ValueError(f"{filename} does not exist. Exiting...")
-    return filename.exists()
+    if not path.exists():
+        raise ValueError(f"{path} does not exist. Exiting...")
+    
+    #Determine if path is a file
+    path_isfile=isinstance(path.is_file, object)
+    
+    if path_isfile != isfile:
+        raise PathError(f"Path given should point to a file ({isfile}), but got {path_isfile}")
 
 def identify_all_files (folder : Path, recursive : bool = False) -> list[Path]:
     """
