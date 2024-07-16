@@ -115,25 +115,21 @@ def _check_duplicate_names(entries):
         seen_names.add(filename)
   return duplicates
 
-def check_path_present (path: Path, isfile: bool = False) -> bool :
+def check_path_present (path: Path, isfile: bool) :
     """
     Checks a path is present and whether it is a folder / file.
   
     Args:
     path (Path): path to the file or folder.
-    isfile(bool): whether path is expected to be a file or not (default is not) 
-    
-    Returns:
-    Bool: true if path exists, false if not.
+    isfile(bool): whether path should be a file or folder    
     """
     if not path.exists():
         raise ValueError(f"{path} does not exist. Exiting...")
     
-    #Determine if path is a file
-    path_isfile=isinstance(path.is_file, object)
-    
-    if path_isfile != isfile:
-        raise PathError(f"Path given should point to a file ({isfile}), but got {path_isfile}")
+    if isfile and not path.is_file():
+        raise PathError(f"Path should point to a file, but got a directory: {path}")
+    elif not isfile and path.is_file():
+        raise PathError(f"Path should point to a folder, but got a file: {path}")
 
 def identify_all_files (folder : Path, recursive : bool = False) -> list[Path]:
     """

@@ -8,47 +8,74 @@ from lib.general import identify_files_by_search, create_dict_from_ini, identify
 from lib.regex import Regex_patterns
 from lib.decorators import singleton
 
-    # import pretty_errors
-    # pretty_errors.configure(
-    #     stack_depth=1,
-    #     display_locals=1
-    # )
+# import pretty_errors
+# pretty_errors.configure(
+#     stack_depth=1,
+#     display_locals=1
+# )
 
 default_ini_folder=Path("./scripts/metadata/dataschemas/")
 
 @singleton           
-class ExpDataSchemaFields:
+class ExpDataSchemaFields  :
     """
-    Pull in all of the dataschema fields 
+    Pull in all of the dataschema fields that are in separate ini files
     """
     def __init__(self):
+        #Find all .ini files
         ini_files = identify_files_by_search(default_ini_folder, re.compile('exp_.*.ini'))
-        
+        #Separate into the two types
         common_ini = [ path for path in ini_files if "common" in path.name ]
         other_inis =  [ path for path in ini_files if "common" not in path.name ]
-            
+        
+        #Create dict to hold all values
+        dataschema_dict = {} 
+
+        #Pull in the common fields:
         common_dict = create_dict_from_ini(common_ini)
-        #Need separate lists for different assays ie sWGA etc combined with the common entries
+        
         for ini_file in other_inis:
-            # Define library name
-            libname=ini_file.name.replace(".ini","_field_labels").replace("exp_","")
-            # Pull in nested dict
-            libdict = create_dict_from_ini(ini_file)
-            #Add common_dict
+            assay_suffix = ini_file.name.replace(".ini","").replace("exp_","")
+            # Pull in nested dict from ini file for assay specific fields
+            libdict = create_dict_from_ini(ini_file) 
+            #Add to master dict
+            dataschema_dict.update(libdict)
+            #Add in common fields and then create attribute
             libdict.update(common_dict)
-            #Reformat to single level dict
-            libdict = reformat_nested_dict(libdict,"field","label")
+            libname=f"{assay_suffix}_field_labels"
             setattr(self, libname, libdict)
+            
+            # Create additional entries that could be created during merging operations. 
+            # There are a number of fields that are common to all experimental templates e.g. EXPT_ID
+            # When df are merged these will be given the expt_type suffixe e.g. sWGA
+            # However the original df will not have these suffixes
+            # Therefore for the common fields, add in new ref keys, as well as field and labels
+            # - the reference field e.g. EXP_ID_SWGA (key)
+            # - the suffixed field name e.g. exp_id_sWGA (field)
+            # - the human readable label e.g. Experiment ID (label)
+            # Note that this will create all possible combinations, but not necessarily the correct ones
+           
+            modified_libname=f"{assay_suffix}_field_labels_modified"
+            new_common_dict = {}
+            for key, entry in common_dict.items():
+                new_key = f"{key}_{assay_suffix.upper()}"
+                new_entry = { "field" : entry['field'] + "_" + assay_suffix }
+                new_common_dict[new_key] = entry  | new_entry
+            
+            #Create attribute for future reference
+            # modified_field_labels = reformat_nested_dict(new_common_dict,"field","label")
+            setattr(self, modified_libname, new_common_dict)
+
+        #Add common_dict to final dict and create dataschema_dict attribute
+        dataschema_dict.update(common_dict)
+        self.dataschema_dict = dataschema_dict
         
-        #Need list for all fields
-        self.dataschema_dict = create_dict_from_ini(ini_files)
-        
-        # Iterate and set attributes
+        #Set attributes for each of the entries in the dataschema
         for dict_key in self.dataschema_dict.keys():
             field_value = get_nested_key_value(self.dataschema_dict, dict_key, "field")
             label_value = get_nested_key_value(self.dataschema_dict, dict_key, "label")
             setattr(self, dict_key.upper(), ( field_value, label_value))
-        
+            
 class ExpMetadataParser():
     """
     Parse and validate the experimental and individual rxn metadata from an individual Excel spreadsheet.
@@ -311,7 +338,6 @@ class ExpMetadataMerge():
         
         #Extract each file as an object into a dictionary 
         expdata_dict = { identify_exptid_from_fn(filepath) : ExpMetadataParser(filepath, output_folder=output_folder) for filepath in filepaths }
-        # expdata_dict = self.create_expobj_dict(filepaths, output_folder)
         print("="*80)
         
         #Concatenate all the exp level data into a df
@@ -393,7 +419,6 @@ class ExpMetadataMerge():
                 escape = join_dict.get("mismatch_escape", None)
                 missing_records_df = missing_records_df[missing_records_df[escape[0]].str.lower() != escape[1]]
 
-
                 # Give user feedback
                 if len(missing_records_df) > 0 :
                     print(f"   WARNING: {join_dict['joining'][0]} data missing (present in {join_dict['joining'][1]} dataframe)")
@@ -438,7 +463,10 @@ class ExpMetadataMerge():
             #Remove the expt_type fields as they are not informative in a merged df
             dropcols = [col for col in alldata_df.columns if col.startswith(ExpDataSchema.EXP_TYPE[0])]
             alldata_df.drop(dropcols, axis=1, inplace=True)
-
+            
+            #Create an instance attribute
+            self.all_df = alldata_df
+            
             #Fill in the nan values
             alldata_df = alldata_df.fillna('None')
             
@@ -456,8 +484,7 @@ class ExpMetadataMerge():
                                                                    ExpDataSchema.PCR_ASSAY[0]]
                                                                    ).agg(list).reset_index()
 
-        #Create an instance attribute
-        self.all_df = alldata_df
+        
         print("Done")
         print("="*80)
 
@@ -591,13 +618,15 @@ class SampleMetadataParser():
         self.DataSchema = SampleDataSchema
         
         ExpDataSchema = ExpDataSchemaFields()
-
         # load the data from the CSV file
-        df = pd.read_csv(
-                sample_csv_path,
-                dtype=SampleDataSchema.dtypes
-            )
+        df = pd.read_csv(sample_csv_path,
+                         dtype=SampleDataSchema.dtypes,
+                         )
         
+        #Filter out any missing sample_id's and ensure it is not an int
+        df = df[df[SampleDataSchema.SAMPLE_ID[0]].notna()]
+        df[SampleDataSchema.SAMPLE_ID[0]] = df[SampleDataSchema.SAMPLE_ID[0]].astype('string')
+
         #Ensure dates are correctly formatted
         for datefield in SampleDataSchema.datefields:
             f = SampleDataSchema.dateformats.get(datefield, "")
@@ -616,15 +645,16 @@ class SampleMetadataParser():
             df[SampleDataSchema.STATUS[0]] = df.get(SampleDataSchema.STATUS[0], default=ExpThroughputDataScheme.EXP_TYPES[0])
             # Define what is present
             types_present = rxn_df[ExpDataSchema.EXP_TYPE[0]].unique()
-            for type in ExpThroughputDataScheme.EXP_TYPES: # Ensure order is followed
-                if type in types_present :
-                    #Get a list of samples that have the same matching expt_type
-                    samplelist=rxn_df[rxn_df[ExpDataSchema.EXP_TYPE[0]] == type][ExpDataSchema.SAMPLE_ID[0]].tolist()
+            
+            for exp_type in ExpThroughputDataScheme.EXP_TYPES: # Ensure order is followed
+                if exp_type in types_present :
+                    #Get a set of sample_ids that have the same matching expt_type and ensure types are strings!
+                    samplelist= rxn_df[rxn_df[ExpDataSchema.EXP_TYPE[0]] == exp_type][ExpDataSchema.SAMPLE_ID[0]].unique().astype("str")
                     #Enter result into df overwriting previous entries
-                    df.loc[df[SampleDataSchema.SAMPLE_ID[0]].isin(samplelist), SampleDataSchema.STATUS[0]] = type
-                    # df.loc[df['sample_id'].isin(samplelist), SampleDataSchema.STATUS[0]] = type
+                    df.loc[df[SampleDataSchema.SAMPLE_ID[0]].isin(samplelist), SampleDataSchema.STATUS[0]] = exp_type
+                    
         # Define attributes
-        self.df = df
+        self.df = df        
         
 @singleton           
 class SeqDataSchemaFields:
@@ -704,6 +734,50 @@ class SequencingMetadataParser():
         bedcovfiles=identify_files_by_search(seqdata_folder, Regex_patterns.SEQDATA_BEDCOV_CSV, recursive=True)
         self.summary_bedcov = extract_add_concat(bedcovfiles, match_df)
 
+@singleton           
+class ExpDataSchemaFields_Combined:
+    """
+    Identify all of the correct field-label dataschema values that have been created through merging 
+    """
+    def __init__(self, exp_data : object):
+        
+        #Define the columns created during the merging
+        df_cols = exp_data.all_df.columns
+        
+        dataschema_dict = {}
+        allposs_fields = {}
+        for exp_type in ExpThroughputDataScheme.EXP_TYPES[1:]:    
+            #Pull in the original and modified field_labels for each exp_type and combine them
+            standard_labels = getattr(exp_data.DataSchema, f"{exp_type}_field_labels")
+            modified_labels = getattr(exp_data.DataSchema, f"{exp_type}_field_labels_modified")
+            all_labels = standard_labels | modified_labels
+            allposs_fields.update(all_labels)
+            #Identify if the field is in the df_cols
+            correct_fields = {}
+            for ref_key, entry in all_labels.items():
+                if entry['field'] in df_cols:
+                    correct_fields[ref_key] = entry
+
+            #Add to master list
+            dataschema_dict.update(correct_fields)
+            #Add correct fields as an attr
+            libname=f"{exp_type}_field_labels"
+            field_labels = reformat_nested_dict(correct_fields,"field","label")
+            setattr(self, libname, field_labels)
+
+        #Check no new columns have been created during the merge:
+        fields = [ value['field'] for value in allposs_fields.values()]
+        new = [ x for x in df_cols if x not in fields]  
+        if len(new) >0:
+            print(f"WARNING: {new} not found in columns")
+
+        self.dataschema_dict = dataschema_dict              
+        #Set attributes for each of the entries in the dataschema
+        for dict_key in self.dataschema_dict.keys():
+            field_value = get_nested_key_value(self.dataschema_dict, dict_key, "field")
+            label_value = get_nested_key_value(self.dataschema_dict, dict_key, "label")
+            setattr(self, dict_key.upper(), ( field_value, label_value))        
+    
 @singleton
 class CombinedData:
     """
@@ -711,15 +785,17 @@ class CombinedData:
     """
     def __init__(self, exp_data, sequence_data, sample_data):
         
-        ExpDataSchema = exp_data.DataSchema
+        ExpDataSchema = ExpDataSchemaFields_Combined(exp_data)
         SeqDataSchema = sequence_data.DataSchema
         SampleDataSchema = sample_data.DataSchema
-        
         alldata_df = pd.merge(exp_data.all_df, sequence_data.summary_bam, 
-                            left_on=[ExpDataSchema.BARCODE[0], f"{ExpDataSchema.EXP_ID[0]}_seqlib", ExpDataSchema.SAMPLE_ID[0]],
+                            left_on=[ExpDataSchema.BARCODE[0], ExpDataSchema.EXP_ID_SEQLIB[0], ExpDataSchema.SAMPLE_ID[0]],
                             right_on=[SeqDataSchema.BARCODE[0], SeqDataSchema.EXP_ID[0], SeqDataSchema.SAMPLE_ID[0]],
                             how ="outer")
         
+        #Ensure sample_id is a string
+        alldata_df[ExpDataSchema.SAMPLE_ID[0]] = alldata_df[ExpDataSchema.SAMPLE_ID[0]].astype('string')
+                   
         # Add in the sample data to above merge
         alldata_df = pd.merge(alldata_df, sample_data.df, 
                             left_on=[ExpDataSchema.SAMPLE_ID[0]],

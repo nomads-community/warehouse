@@ -1,6 +1,8 @@
 from dash import Dash, html, dcc, Input, Output
 import plotly.express as px
 from . import ids
+import numpy as np
+import pandas as pd
 
 def create_scatter(combined_data : object, x_series = None, y_series = None, colour_series = None):
     
@@ -12,13 +14,23 @@ def create_scatter(combined_data : object, x_series = None, y_series = None, col
     if x_series is None:
         x_series = DataSchema["PCR_PRODUCT"]["field"]
     if y_series is None:
+        # y_series = DataSchema["EXTRACTION_ID"]["field"]
         y_series = DataSchema["N_PRIMARY"]["field"]
     if colour_series is None:
         colour_series = DataSchema["EXP_ID"]["field"] + "_seqlib"
-
-    # print(f"Plotting x: {x_series}, y: {y_series}, colour: {colour_series}")
+    
+    #Filter the data so that there are no empty values
+    df = combined_data.df
+    #Slice the data to the three key columns
+    dff = df[[x_series, y_series, colour_series]].copy(deep=True)
+    #Drop in place
+    dff.dropna(axis=0,how='any', inplace=True)
+    dff.mask(dff.eq('None')).dropna(axis=0, how='any', inplace=True)
+    
+    print(f"Plotting x: {x_series}, y: {y_series}, colour: {colour_series}, df shape ={dff.shape}")                
+    
     # Plot the values
-    fig = px.scatter(combined_data.df, 
+    fig = px.scatter(dff, 
                     x=x_series,
                     y=y_series,
                     color=colour_series
