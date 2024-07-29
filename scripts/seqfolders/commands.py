@@ -71,7 +71,7 @@ def seqfolders(exp_folder : Path , expt_id : str, output_folder: Path, dir_struc
 
     # Copying metadata
     print("Exporting sequencing library information for downstream tools e.g. nomadic...")
-    exp_metadata.df.to_csv(f"{expt_dirs.metadata_dir}/sample_info.csv", index=False)
+    exp_metadata.df.to_csv(f"{expt_dirs.metadata_dir}/{expt_id}_sample_info.csv", index=False)
     print("Done")
     print("="*80)
 
