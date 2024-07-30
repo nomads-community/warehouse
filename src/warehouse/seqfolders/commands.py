@@ -1,9 +1,9 @@
 import click
 from pathlib import Path
-from metadata.metadata import ExpMetadataParser
+from warehouse.metadata.metadata import ExpMetadataParser
 from .dirs import ExperimentDirectories
-from lib.general import identify_experiment_file
-from lib.exceptions import DataFormatError
+from warehouse.lib.general import identify_experiment_file
+from warehouse.lib.exceptions import DataFormatError
 
 @click.command(short_help="Create appropriate NOMADS directory structure for a sequencing run")
 
@@ -59,18 +59,14 @@ def seqfolders(exp_folder : Path , expt_id : str, output_folder: Path, dir_struc
     print(f"  Experiment Summary: {exp_metadata.expt_summary}")
     print("="*80)
 
-    #Define experiment name    
-    expt_name = create_experiment_name(exp_metadata.expt_date, expt_id, exp_metadata.expt_summary)
-    
-    #Import data structure
-
     print("Creating NOMADS sequencing folder structure...")
+    expt_name = create_experiment_name(exp_metadata.expt_date, expt_id, exp_metadata.expt_summary)
     expt_dirs = ExperimentDirectories(expt_name, output_folder, dir_structure)
     print("Done")
     print("="*80)
 
     # Copying metadata
-    print("Exporting sequencing library information for downstream tools e.g. nomadic...")
+    print("Exporting sequencing library information for downstream tools e.g. nomadic and savanna")
     exp_metadata.df.to_csv(f"{expt_dirs.metadata_dir}/{expt_id}_sample_info.csv", index=False)
     print("Done")
     print("="*80)

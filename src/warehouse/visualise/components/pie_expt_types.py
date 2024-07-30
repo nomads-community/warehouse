@@ -1,8 +1,8 @@
 from dash import Dash, html, dcc
 import plotly.express as px
 import pandas as pd
-from . import ids
-from metadata.metadata import ExpThroughputDataScheme
+from warehouse.visualise.components import ids
+from warehouse.metadata.metadata import ExpThroughputDataScheme
 
 def render(app: Dash, sample_data, experiment_data):
     

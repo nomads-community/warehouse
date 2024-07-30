@@ -3,10 +3,10 @@ from pathlib import Path
 import pandas as pd
 from datetime import datetime
 from itertools import chain
-from lib.exceptions import DataFormatError
-from lib.general import identify_files_by_search, create_dict_from_ini, identify_exptid_from_fn, get_nested_key_value, get_dict_entries, filter_dict_by_key, reformat_nested_dict, identify_exptid_from_path, produce_dir
-from lib.regex import Regex_patterns
-from lib.decorators import singleton
+from warehouse.lib.exceptions import DataFormatError
+from warehouse.lib.general import identify_files_by_search, create_dict_from_ini, identify_exptid_from_fn, get_nested_key_value, get_dict_entries, filter_dict_by_key, reformat_nested_dict, identify_exptid_from_path, produce_dir
+from warehouse.lib.regex import Regex_patterns
+from warehouse.lib.decorators import singleton
 
 # import pretty_errors
 # pretty_errors.configure(
@@ -14,7 +14,9 @@ from lib.decorators import singleton
 #     display_locals=1
 # )
 
-default_ini_folder=Path("./scripts/metadata/dataschemas/")
+#Define where the script is running from so you can reference internal files etc
+script_dir = Path(__file__).parent.resolve()
+default_ini_folder=Path(script_dir, "dataschemas/")
 
 @singleton           
 class ExpDataSchemaFields  :
@@ -23,7 +25,7 @@ class ExpDataSchemaFields  :
     """
     def __init__(self):
         #Find all .ini files
-        ini_files = identify_files_by_search(default_ini_folder, re.compile('exp_.*.ini'))
+        ini_files = identify_files_by_search(default_ini_folder, re.compile('exp_.*.ini'), False, True)
         #Separate into the two types
         common_ini = [ path for path in ini_files if "common" in path.name ]
         other_inis =  [ path for path in ini_files if "common" not in path.name ]
@@ -142,14 +144,13 @@ class ExpMetadataParser():
         self.rxn_df[ExpDataSchema.EXP_TYPE[0]] = self.rxn_df.get(ExpDataSchema.EXP_TYPE[0], self.expt_type)
 
         if output_folder is not None:
-            produce_dir(output_folder)
-            print(f"      Outputting data to folder: {output_folder.name}")
+            produce_dir(output_folder)              
+            print(f"      Outputting experimental data to folder: {output_folder.name}")
             output_dict = { "expt" : self.expt_df, "rxn" : self.rxn_df }
             for output in output_dict:
                 filename = self.expt_id + "_" + output + "_metadata.csv"
                 path = output_folder / filename
                 output_dict[output].to_csv(path, index=False)
-                
         print("Done")
 
     def _extract_excel_data(self, filename : Path, tabname : str) -> pd.DataFrame:
@@ -490,7 +491,7 @@ class ExpMetadataMerge():
 
         #Optionally export the aggregate data
         if output_folder:
-            print(f"Outputting all data to folder: {output_folder.name}")
+            print(f"Outputting merged experimental data to folder: {output_folder.name}")
             
             self._export_df_to_csv(self.all_df, output_folder, "experimental_data_all.csv")
             self._export_df_to_csv(self.exp_summary_df, output_folder, "experimental_data_summary.csv")

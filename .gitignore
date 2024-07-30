@@ -1,6 +1,25 @@
-# Script Outputs
-/experiments/
-/notebooks/
+# Byte-compiled
+__pycache__
+*.py[cod]
+*$py.class
 
-# Python intermediates
-__pycache__/
+# Distribution and packaging
+*.egg-info
+*.egg
+
+# Juypter notebook related
+*.ipynb
+*.ipynb_checkpoints
+
+# macOS
+.DS_Store
+
+# vscode settings
+.vscode
+
+# All my development scripts start with `dev`
+dev*
+
+# Misc.
+experiments
+notebooks

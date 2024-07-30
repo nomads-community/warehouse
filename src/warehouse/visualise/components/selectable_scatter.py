@@ -1,8 +1,6 @@
 from dash import Dash, html, dcc, Input, Output
 import plotly.express as px
 from . import ids
-import numpy as np
-import pandas as pd
 
 def create_scatter(combined_data : object, x_series = None, y_series = None, colour_series = None):
     

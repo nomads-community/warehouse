@@ -1,46 +1,39 @@
-import os
 from pathlib import Path
 import configparser
-from lib.general import produce_dir
+from warehouse.lib.general import produce_dir
+
 
 class ExperimentDirectories:
     """
-
+    Creation of NOMADS folder structure for data storage
     """
 
-    def __init__(self, expt_name: str, root_folder: Path, dir_ini: Path ):
+    def __init__(self, expt_name: str, output_folder: Path = None, dir_ini: Path = None ):
         """
         Initialise all the required directories
 
         """
+        #Define where the script is running from so you can reference internal files etc
+        warehouse_dir = Path(__file__).parent.parent.parent.parent.resolve()
+        script_dir = Path(__file__).parent.resolve()
         
-        if root_folder:
-            ROOT_DIR = root_folder.absolute()
-            self.experiments_dir = produce_dir(ROOT_DIR)
+        if output_folder:
+            self.experiments_dir = produce_dir(str(output_folder))
         else:
-            ROOT_DIR = Path(__file__).absolute().parent.parent.parent
-            self.experiments_dir = produce_dir(ROOT_DIR, "experiments")
+            self.experiments_dir = produce_dir(warehouse_dir, "experiments")
         # Experiment directory
         self.expt_name = expt_name
         self.expt_dir = produce_dir(self.experiments_dir, expt_name)
         
-        if dir_ini is None:
-            print(" No .ini file supplied")
-            script_dir = Path.cwd()
-            dir_ini = script_dir / "scripts/seqfolders/dir_structure.ini"
-            print(" Using default .ini file")
+        if not dir_ini:
+            print(" No .ini file supplied, using default")
+            dir_ini = script_dir / "dir_structure.ini"
         
-        if not os.path.exists(dir_ini) :
-            print(" Default ini file not found, using standard structure")
-            #Create hard coded default dirs
-            self.metadata_dir = produce_dir(self.expt_dir, "metadata")
-            self.minknow_dir = produce_dir(self.expt_dir, "minknow")
-            self.nomadic_dir = produce_dir(self.expt_dir, "nomadic")
-        
+        #Read in the values from the ini file
         config = configparser.ConfigParser()
         config.read(dir_ini)
 
-        #Process entries in the default section
+        #Process entries in the default secti   on
         for default_key, default_value in config.items("default"):
             #Produce the relevent directories
             produce_dir(self.expt_dir, default_value)

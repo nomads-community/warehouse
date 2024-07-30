@@ -1,4 +1,4 @@
-from metadata.metadata import ExpThroughputDataScheme
+from warehouse.metadata.metadata import ExpThroughputDataScheme
 
 #Tryptich across top of page
 TRYPTICH = "tryptich"

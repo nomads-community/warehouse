@@ -1,8 +1,7 @@
 import click
-from metadata.commands import metadata
-
-from seqfolders.commands import seqfolders
-from visualise.commands import visualise
+from warehouse.metadata.commands import metadata
+from warehouse.seqfolders.commands import seqfolders
+from warehouse.visualise.commands import visualise
 
 # ================================================================
 # Entry point for all sub-commands

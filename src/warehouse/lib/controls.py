@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import configparser
-from lib.decorators import singleton
+from warehouse.lib.decorators import singleton
 
 @singleton
 class load_controls:

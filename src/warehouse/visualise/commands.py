@@ -1,10 +1,10 @@
 import click
 from pathlib import Path
 from dash import Dash
-from lib.general import identify_files_by_search, check_path_present
-from lib.regex import Regex_patterns
-from lib.controls import load_controls
-from metadata.metadata import ExpMetadataMerge, SequencingMetadataParser, SampleMetadataParser, CombinedData
+from warehouse.lib.general import identify_files_by_search, check_path_present
+from warehouse.lib.regex import Regex_patterns
+from warehouse.lib.controls import load_controls
+from warehouse.metadata.metadata import ExpMetadataMerge, SequencingMetadataParser, SampleMetadataParser, CombinedData
 from .layout import create_layout
 CSS_STYLE=["scripts/visualise/assets/calling-style.css"]
 

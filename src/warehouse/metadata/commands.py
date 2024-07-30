@@ -1,6 +1,6 @@
 import click
 from pathlib import Path
-from lib.general import identify_files_by_search, Regex_patterns, identify_experiment_file
+from warehouse.lib.general import identify_files_by_search, Regex_patterns, identify_experiment_file
 
 @click.command(short_help="Extract, validate and optionally export experimental data")
 

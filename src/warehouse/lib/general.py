@@ -153,7 +153,7 @@ def identify_all_files (folder : Path, recursive : bool = False) -> list[Path]:
                 all_files.extend(identify_all_files(entry, True))
     return all_files
     
-def identify_files_by_search(folder_path: Path, pattern: str, recursive : bool = False) -> list[Path]:
+def identify_files_by_search(folder_path: Path, pattern: str, recursive : bool = False, verbose : bool = True) -> list[Path]:
 
     """
     Identify all files in a folder that match a search pattern"
@@ -181,7 +181,8 @@ def identify_files_by_search(folder_path: Path, pattern: str, recursive : bool =
             raise ValueError("No matching files found.")
         
         #Feedback to user what has been found
-        print(f"Found {len(matches)} matching file(s)")
+        if verbose:
+            print(f"Found {len(matches)} matching file(s)")
         return matches 
 
     except FileNotFoundError:
@@ -214,7 +215,6 @@ def produce_dir(*args) -> str:
 
     # Define directory path
     dir_name = os.path.join(*args)
-
     # Create if doesn't exist
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
