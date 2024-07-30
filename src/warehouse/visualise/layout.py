@@ -1,16 +1,19 @@
 from dash import Dash, html
+from pathlib import Path
 from .components import (
     pie_expt_types,
     scale_switcher_button,
     coverage_by_expt,
     selectable_scatter,
-    selectables_dropdowns
+    selectables_dropdowns,
 )
 
 LOGO_PATH = "assets/warehouse_logo.png"
 
-def create_layout(app: Dash, sample_data, experiment_data, sequence_data, combined_data) -> html.Div:
-    
+
+def create_layout(
+    app: Dash, sample_data, experiment_data, sequence_data, combined_data
+) -> html.Div:
     return html.Div(
         # className="app-div",
         children=[

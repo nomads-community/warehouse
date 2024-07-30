@@ -8,6 +8,8 @@ dependencies:
  - click
  - pandas
  - openpyxl
+ - pandas
+ - numpy
  - dash
  - plotly
  - dash-bootstrap-components 

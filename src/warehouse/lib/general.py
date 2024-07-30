@@ -5,7 +5,8 @@ from pathlib import Path
 from .exceptions import DataFormatError, PathError
 from .regex import Regex_patterns
 
-def identify_exptid_from_path (path: Path) -> str:
+
+def identify_exptid_from_path(path: Path) -> str:
     """
     Extract the experimental ID from a file or folder
 
@@ -17,20 +18,20 @@ def identify_exptid_from_path (path: Path) -> str:
     """
 
     try:
-        #First try with the path name
+        # First try with the path name
         match = re.search(Regex_patterns.NOMADS_EXPID, path.name)
         if match is None:
-            #Second try with the full path
+            # Second try with the full path
             match = re.search(Regex_patterns.NOMADS_EXPID, str(path))
         if match is None:
             raise DataFormatError(f"Unable to identify an ExpID in: {path}")
-        
+
         return match.group(0)
-        
-    
+
     except StopIteration:
         # print(f"Unable to identify an ExpID in: {path.name}")
         raise DataFormatError(f"Unable to identify an ExpID in: {path.name}")
+
 
 def identify_exptid_from_fn(path: Path) -> str:
     """
@@ -47,10 +48,11 @@ def identify_exptid_from_fn(path: Path) -> str:
         match = re.search(Regex_patterns.NOMADS_EXPID, path.name)
         expt_id = match.group(0)
         return expt_id
-    
+
     except StopIteration:
         print(f"Unable to identify an ExpID in: {path.name}")
         return None
+
 
 def identify_experiment_file(folder: Path, expt_id: str = None):
     """
@@ -64,25 +66,28 @@ def identify_experiment_file(folder: Path, expt_id: str = None):
         Path: The path to the matching file, or None if not found.
     """
     print("Searching for all NOMADS template files")
-    matches = identify_files_by_search(folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True)
+    matches = identify_files_by_search(
+        folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True
+    )
     # search_pattern = re.compile(f".*{expt_id}_.*.xlsx")
 
     print(f"Searching for files with {expt_id} in name")
     search_pattern = re.compile(f"{expt_id}")
     matches = [f for f in matches if search_pattern.search(f.name)]
-    
-    #Esnure there is at least one match
+
+    # Esnure there is at least one match
     if len(matches) == 0:
         raise ValueError("No matching files found.")
-    
+
     if len(matches) > 1:
         raise ValueError(f"Multiple matches found: {matches}")
 
-    #Extract path from the list object
+    # Extract path from the list object
     path = matches[0]
     return path
 
-def _check_no_openfiles_identified(fn_list : list) :
+
+def _check_no_openfiles_identified(fn_list: list):
     """
     Identify if there are any files from a list that are currently open"
 
@@ -90,55 +95,60 @@ def _check_no_openfiles_identified(fn_list : list) :
     fn_list (list): List of file paths (pathlib).
 
     """
-    #List all open files
+    # List all open files
     openfiles = [f for f in fn_list if Regex_patterns.OPENFILES.match(f.name)]
-    #Ensure there are not any open files in the supplied list
+    # Ensure there are not any open files in the supplied list
     if openfiles:
-        raise ValueError(f"{len(openfiles)} open files identified. Please close and run again:")
+        raise ValueError(
+            f"{len(openfiles)} open files identified. Please close and run again:"
+        )
+
 
 def _check_duplicate_names(entries):
-  """Checks for duplicate names in a list of pathlib entries.
+    """Checks for duplicate names in a list of pathlib entries.
 
-  Args:
-      entries: A list of pathlib.Path objects.
+    Args:
+        entries: A list of pathlib.Path objects.
 
-  Returns:
-      A list of filenames that appear more than once.
-  """
-  seen_names = set()
-  duplicates = []
-  for entry in entries:
-    filename = entry.name
-    if filename in seen_names:
-        duplicates.append(filename)
-    else:
-        seen_names.add(filename)
-  return duplicates
+    Returns:
+        A list of filenames that appear more than once.
+    """
+    seen_names = set()
+    duplicates = []
+    for entry in entries:
+        filename = entry.name
+        if filename in seen_names:
+            duplicates.append(filename)
+        else:
+            seen_names.add(filename)
+    return duplicates
 
-def check_path_present (path: Path, isfile: bool) :
+
+def check_path_present(path: Path, isfile: bool):
     """
     Checks a path is present and whether it is a folder / file.
-  
+
     Args:
     path (Path): path to the file or folder.
-    isfile(bool): whether path should be a file or folder    
+    isfile(bool): whether path should be a file or folder
     """
     if not path.exists():
         raise ValueError(f"{path} does not exist. Exiting...")
-    
+
     if isfile and not path.is_file():
         raise PathError(f"Path should point to a file, but got a directory: {path}")
     elif not isfile and path.is_file():
         raise PathError(f"Path should point to a folder, but got a file: {path}")
 
-def identify_all_files (folder : Path, recursive : bool = False) -> list[Path]:
+
+def identify_all_files(folder: Path, recursive: bool = False) -> list[Path]:
     """
     Identify all files in a folder / directory
 
     Args:
     folder (Path): path to the folder
     recursive (Bool): Select whether search should be recursive
-    
+
     Returns:
     list[Path]: List of paths in specified folder, or None if none present.
     """
@@ -152,9 +162,11 @@ def identify_all_files (folder : Path, recursive : bool = False) -> list[Path]:
                 # Recursively search subdirectories
                 all_files.extend(identify_all_files(entry, True))
     return all_files
-    
-def identify_files_by_search(folder_path: Path, pattern: str, recursive : bool = False, verbose : bool = True) -> list[Path]:
 
+
+def identify_files_by_search(
+    folder_path: Path, pattern: str, recursive: bool = False, verbose: bool = True
+) -> list[Path]:
     """
     Identify all files in a folder that match a search pattern"
 
@@ -162,28 +174,32 @@ def identify_files_by_search(folder_path: Path, pattern: str, recursive : bool =
     folder (Path): path to the search folder.
     pattern (re.pattern): Compiled RE pattern to match filename against
     recursive (Bool): Select whether search should be recursive
-    
+
     Returns:
         list[Path]: List of paths to the matching file(s), or None if not found.
     """
-    
+
     try:
-        matches = [f for f in identify_all_files(folder_path, recursive) if pattern.search(f.name)]
-            
-        #Check that there are no open files
+        matches = [
+            f
+            for f in identify_all_files(folder_path, recursive)
+            if pattern.search(f.name)
+        ]
+
+        # Check that there are no open files
         _check_no_openfiles_identified(matches)
 
-        #Check there are no duplicate names
+        # Check there are no duplicate names
         _check_duplicate_names(matches)
 
-        #Esnure there is at least one match
+        # Esnure there is at least one match
         if len(matches) == 0:
             raise ValueError("No matching files found.")
-        
-        #Feedback to user what has been found
+
+        # Feedback to user what has been found
         if verbose:
             print(f"Found {len(matches)} matching file(s)")
-        return matches 
+        return matches
 
     except FileNotFoundError:
         print(f"Error: Folder '{folder_path.name}' not found.")
@@ -195,6 +211,7 @@ def identify_files_by_search(folder_path: Path, pattern: str, recursive : bool =
     except ValueError as error_msg:
         print(str(error_msg))
         raise
+
 
 def produce_dir(*args) -> str:
     """
@@ -222,14 +239,15 @@ def produce_dir(*args) -> str:
 
     return dir_name
 
-def create_dict_from_ini(ini_files : Path|list[Path]) -> dict:
+
+def create_dict_from_ini(ini_files: Path | list[Path]) -> dict:
     """
     Define data fields from a .ini file
 
     Args:
         ini_files list[Path]: Path(s) to ini file
 
-    Returns:  
+    Returns:
         dict:   dictionary containing all details from ini file(s)
     """
     if isinstance(ini_files, Path):
@@ -238,18 +256,19 @@ def create_dict_from_ini(ini_files : Path|list[Path]) -> dict:
 
     # Create an empty dictionary to store data
     field_dict = {}
-    
-    for ini_file in ini_files :
+
+    for ini_file in ini_files:
         config = configparser.ConfigParser()
         config.read(ini_file)
-        
+
         for section, items in config.items():
             for key, value in items.items():
                 # Enter the key and value into dict
                 field_dict.setdefault(key.upper(), {})[section] = value
-    return field_dict   
-    
-def get_nested_key_value(data_dict : dict, key : str, nested_key : str) -> str|dict:
+    return field_dict
+
+
+def get_nested_key_value(data_dict: dict, key: str, nested_key: str) -> str | dict:
     """
     Retrieves the label for a given key from the dictionary.
 
@@ -261,21 +280,22 @@ def get_nested_key_value(data_dict : dict, key : str, nested_key : str) -> str|d
         str|dict: The value for the nested_key, or None if not found.
     """
 
-    return data_dict.get(key, {}).get(nested_key)           
+    return data_dict.get(key, {}).get(nested_key)
 
-def filter_nested_dict_by_attribute(nested_dict: dict, attributes : str|list) -> dict:
+
+def filter_nested_dict_by_attribute(nested_dict: dict, attributes: str | list) -> dict:
     """
     Filters a nested dictionary to those containing a specific attribute
 
     Args:
         nested_dict (dict):   Nested dictionary to filter
         attribute (str|list):    Attribute(s) to search for in the dict values
-    
+
     Returns:
-    
+
     """
 
-    def has_all_attributes(value: dict, attributes : list) -> bool:
+    def has_all_attributes(value: dict, attributes: list) -> bool:
         """
         Checks if a dictionary value contains all the attributes in the provided list.
 
@@ -293,18 +313,23 @@ def filter_nested_dict_by_attribute(nested_dict: dict, attributes : str|list) ->
         attributes = [attributes]
 
     # Filter based on all attributes being present
-    filtered_entries = {key: value for key, value in nested_dict.items() if has_all_attributes(value, attributes)}
+    filtered_entries = {
+        key: value
+        for key, value in nested_dict.items()
+        if has_all_attributes(value, attributes)
+    }
 
     return filtered_entries
 
-def filter_dict_by_key(data_dict: dict, dict_keys : str|list) -> dict:
+
+def filter_dict_by_key(data_dict: dict, dict_keys: str | list) -> dict:
     """
     Filters a dictionary to defined key(s)
 
     Args:
         data_dict (dict):   Data dictionary to filter
         dict_keys (str|list):    key(s) to search for in the dict values
-    
+
     Returns:
         dict
     """
@@ -314,14 +339,19 @@ def filter_dict_by_key(data_dict: dict, dict_keys : str|list) -> dict:
         dict_keys = [dict_keys]
 
     # Filter based on all attributes being present
-    filtered_entries = {key: value for key, value in data_dict.items() if key in dict_keys}
+    filtered_entries = {
+        key: value for key, value in data_dict.items() if key in dict_keys
+    }
 
     return filtered_entries
 
-def reformat_nested_dict(nested_dict: dict, attribute_key : str, attribute_value: str) -> dict :
+
+def reformat_nested_dict(
+    nested_dict: dict, attribute_key: str, attribute_value: str
+) -> dict:
     """
     Reformats a nested dictionary to a simple dict containing the two attributes as key:value pairs
-    
+
     Args:
         nested_dict(dict):  Nested dictionary
         attribute_key:  Attribute to search for in nested_dict values and output as new key
@@ -329,14 +359,25 @@ def reformat_nested_dict(nested_dict: dict, attribute_key : str, attribute_value
 
     Returns:
         dict
-    
-    """
-    #Filter to ensure that all attributes are present in each
-    filtered_dict = filter_nested_dict_by_attribute(nested_dict, [attribute_key, attribute_value])
-    #Reformat dict to the two atttributes in a new dict
-    return {value[attribute_key] : value[attribute_value] for value in filtered_dict.values()}
 
-def get_dict_entries(data_dict: dict, attribute_key: str, search_attribute : str, exclude_value: str = None, reverse : bool = False) -> dict :
+    """
+    # Filter to ensure that all attributes are present in each
+    filtered_dict = filter_nested_dict_by_attribute(
+        nested_dict, [attribute_key, attribute_value]
+    )
+    # Reformat dict to the two atttributes in a new dict
+    return {
+        value[attribute_key]: value[attribute_value] for value in filtered_dict.values()
+    }
+
+
+def get_dict_entries(
+    data_dict: dict,
+    attribute_key: str,
+    search_attribute: str,
+    exclude_value: str = None,
+    reverse: bool = False,
+) -> dict:
     """
     Returns a dictionary containing only keys with a defined data type.
 
@@ -345,16 +386,26 @@ def get_dict_entries(data_dict: dict, attribute_key: str, search_attribute : str
         attribute (str):      Attribute associated with the field_ref e.g. datatype
         reverse_selection (bool):   Bool to determine whether to include / exclude based on presence / absence of attribute
     """
-    #Filter the entries to those containing the desired attribute
-    dict_entries = {key : value for key, value in data_dict.items() if search_attribute in value}
-    
-    #Modify entries if needed
+    # Filter the entries to those containing the desired attribute
+    dict_entries = {
+        key: value for key, value in data_dict.items() if search_attribute in value
+    }
+
+    # Modify entries if needed
     if exclude_value is not None:
         if reverse:
-            #Only include those containing the key
-            return {value[attribute_key] : value[search_attribute] for value in dict_entries.values() 
-                    if value[search_attribute] == exclude_value}
-        #Exclude those containing the value
-        return {value[attribute_key] : value[search_attribute] for value in dict_entries.values() 
-                if value[search_attribute] != exclude_value}
-    return {value[attribute_key] : value[search_attribute] for value in dict_entries.values()}
+            # Only include those containing the key
+            return {
+                value[attribute_key]: value[search_attribute]
+                for value in dict_entries.values()
+                if value[search_attribute] == exclude_value
+            }
+        # Exclude those containing the value
+        return {
+            value[attribute_key]: value[search_attribute]
+            for value in dict_entries.values()
+            if value[search_attribute] != exclude_value
+        }
+    return {
+        value[attribute_key]: value[search_attribute] for value in dict_entries.values()
+    }

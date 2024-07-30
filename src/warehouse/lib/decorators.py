@@ -1,5 +1,6 @@
 from functools import wraps
 
+
 def singleton(cls):
     # This dictionary holds instances of each class decorated with @singleton
     instances = {}

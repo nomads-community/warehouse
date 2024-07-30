@@ -16,7 +16,7 @@ class InventoryUpdater:
     def _load(self, verbose: bool = True) -> None:
         """
         Load the inventory
-        
+
         """
 
         if not self.path.exists():
@@ -41,7 +41,7 @@ class InventoryUpdater:
     def _write(self) -> None:
         """
         Write the inventory
-        
+
         """
 
         with open(self.path, "w") as inventory:
@@ -51,15 +51,15 @@ class InventoryUpdater:
     def _already_included(self, entry_id: str) -> bool:
         """
         Is this entry already included in the inventory?
-        
+
         """
-        
+
         return entry_id in self.dt
 
     def _user_add(self, entry_id: str, verbose: bool = True) -> None:
         """
         Add an entry to the inventory based on the users input
-        
+
         """
 
         entry_descrip = input(
@@ -74,7 +74,7 @@ class InventoryUpdater:
     def update(self, entry_id, verbose: bool = True) -> None:
         """
         Update the inventory with a new entry
-        
+
         """
 
         assert self.dt is not None, "Must load inventory before updating."

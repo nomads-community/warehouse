@@ -3,6 +3,7 @@ from pathlib import Path
 import configparser
 from warehouse.lib.decorators import singleton
 
+
 @singleton
 class load_controls:
     """
@@ -14,16 +15,16 @@ class load_controls:
         Pull in controls data from .ini file
 
         """
-        
+
         if controls_ini is None:
             print(" No .ini file supplied")
             script_dir = Path.cwd()
             controls_ini = script_dir / "scripts/lib/controls.ini"
             print(" Using default .ini file")
-        
-        if not os.path.exists(controls_ini) :
+
+        if not os.path.exists(controls_ini):
             raise ValueError(f"Unable to find {controls_ini}")
-        
+
         config = configparser.ConfigParser()
         config.read(controls_ini)
 
