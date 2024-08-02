@@ -1,4 +1,4 @@
-# warehouse
+<p align="center"><img src="misc/warehouse_logo.png" width="500"></p>
 ## Overview
 The idea for this repository is to help streamline and standardise the storage of experimental data generated from NOMADS assays. In particular, we are trying to encourage standardised:
 - Experiment names
@@ -46,13 +46,13 @@ To install `warehouse`, you will need:
 
 #### Steps
 
-**1.  Clone the repository from github:**
+**1. Clone the repository from github:**
 ```
 git clone https://github.com/nomads-community/warehouse
 cd warehouse
 ```
 
-**2.  Install the dependencies with mamba:**
+**2. Install the dependencies with mamba:**
 ```
 mamba env create -f environments/run.yml
 ```
@@ -61,11 +61,11 @@ mamba env create -f environments/run.yml
 ```
 mamba activate warehouse
 ```
-**4. Install additional dependencies:**
+**4. Install `warehouse` and remaining dependencies:**
 ```
 pip install -e .
 ```
-**5. Check install is working:**
+**5. Test your installation:** In the terminal, you should see available commands by typing:
 ```
 warehouse --help
 ```
