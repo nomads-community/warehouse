@@ -1,4 +1,5 @@
 import click
+from collections import OrderedDict
 from warehouse.metadata.commands import metadata
 from warehouse.seqfolders.commands import seqfolders
 from warehouse.visualise.commands import visualise
@@ -8,8 +9,17 @@ from warehouse.visualise.commands import visualise
 #
 # ================================================================
 
+class OrderedGroup(click.Group):
+    def __init__(self, name=None, commands=None, **attrs):
+        super(OrderedGroup, self).__init__(name, commands, **attrs)
+        #: the registered subcommands by their exported names.
+        self.commands = commands or OrderedDict()
 
-@click.group()
+    def list_commands(self, ctx):
+        return self.commands
+
+@click.group(cls=OrderedGroup)
+@click.version_option(message="%(prog)s-v%(version)s")
 def cli():
     """
     NOMADS Sequencing Data - experimental outputs
