@@ -1,0 +1,24 @@
+name: warehouse
+channels:
+ - conda-forge
+ - bioconda
+
+dependencies:
+ - python >=3.10
+ - click
+ - pandas
+ - openpyxl
+ - pandas
+ - numpy
+ - dash
+ - plotly
+ - dash-bootstrap-components
+ - jupyter
+ - seaborn
+ - black
+ - flake8
+ - ruff
+ - mypy
+ - pytest
+ - pip
+ - pre-commit
