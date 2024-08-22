@@ -9,6 +9,7 @@ from warehouse.visualise.commands import visualise
 #
 # ================================================================
 
+
 class OrderedGroup(click.Group):
     def __init__(self, name=None, commands=None, **attrs):
         super(OrderedGroup, self).__init__(name, commands, **attrs)
@@ -17,6 +18,7 @@ class OrderedGroup(click.Group):
 
     def list_commands(self, ctx):
         return self.commands
+
 
 @click.group(cls=OrderedGroup)
 @click.version_option(message="%(prog)s-v%(version)s")

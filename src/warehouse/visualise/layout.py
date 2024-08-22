@@ -1,5 +1,4 @@
 from dash import Dash, html
-from pathlib import Path
 from .components import (
     pie_expt_types,
     scale_switcher_button,

@@ -1,6 +1,7 @@
 import re
 import os
 import configparser
+from typing import Optional
 from pathlib import Path
 from .exceptions import DataFormatError, PathError
 from .regex import Regex_patterns
@@ -33,7 +34,7 @@ def identify_exptid_from_path(path: Path) -> str:
         raise DataFormatError(f"Unable to identify an ExpID in: {path.name}")
 
 
-def identify_exptid_from_fn(path: Path) -> str:
+def identify_exptid_from_fn(path: Path) -> str | None:
     """
     Extract the experimental ID from a filename
 
@@ -46,21 +47,24 @@ def identify_exptid_from_fn(path: Path) -> str:
 
     try:
         match = re.search(Regex_patterns.NOMADS_EXPID, path.name)
-        expt_id = match.group(0)
-        return expt_id
+        if match:
+            expt_id = match.group(0)
+            return expt_id
+
+        return None
 
     except StopIteration:
         print(f"Unable to identify an ExpID in: {path.name}")
         return None
 
 
-def identify_experiment_file(folder: Path, expt_id: str = None):
+def identify_experiment_file(folder: Path, expt_id: str) -> Path | None:
     """
     Identify if there is an Excel file with a matching ExpID pattern in the list of filenames"
 
     Args:
     files_list (list): List of file paths.
-    expt_id (str): Experiment ID to search for (optional)
+    expt_id (str): Experiment ID to search for
 
     Returns:
         Path: The path to the matching file, or None if not found.
@@ -69,22 +73,22 @@ def identify_experiment_file(folder: Path, expt_id: str = None):
     matches = identify_files_by_search(
         folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True
     )
-    # search_pattern = re.compile(f".*{expt_id}_.*.xlsx")
+
+    if not matches:
+        return None
 
     print(f"Searching for files with {expt_id} in name")
     search_pattern = re.compile(f"{expt_id}")
     matches = [f for f in matches if search_pattern.search(f.name)]
 
-    # Esnure there is at least one match
+    # Ensure there is at least one match
     if len(matches) == 0:
         raise ValueError("No matching files found.")
-
-    if len(matches) > 1:
+    elif len(matches) > 1:
         raise ValueError(f"Multiple matches found: {matches}")
-
-    # Extract path from the list object
-    path = matches[0]
-    return path
+    else:
+        # Extract path from the  list object
+        return matches[0]
 
 
 def _check_no_openfiles_identified(fn_list: list):
@@ -165,8 +169,11 @@ def identify_all_files(folder: Path, recursive: bool = False) -> list[Path]:
 
 
 def identify_files_by_search(
-    folder_path: Path, pattern: str, recursive: bool = False, verbose: bool = True
-) -> list[Path]:
+    folder_path: Path,
+    pattern: re.Pattern,
+    recursive: bool = False,
+    verbose: bool = True,
+) -> list[Path] | None:
     """
     Identify all files in a folder that match a search pattern"
 
@@ -192,7 +199,7 @@ def identify_files_by_search(
         # Check there are no duplicate names
         _check_duplicate_names(matches)
 
-        # Esnure there is at least one match
+        # Ensure there is at least one match
         if len(matches) == 0:
             raise ValueError("No matching files found.")
 
@@ -203,6 +210,7 @@ def identify_files_by_search(
 
     except FileNotFoundError:
         print(f"Error: Folder '{folder_path.name}' not found.")
+        return None
 
     except StopIteration:
         print("No matching file found")
@@ -255,7 +263,7 @@ def create_dict_from_ini(ini_files: Path | list[Path]) -> dict:
         ini_files = [ini_files]
 
     # Create an empty dictionary to store data
-    field_dict = {}
+    field_dict: dict[str, dict] = {}
 
     for ini_file in ini_files:
         config = configparser.ConfigParser()
@@ -375,7 +383,7 @@ def get_dict_entries(
     data_dict: dict,
     attribute_key: str,
     search_attribute: str,
-    exclude_value: str = None,
+    exclude_value: Optional[str] = None,
     reverse: bool = False,
 ) -> dict:
     """

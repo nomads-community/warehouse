@@ -1,8 +1,8 @@
 import re
 from pathlib import Path
+from typing import Optional
 import pandas as pd
 from datetime import datetime
-from itertools import chain
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import (
     identify_files_by_search,
@@ -15,6 +15,7 @@ from warehouse.lib.general import (
     identify_exptid_from_path,
     produce_dir,
 )
+from warehouse.lib.dataframes import collapse_columns, export_df_to_csv
 from warehouse.lib.regex import Regex_patterns
 from warehouse.lib.decorators import singleton
 
@@ -38,7 +39,7 @@ class ExpDataSchemaFields:
     def __init__(self):
         # Find all .ini files
         ini_files = identify_files_by_search(
-            default_ini_folder, re.compile("exp_.*.ini"), False, True
+            default_ini_folder, re.compile("exp_.*.ini"), False, False
         )
         # Separate into the two types
         common_ini = [path for path in ini_files if "common" in path.name]
@@ -102,7 +103,7 @@ class ExpMetadataParser:
     def __init__(
         self,
         file_path: Path,
-        output_folder: Path = None,
+        output_folder: Optional[Path] = None,
         include_unclassified: bool = False,
     ):
         """
@@ -165,7 +166,7 @@ class ExpMetadataParser:
             ExpDataSchema.EXP_TYPE[0], self.expt_type
         )
 
-        if output_folder is not None:
+        if output_folder:
             produce_dir(output_folder)
             print(f"      Outputting experimental data to folder: {output_folder.name}")
             output_dict = {"expt": self.expt_df, "rxn": self.rxn_df}
@@ -253,27 +254,6 @@ class ExpMetadataParser:
             raise DataFormatError(
                 f"Error experiment type given as {self.expt_type}, expected seqlib, PCR or sWGA."
             )
-
-        # if self.expt_type == "seqlib":
-        #     self.expt_req_cols = ["expt_id", "expt_date"]
-        #     self.rxn_req_cols = ["barcode", "seqlib_identifier", "sample_id","extraction_id"]
-        #     self.rxn_unique_cols = ["barcode", "seqlib_identifier"]
-        #     self.rxn_notblank_cols = ["sample_id","extraction_id", "pcr_identifier","seqlib_identifier"]
-        #     self.barcode_pattern = "barcode[0-9]{2}"
-        # elif self.expt_type == "PCR":
-        #     self.expt_req_cols = ["expt_id", "expt_date"]
-        #     self.rxn_req_cols = ["pcr_identifier", "sample_id","extraction_id"]
-        #     self.rxn_unique_cols = ["pcr_identifier"]
-        #     self.rxn_notblank_cols = ["sample_id","extraction_id", "pcr_identifier"]
-        #     self.barcode_pattern = ""
-        # elif self.expt_type == "sWGA":
-        #     self.expt_req_cols = ["expt_id", "expt_date"]
-        #     self.rxn_req_cols = ["swga_identifier", "sample_id","extraction_id"]
-        #     self.rxn_unique_cols = ["swga_identifier"]
-        #     self.rxn_notblank_cols = ["sample_id","extraction_id","swga_identifier"]
-        #     self.barcode_pattern = ""
-        # else:
-        #     raise DataFormatError(f"Error experiment type given as {self.expt_type}, expected seqlib, PCR or sWGA.")
 
     def _check_number_rows(
         self, num_rows: int, df: pd.DataFrame, filename: Path
@@ -387,7 +367,7 @@ class ExpMetadataMerge:
     Extract metadata from multiple files, merge into a coherent dataframe, and optionally export the data
     """
 
-    def __init__(self, filepaths, output_folder: Path = None):
+    def __init__(self, filepaths: list[Path], output_folder: Path = None):
         # Pull in the dynamically created ExpDataSchema as an object
         ExpDataSchema = ExpDataSchemaFields()
         self.DataSchema = ExpDataSchema
@@ -548,7 +528,7 @@ class ExpMetadataMerge:
                     )
 
             # Collapse columns where multiple entries exist
-            alldata_df = self.collapse_columns(alldata_df, [ExpDataSchema.SAMPLE_ID[0]])
+            alldata_df = collapse_columns(alldata_df, [ExpDataSchema.SAMPLE_ID[0]])
 
             # Remove the expt_type fields as they are not informative in a merged df
             dropcols = [
@@ -574,7 +554,7 @@ class ExpMetadataMerge:
                 ExpDataSchema.PCR_IDENTIFIER[0],
                 ExpDataSchema.SEQLIB_IDENTIFIER[0],
             ]
-            collapsed_df = self.collapse_columns(alldata_df, col_roots)
+            collapsed_df = collapse_columns(alldata_df, col_roots)
             self.exp_summary_df = (
                 collapsed_df[col_roots]
                 .groupby([ExpDataSchema.SAMPLE_ID[0], ExpDataSchema.PCR_ASSAY[0]])
@@ -591,77 +571,13 @@ class ExpMetadataMerge:
                 f"Outputting merged experimental data to folder: {output_folder.name}"
             )
 
-            self._export_df_to_csv(
-                self.all_df, output_folder, "experimental_data_all.csv"
-            )
-            self._export_df_to_csv(
+            export_df_to_csv(self.all_df, output_folder, "experimental_data_all.csv")
+            export_df_to_csv(
                 self.exp_summary_df, output_folder, "experimental_data_summary.csv"
             )
 
             print("Done")
             print("=" * 80)
-
-    def _export_df_to_csv(self, df: pd.DataFrame, folder: Path, filename: str) -> None:
-        """
-        Export a df to a csv file
-        Args:
-            df (pd.DataFrame): The pandas DataFrame to export.
-            folder (Path): Path object folder where the CSV will be saved.
-            filename (str):  .csv filename to be created.
-
-        Returns:
-            None
-        """
-
-        path = folder / filename
-        df.to_csv(path, index=False)
-
-    def collapse_columns(self, df: pd.DataFrame, field_roots: list) -> pd.DataFrame:
-        """
-        Merging dataframes creates duplicated fields that only differ by suffix e.g. _pcr.
-        These need to be collapsed so that a single column captures the details needed.
-
-        Args:
-            df (pd.DataFrame): The pandas DataFrame to collapse columns in.
-            field_roots (list): List of root fieldnames e.g. sample_id
-
-        Returns:
-            df (pd.DataFrame): The pandas DataFrame with the duplicate columns dropped.
-        """
-
-        for root in field_roots:
-            # Identify all the fields
-            repeat_cols = [col for col in df.columns if col.startswith(root)]
-            # Stack all entries for columns, then take the first entry (not null) of each group.
-            # Reindex in case all columns have an empty value, which should never happen, but better to be safe
-            df["interim"] = (
-                df[repeat_cols].stack().groupby(level=0).first().reindex(df.index)
-            )
-            # Remove all repeat columns
-            df.drop(columns=repeat_cols, inplace=True)
-            # Rename interim to original
-            df.rename(columns={"interim": root}, inplace=True)
-
-        return df
-
-    def _count_non_none_entries_in_dfcolumn(self, df: pd.DataFrame, column: str) -> int:
-        """
-        Function counts the number of non none entries in a column of a dataframe
-        Args:
-            df (pd.DataFrame): The pandas DataFrame to export.
-            column (str): Name of the column to assess
-
-        Returns:
-            int : Count of entries in the column that are not None.
-        """
-
-        return len(
-            [
-                item
-                for item in list(chain.from_iterable(df[f"{column}"]))
-                if not item == "None"
-            ]
-        )
 
     def _check_duplicate_expid(self, filepaths: list[Path]) -> None:
         """
@@ -802,8 +718,9 @@ class SeqDataSchemaFields:
         self,
     ):
         ini_files = identify_files_by_search(
-            default_ini_folder, re.compile("seq_nomadic.ini")
+            default_ini_folder, re.compile("seq_savanna.ini"), False, False
         )
+
         self.dataschema_dict = create_dict_from_ini(ini_files)
 
         self.field_labels = reformat_nested_dict(self.dataschema_dict, "field", "label")
@@ -878,9 +795,11 @@ class SequencingMetadataParser:
                 right_on=[ExpDataSchema.EXP_ID[0], ExpDataSchema.BARCODE[0]],
                 how="inner",
             )
+            # Ensure duplicate columns are collapsed to a single one
+            merged = collapse_columns(merged, ["sample_id", "expt_id", "barcode"])
             return merged
 
-        print("   Searching for bam_flagstats file(s)")
+        print("   Searching for bamstats file(s)")
         bamfiles = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_BAMSTATS_CSV, recursive=True
         )
@@ -890,7 +809,15 @@ class SequencingMetadataParser:
         bedcovfiles = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_BEDCOV_CSV, recursive=True
         )
+        # Remove any with nomadic in path as this output is identically named in nomadic and savanna and only want latter
+        bedcovfiles = [x for x in bedcovfiles if "nomadic" not in str(x)]
         self.summary_bedcov = extract_add_concat(bedcovfiles, match_df)
+
+        print("   Searching for exptqc file(s)")
+        exptqcfiles = identify_files_by_search(
+            seqdata_folder, Regex_patterns.SEQDATA_EXPTQC_CSV, recursive=True
+        )
+        self.summary_exptqc = extract_add_concat(exptqcfiles, match_df)
 
 
 @singleton
@@ -988,7 +915,7 @@ class CombinedData:
             "PCR": "Experimental (PCR)",
             "seqlib": "Experimental (seqlib)",
             "sample": "Sample information",
-            "seqdata": "Sequence Analysis (nomadic)",
+            "seqdata": "Sequence Analysis (savanna  )",
         }
 
         # List of variable names for each data source

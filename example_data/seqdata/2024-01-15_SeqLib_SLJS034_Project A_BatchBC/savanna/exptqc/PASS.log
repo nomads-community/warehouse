@@ -1,0 +1,10 @@
+n_barcodes: 74
+n_negative_cntrls: 0
+n_positive_cntrls: 7
+n_samples: 67
+n_samples_pass_cov: 57
+n_samples_pass_contamination: 74
+n_samples_pass: 57
+per_samples_pass: 77.03
+per_contamination_mean: 0.0
+expt_pass: 1
