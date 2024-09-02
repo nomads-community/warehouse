@@ -3,6 +3,7 @@ from collections import OrderedDict
 from warehouse.metadata.commands import metadata
 from warehouse.seqfolders.commands import seqfolders
 from warehouse.visualise.commands import visualise
+from warehouse.extract.commands import extract
 
 # ================================================================
 # Entry point for all sub-commands
@@ -37,6 +38,7 @@ def cli():
 cli.add_command(metadata)
 cli.add_command(seqfolders)
 cli.add_command(visualise)
+cli.add_command(extract)
 
 if __name__ == "__main__":
     cli()

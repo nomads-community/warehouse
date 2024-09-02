@@ -144,6 +144,22 @@ def check_path_present(path: Path, isfile: bool):
     elif not isfile and path.is_file():
         raise PathError(f"Path should point to a folder, but got a file: {path}")
 
+def identify_all_folders(directory: Path):
+    """Recursively gets all folders within a directory.
+
+    Args:
+        directory (pathlib.Path): The root directory to search.
+
+    Returns:
+        A list of pathlib.Path objects representing all folders.
+    """
+
+    folders = []
+    for path in directory.iterdir():
+        if path.is_dir():
+            folders.append(path)
+            folders.extend(identify_all_folders(path))
+    return folders
 
 def identify_all_files(folder: Path, recursive: bool = False) -> list[Path]:
     """
