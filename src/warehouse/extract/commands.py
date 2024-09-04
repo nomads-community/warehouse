@@ -20,21 +20,21 @@ from .extract import extract_outputs
 )
 
 def extract(seq_folder: Path, output_folder: Path):
-    recursive = ("savanna", "metadata")
-    selective = ("nomadic",)
-    subfolders = recursive + selective
+    #Dict lisitng name of folder as key and then "all" for all subs or list of subfolders to copy
+    targets = { "savanna" : {"recursive" : True, "subfolders" :  []}, "nomadic" : {"recursive" : False, "subfolders" : ["metadata"] }}
     divider = "*" * 80
 
     #Build list of subfolders as a string for user feedback
-    subfolders_string = " and ".join(subfolders)
+    target_list = list(targets.keys())
+    target_string = ", ".join(target_list[:-1]) + " and " + target_list[-1]
 
     print(divider)
-    print(f"Identifying  all {subfolders_string} sequence data summaries and copying them to the output:")
+    print(f"Identifying sequence data summaries from {target_string} and copying them to the output folder:")
     print(f"   Source: {seq_folder}")
     print(f"   Target: {output_folder}")
 
     #Pull out all entries that have the matching foldername
-    matches = [folder for folder in identify_all_folders(seq_folder) if folder.name in subfolders]
+    matches = [folder for folder in identify_all_folders(seq_folder) if folder.name in targets]
     print(f"   Found {len(matches)} matches")
     print(divider)
 
@@ -48,21 +48,31 @@ def extract(seq_folder: Path, output_folder: Path):
 
     #Process each match
     for match in matches:
-        #Create the correct target path 
-        relative_path = match.relative_to(seq_folder)
-        target = output_folder.joinpath(relative_path)
+        #Identify any subfolders to also copy
+        recursive = targets.get(match.name)["recursive"]
         
-        #Create the folder
-        produce_dir(target)
-        print(f"Copying {match.name} folder to {target}")
-        
-        #Copy files
-        if match.name in selective:
-            #Selectively copy only the top level folder and not subs to avoid fastq's etc
-            extract_outputs(match, target, False)
-        else:        
-            #Copy entire tree structure over
-            extract_outputs(match, target, True)
+        #Create a list with the original match
+        copyfolders=[match]
+        if not recursive:
+            #Add in all the subfolders
+            for subfolder in targets.get(match.name)["subfolders"] :
+                copyfolders.append(match / subfolder)
+
+        for folder in copyfolders:      
+            #Create the correct target path 
+            relative_path = folder.relative_to(seq_folder)
+            target = output_folder.joinpath(relative_path)
+
+            #Create the folder
+            produce_dir(target)
+            print(f"Copying {folder.name} folder to {target}")
+            
+            if recursive:
+                #Copy entire tree structure over
+                extract_outputs(folder, target, True)
+            else:
+                #Selectively copy the top level folder
+                extract_outputs(folder, target, False)
 
     print("Done")
     print(divider)
