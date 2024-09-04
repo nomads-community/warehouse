@@ -1,18 +1,31 @@
 <p align="center"><img src="misc/warehouse_logo.png" width="500"></p>
 
-## Overview
-The idea for this repository is to help streamline and standardise the storage of experimental data generated from NOMADS assays. In particular, we are trying to encourage standardised:
+# Overview
+This repository aims to help streamline and standardise the storage of experimental data generated from NOMADS assays. In particular, we are trying to encourage standardised:
 - Experiment names
 - Directory hierarchies
 - Metadata files
 
-## Experimental Data
-All experimental data is produced using a standardised Excel spreadsheets (see the `templates` folder). In every template there are user-friendly tabs for entry of data. Key user-entered data elements are then summarised in two Excel tables as follows:
+To achieve this there are three stages to the process:
+```mermaid
+  
+flowchart LR
+    A[Record experimental data] --> B[Generate sequence data
+folder];
+    B--> C[Move sequence data
+into folder];
+```
+
+## Record Experimental Data
+<details>
+All experimental data is produced using a standardised Excel spreadsheets (see the `templates` folder). In every template there are user-friendly tabs for entry of data. Key user-entered data elements are then summarised in two Excel tabs / tables as follows:
 
 - expt_metadata - experiment-wide data e.g. date of experiment
 - rxn_metadata - reaction level data e.g. post-PCR DNA concentration
 
-Originally VBA code in the spreadsheet was used to export individual data tables to csv files. `warehouse` can now directly import, munge and export experimental data as required. The standardisation that warehouse promotes relies on a number of identifiers:
+`warehouse metadata` can now directly import, validate, munge and export experimental data as required.
+
+The standardisation that warehouse promotes relies on a number of identifiers:
 
 ### Experiment ID
 Every experiment is given a unique ID composed of:
@@ -29,16 +42,99 @@ It is assumed that every mosquito / blood spot sample will need to have DNA extr
 
 ### Reaction ID
 To track the movement of samples / extracts through different experiments, a unique identifier is used for each. This is composed of the experiment id and the well or reaction number e.g. the pcr_identifier for the sample tested in well A1 in PCBW003 would be `PCBW003_A1`
-
-## Sample Data
-Sample information e.g. date collected, parasitaemia etc should be imported from a csv file with fields defined in an accompanying `.ini` file (see `example_data/sample/`). Only fields entered into the `.ini` file will be accessible.
-
-## Sequence Data
-Sequence data generated through `nomadic` and / or `savanna` can be imported to enable multi-experimental comparisons to be made.
+</details>
 
 
+
+
+## Generate sequence data folder hierarchy
+<details>
+  
+Sequence data may be produced in multiple locations using multiple tools  pipelines. It is important that all data are appropriately stored for each sequencing run into a single folder with a standardised structure in the master folder (e.g. Sequence_Data). A standardised folder hierarchy is generated with `warehouse seqfolders` using a completed seqlib experimental template:
+
+```mermaid
+flowchart TD
+    A["~/Sequence_Data"] -->|"warehouse seqfolders -e ~/Data/Experimental/ -i Exp_A -o ~/Sequence_Data"| B(Exp_A);
+    B --> C[metadata];
+    B --> D[minknow];
+    B --> E[nomadic];
+    B --> F[savanna];
+    C --> G(Exp_A_sample_info.csv);
+```
+
+The next experiment will follow the same process:
+
+```mermaid
+flowchart TD
+    A["~/Sequence_Data"] --> B(Exp_A);
+    A -->|"warehouse seqfolders -e ~/Data/Experimental/ -i Exp_B -o ~/Sequence_Data"| G(Exp_B);
+    G --> H[metadata];
+    G --> I[minknow];
+    G --> J[nomadic];
+    G --> K[savanna];
+```
+
+
+ </details>
+
+
+
+## Aggregating sequence data
+<details>
+  
+Assuming data has been generated using the default settings in minknow / nomadic and savanna, outputs from each will need to be moved as follows:
+
+```mermaid
+graph TD;
+    A["/var/lib/minknow/data/..."]-->|"mv /var/lib/minknow/data/Exp_A/ ~/SequenceData/Exp_A/minknow"| B[minknow];
+    C["~/git/nomadic/results/..."]-->|"mv ~/git/nomadic/results/Exp_A/ ~/SequenceData/Exp_A/nomadic/"|D[nomadic];
+    E[" ~/git/savanna/results/..."]-->|"mv ~/git/savanna/results/Exp_A/ ~/SequenceData/Exp_A/savanna/"|F[savanna];
+    B--> G[Exp A];
+    D--> G;
+    F--> G;
+    G--> H["~/Sequence_Data"]
+```
+
+</details>
+
+
+
+## Other processes
+<details>
+  
+Once all the data has been aggregated into one place, it is then easy 
+1. Backup the data:
+
+```mermaid
+flowchart LR
+    A["~/Sequence Data"] -->|rsync| B(Hard disk Drive);
+    A-->|rsync| C[External server];
+```
+
+2. Selectively extract summary sequence data (`warehouse extract`) for sharing online. We would recommend the shared drive consists of three folders:
+
+- <b>experimental:</b> - containing all of the completed experimental templates
+- <b>sample:</b> - csv file containing sample information e.g. date collected, parasitaemia etc, and accompanying `.ini` file (see `example_data/sample/`) defining csv fields
+- <b>sequence:</b> - containing sequence summary outputs
+
+If running Windows or Mac, the approproate Google Drive app can be installed following the website instructions. On Linux, we recommend using rclone.
+
+
+For example:
+```mermaid
+flowchart TD
+    A["~/Shared_Data"] --> B[experimental];
+    A--> C[sample];
+    A--> D[sequence];
+    B--> E["2024-04-10_SeqLib_SLGH001.xlsx"]
+    C--> F["SLGH001_sample_info.csv"]
+```
+Summary data can now be transferred from the Sequence_Data folder using `warehouse extract`
+</details>
+
+ 
 ## Installation
-
+<details>
 #### Requirements
 
 To install `warehouse`, you will need:
@@ -70,10 +166,11 @@ pip install -e .
 ```
 warehouse --help
 ```
-
+</details>
 
 ## Usage
-
+<details>
+  
 ```
 Usage: warehouse.py [OPTIONS] COMMAND [ARGS]...
 
@@ -125,3 +222,4 @@ A `.ini` file can be used to define the desired folder structure, including sub-
 warehouse visualise -e example_data/experimental/no_errors/ -s example_data/seqdata/ -c example_data/sample/sample_metadata.csv
 
 ```
+</details>
