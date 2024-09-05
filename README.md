@@ -204,13 +204,11 @@ An `.ini` file can be used to define the desired folder structure, including sub
 View dashboard of all experimental, sample and sequence data available.
 ```
 warehouse visualise -e example_data/experimental/no_errors/ -s example_data/seqdata/ -c example_data/sample/sample_metadata.csv
-
 ```
 
 ### `extract`
 Extract sequence data summaries for sharing:
 ```
 warehouse extract --s example_data/seqdata/ -o ~/GoogleDriveFolder/
-
 ```
 </details>
