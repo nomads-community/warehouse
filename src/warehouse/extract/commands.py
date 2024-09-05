@@ -16,10 +16,14 @@ from .extract import extract_outputs
     "--output_folder",
     type=Path,
     required=False,
-    help="Path to folder where the summary sequencing outputs in a mirror hierarchy should be generated",
+    help="Path to folder where the sequencing outputs should be copied to",
 )
 
 def extract(seq_folder: Path, output_folder: Path):
+    """
+    Extract sequence data summaries for sharing 
+    """
+
     #Dict lisitng name of folder as key and then "all" for all subs or list of subfolders to copy
     targets = { "savanna" : {"recursive" : True, "subfolders" :  []}, "nomadic" : {"recursive" : False, "subfolders" : ["metadata"] }}
     divider = "*" * 80

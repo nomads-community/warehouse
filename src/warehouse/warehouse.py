@@ -25,7 +25,7 @@ class OrderedGroup(click.Group):
 @click.version_option(message="%(prog)s-v%(version)s")
 def cli():
     """
-    NOMADS Sequencing Data - experimental outputs
+    Standardisation, processing and sorting of NOMADS experimental, sample and sequence data
 
     """
     pass
