@@ -93,30 +93,53 @@ graph TD;
 
 
 
-## 4. Other processes
+## 4. Backup and Sharing
 <details>
   
-Once all the data has been aggregated into one place, it is then easy 
-1. Backup the data to an external disk drive or to a server location
-2. Selectively extract summary sequence data (`warehouse extract`) for sharing online. We would recommend the shared drive consists of three folders:
+Once all the data has been aggregated into one place, it is then possible to back up ~/Sequence_Data to an external disk drive or server. 
+In terms of sharing data online, the ~/Sequence_Data folder would be impractically large, but summary sequence data can be selectively extracted with `warehouse extract`. NOMADS recommends synchronising a shared Google Drive with three folders:
 
 - <b>experimental:</b> - containing all of the completed experimental templates
 - <b>sample:</b> - csv file containing sample information e.g. date collected, parasitaemia etc, and accompanying `.ini` file (see `example_data/sample/`) defining csv fields
-- <b>sequence:</b> - containing sequence summary outputs
+- <b>sequence:</b> - containing sequence summary outputs and updated with `warehouse extract`
 
-If running Windows or Mac, the approproate Google Drive app can be installed following the website instructions. On Linux, we recommend using rclone.
-
-
-For example:
 ```mermaid
+
 flowchart TD
-    A["~/Shared_Data"] --> B[experimental];
-    A--> C[sample];
-    A--> D[sequence];
-    B--> E["2024-04-10_SeqLib_SLGH001.xlsx"]
-    C--> F["SLGH001_sample_info.csv"]
+    A -->|warehouse extract -s ~/Sequence_Data -o ~/Shared_Data| S
+    subgraph "Sequence Data"
+    A["~/Sequence_Data"] --> B(Exp_A);
+    B --> C[metadata];
+    B --> D[minknow];
+    B --> E[nomadic];
+    B --> F[savanna];
+    A --> K(Exp_B);
+    K --> L[metadata];
+    K --> M[minknow];
+    K --> N[nomadic];
+    K --> O[savanna];
+    end
+
+    subgraph "Shared Data"
+    
+    G --> T[Sample]
+    T --> U(Sample_info)
+
+    G --> V[experimental]
+    V --> W[Templates]
+
+
+    G["~/Shared_Data"] --> S[Sequence]
+    S --> H(Exp_A);
+    H --> I[nomadic];
+    H --> J[savanna];
+    S --> P[Exp_B]
+    P --> Q[nomadic];
+    P --> R[savanna];
+    
+    end
 ```
-Summary data can now be transferred from the Sequence_Data folder using `warehouse extract`
+
 </details>
 
  
