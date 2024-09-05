@@ -50,8 +50,13 @@ To track the movement of samples / extracts through different experiments, a uni
 
 ## 2. Generate sequence data folder hierarchy
 <details>
-  
-Sequence data may be produced in multiple locations using multiple tools  pipelines. It is important that all data are appropriately stored for each sequencing run into a single folder with a standardised structure in the master folder (e.g. Sequence_Data). A standardised folder hierarchy is generated with `warehouse seqfolders` using a completed seqlib experimental template:
+Sequence data may be produced in multiple locations using multiple tools  pipelines. It is important that all data are appropriately stored for each sequencing run into a single folder with a standardised structure in the master folder (e.g. Sequence_Data). The standard strucure should contain these folders at a minimum:
+- metadata - experimental data for each sample e.g. barcode assigned etc
+- minknow - raw sequence data
+- nomadic - output from `nomadic`
+- savanna - output from `savanna`
+
+A standardised folder hierarchy is generated with `warehouse seqfolders` using a completed seqlib experimental template:
 
 ```mermaid
 flowchart TD
@@ -60,23 +65,11 @@ flowchart TD
     B --> D[minknow];
     B --> E[nomadic];
     B --> F[savanna];
-    C --> G(Exp_A_sample_info.csv);
+    C --> G("Exp_A_sample_info.csv");
 ```
 
-The next experiment will follow the same process:
-
-```mermaid
-flowchart TD
-    A["~/Sequence_Data"] --> B(Exp_A);
-    A -->|"warehouse seqfolders -e ~/Data/Experimental/ -i Exp_B -o ~/Sequence_Data"| G(Exp_B);
-    G --> H[metadata];
-    G --> I[minknow];
-    G --> J[nomadic];
-    G --> K[savanna];
-```
-
-
- </details>
+Repeat as necessary for each sequencing experiment.
+</details>
 
 
 
@@ -104,14 +97,7 @@ graph TD;
 <details>
   
 Once all the data has been aggregated into one place, it is then easy 
-1. Backup the data:
-
-```mermaid
-flowchart LR
-    A["~/Sequence Data"] -->|rsync| B(Hard disk Drive);
-    A-->|rsync| C[External server];
-```
-
+1. Backup the data to an external disk drive or to a server location
 2. Selectively extract summary sequence data (`warehouse extract`) for sharing online. We would recommend the shared drive consists of three folders:
 
 - <b>experimental:</b> - containing all of the completed experimental templates
@@ -136,6 +122,7 @@ Summary data can now be transferred from the Sequence_Data folder using `warehou
  
 ## Installation
 <details>
+  
 #### Requirements
 
 To install `warehouse`, you will need:
@@ -184,43 +171,46 @@ Commands:
   metadata    Extract, validate and optionally export experimental data
   seqfolders  Create appropriate NOMADS directory structure for a sequencing run
   visualise   Dashboard to visualise summary data from NOMADS assays
+  extract     Copy sequence data summary outputs from nomadic and / or savanna
+              into standardised hierarchy for synchronisation.
 
 ```
-Each warehouse command also has a --help menu.
+Each warehouse command also has a `--help` menu.
 
 ## Examples
 ### `metadata`
-- Extract, validate and output all data into csv files:
+Extract and validate all experimental data from Excel files: 
 ```
 warehouse metadata -e example_data/experimental/no_errors/ `
 ```
-OR you can also see errors highlighted as follows:
+Extract and validate all experimental data from Excel files(with errors):
 ```
 warehouse metadata -e example_data/experimental/with_errors/`
 ```
 
-You can also output all of the data to a directory of your choosing as follows:
+Extract, validate and output all experimental data:
 ```
 warehouse metadata -e example_data/experimental/no_errors/ -o experiments/ `
 ```
 
 ### `seqfolders`
-- Create standardised directory hierarchy from a sequencing run for data storage, validate experimental data, and create output files for downstream tools: 
+Create standardised directory hierarchy for sequencing run SLJS034 using default directory structure:
 ```
 warehouse seqfolders -e example_data/experimental/no_errors -e SLJS034
 ```
-The standard strucure should contain these folders at a minimum:
-metadata - sample_info.csv is stored here for downstream tools e.g. nomadic
-minknow - raw sequence data should be stored here
-nomadic - output from `nomadic` should be stored here
-savanna - output from `savanna` should be stored here
-
-A `.ini` file can be used to define the desired folder structure, including sub-folders (see `resources/seqfolders` for an example), but the default ini produces the above.
+An `.ini` file can be used to define the desired folder structure, including sub-folders (see `resources/seqfolders` for an example).
 
 ### `visualise`
-- View dashboard of all experimental, sample and sequence data available.
+View dashboard of all experimental, sample and sequence data available.
 ```
 warehouse visualise -e example_data/experimental/no_errors/ -s example_data/seqdata/ -c example_data/sample/sample_metadata.csv
+
+```
+
+### `extract`
+Extract sequence data summaries for sharing:
+```
+warehouse extract --s example_data/seqdata/ -o ~/GoogleDriveFolder/
 
 ```
 </details>
