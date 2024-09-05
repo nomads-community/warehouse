@@ -15,8 +15,9 @@ folder];
     B--> C[Move sequence data
 into folder];
 ```
+`warehouse` also has one other function - the ability to visualise experimental, sample and sequence data from multiple runs, but is only possible if data is stored as expected. 
 
-## Record Experimental Data
+## 1. Record Experimental Data
 <details>
 All experimental data is produced using a standardised Excel spreadsheets (see the `templates` folder). In every template there are user-friendly tabs for entry of data. Key user-entered data elements are then summarised in two Excel tabs / tables as follows:
 
@@ -47,7 +48,7 @@ To track the movement of samples / extracts through different experiments, a uni
 
 
 
-## Generate sequence data folder hierarchy
+## 2. Generate sequence data folder hierarchy
 <details>
   
 Sequence data may be produced in multiple locations using multiple tools  pipelines. It is important that all data are appropriately stored for each sequencing run into a single folder with a standardised structure in the master folder (e.g. Sequence_Data). A standardised folder hierarchy is generated with `warehouse seqfolders` using a completed seqlib experimental template:
@@ -79,7 +80,7 @@ flowchart TD
 
 
 
-## Aggregating sequence data
+## 3. Aggregate sequence data
 <details>
   
 Assuming data has been generated using the default settings in minknow / nomadic and savanna, outputs from each will need to be moved as follows:
@@ -99,7 +100,7 @@ graph TD;
 
 
 
-## Other processes
+## 4. Other processes
 <details>
   
 Once all the data has been aggregated into one place, it is then easy 
