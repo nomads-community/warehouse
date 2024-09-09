@@ -106,7 +106,7 @@ In terms of sharing data online, the ~/Sequence_Data folder would be impractical
 ```mermaid
 
 flowchart TD
-    A -->|warehouse extract -s ~/Sequence_Data -o ~/Shared_Data| S
+    A -->|warehouse extract -s ~/Sequence_Data -o ~/Shared_Data/Sequence| S
     subgraph "Sequence Data"
     A["~/Sequence_Data"] --> B(Exp_A);
     B --> C[metadata];
