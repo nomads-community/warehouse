@@ -1,4 +1,4 @@
-<p align="center"><img src="misc/warehouse_logo.png" width="500"></p>
+2<p align="center"><img src="misc/warehouse_logo.png" width="500"></p>
 
 # Overview
 This repository aims to help streamline and standardise the storage of experimental data generated from NOMADS assays. In particular, we are trying to encourage standardised:
@@ -80,7 +80,7 @@ Assuming data has been generated using the default settings in minknow / nomadic
 
 ```mermaid
 graph TD;
-    A["/var/lib/minknow/data/..."]-->|"mv /var/lib/minknow/data/Exp_A/ ~/SequenceData/Exp_A/minknow"| B[minknow];
+    A["/var/lib/minknow/data/..."]-->|"sudo mv /var/lib/minknow/data/Exp_A/ ~/SequenceData/Exp_A/minknow/"| B[minknow];
     C["~/git/nomadic/results/..."]-->|"mv ~/git/nomadic/results/Exp_A/ ~/SequenceData/Exp_A/nomadic/"|D[nomadic];
     E[" ~/git/savanna/results/..."]-->|"mv ~/git/savanna/results/Exp_A/ ~/SequenceData/Exp_A/savanna/"|F[savanna];
     B--> G[Exp A];
