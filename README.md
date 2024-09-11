@@ -1,4 +1,4 @@
-2<p align="center"><img src="misc/warehouse_logo.png" width="500"></p>
+<p align="center"><img src="misc/warehouse_logo.png" width="500"></p>
 
 # Overview
 This repository aims to help streamline and standardise the storage of experimental data generated from NOMADS assays. In particular, we are trying to encourage standardised:
@@ -6,14 +6,21 @@ This repository aims to help streamline and standardise the storage of experimen
 - Directory hierarchies
 - Metadata files
 
-To achieve this there are three stages to the process:
+To achieve this there are four stages to the process:
 ```mermaid
   
-flowchart LR
-    A[Record experimental data] --> B[Generate sequence data
-folder];
-    B--> C[Move sequence data
-into folder];
+flowchart TD
+    A["Record experimental 
+    data
+    (1)"] --> B["Generate sequence 
+data folder
+(2)"];
+    B--> C["Move sequence data
+into folder
+(3)"];
+    C--> D["Backup and 
+    Sharing
+    (4)"]
 ```
 `warehouse` also has one other function - the ability to visualise experimental, sample and sequence data from multiple runs, but is only possible if data is stored as expected. 
 
@@ -210,25 +217,21 @@ Extract and validate all experimental data from Excel files(with errors):
 ```
 warehouse metadata -e example_data/experimental/with_errors/`
 ```
-
 Extract, validate and output all experimental data:
 ```
 warehouse metadata -e example_data/experimental/no_errors/ -o experiments/ `
 ```
-
 ### `seqfolders`
 Create standardised directory hierarchy for sequencing run SLJS034 using default directory structure:
 ```
 warehouse seqfolders -e example_data/experimental/no_errors -e SLJS034
 ```
 An `.ini` file can be used to define the desired folder structure, including sub-folders (see `resources/seqfolders` for an example).
-
 ### `visualise`
 View dashboard of all experimental, sample and sequence data available.
 ```
 warehouse visualise -e example_data/experimental/no_errors/ -s example_data/seqdata/ -c example_data/sample/sample_metadata.csv
 ```
-
 ### `extract`
 Extract sequence data summaries for sharing:
 ```
