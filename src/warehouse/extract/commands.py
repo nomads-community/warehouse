@@ -1,7 +1,7 @@
 from pathlib import Path
 import click
 from warehouse.lib.general import produce_dir, identify_all_folders
-from .extract import extract_outputs
+from .extract import extract_outputs, process_targets
 
 @click.command(short_help="Copy sequence data summary outputs from nomadic and / or savanna into standardised hierarchy for synchronisation.")
 @click.option(
@@ -25,58 +25,45 @@ def extract(seq_folder: Path, output_folder: Path):
     """
 
     #Dict lisitng name of folder as key and then "all" for all subs or list of subfolders to copy
-    targets = { "savanna" : {"recursive" : True, "subfolders" :  []}, "nomadic" : {"recursive" : False, "subfolders" : ["metadata"] }}
+    targets = { 
+        "savanna" : {
+            "name" : "savanna",
+            "recursive" : False, 
+            "subfolders" : {
+                "summary" :{ 
+                    "name" : "summary", "recursive" : True}
+                }
+            },
+        "nomadic" : {
+            "name" : "nomadic" ,
+            "recursive" : False
+            },
+        "metadata" : {
+            "name" : "metadata" ,
+            "recursive" : False
+            }
+        }
+
     divider = "*" * 80
 
     #Build list of subfolders as a string for user feedback
     target_list = list(targets.keys())
     target_string = ", ".join(target_list[:-1]) + " and " + target_list[-1]
-
+    
     print(divider)
     print(f"Identifying sequence data summaries from {target_string} and copying them to the output folder:")
     print(f"   Source: {seq_folder}")
     print(f"   Target: {output_folder}")
-
-    #Pull out all entries that have the matching foldername
-    matches = [folder for folder in identify_all_folders(seq_folder) if folder.name in targets]
-    print(f"   Found {len(matches)} matches")
     print(divider)
 
-    if len(matches) == 0 :
-        print("No matches found.")
-        print(divider)
-        exit()
+    #Identify all experimental folders
+    exps_folder = [folder for folder in identify_all_folders(seq_folder) ]
 
-    print("Processing all files and folders")
-    produce_dir(output_folder)
-
-    #Process each match
-    for match in matches:
-        #Identify any subfolders to also copy
-        recursive = targets.get(match.name)["recursive"]
-        
-        #Create a list with the original match
-        copyfolders=[match]
-        if not recursive:
-            #Add in all the subfolders
-            for subfolder in targets.get(match.name)["subfolders"] :
-                copyfolders.append(match / subfolder)
-
-        for folder in copyfolders:      
-            #Create the correct target path 
-            relative_path = folder.relative_to(seq_folder)
-            target = output_folder.joinpath(relative_path)
-
-            #Create the folder
-            produce_dir(target)
-            print(f"Copying {folder.name} folder to {target}")
-            
-            if recursive:
-                #Copy entire tree structure over
-                extract_outputs(folder, target, True)
-            else:
-                #Selectively copy the top level folder
-                extract_outputs(folder, target, False)
-
+    for exp_folder in exps_folder:
+        #Get the relative path
+        relative_path = exp_folder.relative_to(seq_folder)
+        target_folder = output_folder / relative_path
+        process_targets(targets, exp_folder, target_folder)
+    
     print("Done")
     print(divider)
