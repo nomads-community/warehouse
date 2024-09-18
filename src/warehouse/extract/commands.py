@@ -1,7 +1,7 @@
 from pathlib import Path
 import click
-from warehouse.lib.general import produce_dir, identify_all_folders
-from .extract import extract_outputs, process_targets
+from warehouse.lib.general import identify_all_folders
+from .extract import process_targets
 
 @click.command(short_help="Copy sequence data summary outputs from nomadic and / or savanna into standardised hierarchy for synchronisation.")
 @click.option(

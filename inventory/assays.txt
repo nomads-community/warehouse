@@ -1,2 +1,0 @@
-NOMADS8	Multiplex PCR targetting 8 antimalarial drug resistance genes.
-NOMADS16	Expansion of NOMADS8 to include diagnostic test and vaccine targets.

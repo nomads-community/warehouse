@@ -167,12 +167,14 @@ class ExpMetadataParser:
         )
 
         if output_folder:
-            produce_dir(output_folder)
-            print(f"      Outputting experimental data to folder: {output_folder.name}")
+            #Store individual experiments in a subfolder
+            individual_dir=output_folder / "individual_expts"
+            produce_dir(individual_dir)
+            print(f"      Outputting experimental data to folder: {individual_dir.name}")
             output_dict = {"expt": self.expt_df, "rxn": self.rxn_df}
             for output in output_dict:
                 filename = self.expt_id + "_" + output + "_metadata.csv"
-                path = output_folder / filename
+                path = individual_dir / filename
                 output_dict[output].to_csv(path, index=False)
         print("Done")
 
@@ -565,19 +567,29 @@ class ExpMetadataMerge:
         print("Done")
         print("=" * 80)
 
+        #Remove columns from expts_df
+        expt_cols=["expt_id", "expt_date", "expt_user", "expt_type", "expt_rxns", "expt_notes", "expt_summary"]
+        expt_summary_df=self.expts_df[expt_cols]
+        
         # Optionally export the aggregate data
         if output_folder:
             print(
-                f"Outputting merged experimental data to folder: {output_folder.name}"
+                f"Outputting merged and summary experimental data to folder: {output_folder.name}"
             )
-
-            export_df_to_csv(self.all_df, output_folder, "experimental_data_all.csv")
+            export_df_to_csv(expt_summary_df, output_folder, "experimental_summary.csv")
+            export_df_to_csv(self.all_df, output_folder, "all_merged_data.csv")
             export_df_to_csv(
-                self.exp_summary_df, output_folder, "experimental_data_summary.csv"
+                self.exp_summary_df, output_folder, "sample_status  .csv"
             )
 
             print("Done")
             print("=" * 80)
+        
+        #Give user a summary of experiments performed
+        print("Experiments performed:")
+        print(expt_summary_df)
+        print("=" * 80)
+
 
     def _check_duplicate_expid(self, filepaths: list[Path]) -> None:
         """
