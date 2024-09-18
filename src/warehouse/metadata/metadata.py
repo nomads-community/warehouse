@@ -1,6 +1,5 @@
 import re
 from pathlib import Path
-from typing import Optional
 import pandas as pd
 from datetime import datetime
 from warehouse.lib.exceptions import DataFormatError
@@ -103,7 +102,7 @@ class ExpMetadataParser:
     def __init__(
         self,
         file_path: Path,
-        output_folder: Optional[Path] = None,
+        output_folder: Path = None,
         include_unclassified: bool = False,
     ):
         """
@@ -569,7 +568,7 @@ class ExpMetadataMerge:
 
         #Remove columns from expts_df
         expt_cols=["expt_id", "expt_date", "expt_user", "expt_type", "expt_rxns", "expt_notes", "expt_summary"]
-        expt_summary_df=self.expts_df[expt_cols]
+        expt_summary_df=self.expts_df[expt_cols].sort_values(["expt_date"])
         
         # Optionally export the aggregate data
         if output_folder:
@@ -579,7 +578,7 @@ class ExpMetadataMerge:
             export_df_to_csv(expt_summary_df, output_folder, "experimental_summary.csv")
             export_df_to_csv(self.all_df, output_folder, "all_merged_data.csv")
             export_df_to_csv(
-                self.exp_summary_df, output_folder, "sample_status  .csv"
+                self.exp_summary_df, output_folder, "sample_status.csv"
             )
 
             print("Done")
