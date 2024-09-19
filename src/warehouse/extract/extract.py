@@ -12,12 +12,18 @@ def extract_outputs(source_dir: Path, target_dir: Path, recursive: bool = False)
     """
 
     if recursive:
-        rsync_command = ["rsync", "-zvrc", f"{source_dir.as_posix()}/", target_dir]
+        rsync_components = ["rsync", "-zvrc", source_dir, target_dir]
     else:
-        rsync_command = ["rsync", "-vzrc", "--exclude", "*/", f"{source_dir.as_posix()}/", target_dir]   
-    
-    #Run the synchronisation
+        rsync_components = ["rsync", "-zvrc", "--exclude", "*/", source_dir, target_dir ]
+        
+    # Give user feedback on the rsync command being run
+    rsync_feedback = [ f"{f.name}" if isinstance(f, Path) else f for f in rsync_components]
+    print(f"{" ".join(rsync_feedback)}")
+
+    # Fromat the rsync command properly for bash to run it
+    rsync_command = [ f"{f.as_posix()}" if isinstance(f, Path) else f for f in rsync_components]
     subprocess.run(rsync_command)
+    print("")
     
 
 def process_targets(targets: dict, source_base_dir: Path, target_base_dir: Path):

@@ -54,16 +54,20 @@ def extract(seq_folder: Path, output_folder: Path):
     print(f"Identifying sequence data summaries from {target_string} and copying them to the output folder:")
     print(f"   Source: {seq_folder}")
     print(f"   Target: {output_folder}")
-    print(divider)
 
     #Identify all experimental folders
-    exps_folder = [folder for folder in identify_all_folders(seq_folder) ]
-
-    for exp_folder in exps_folder:
+    all_folders = [folder for folder in identify_all_folders(seq_folder, True) ]
+    exp_folders = [folder for folder in identify_all_folders(seq_folder) ]
+    
+    for exp_folder in all_folders:
+        if exp_folder in exp_folders:
+            print("")
+            print(divider)
+            print(f"Copying {exp_folder.name}")
+            print("")
         #Get the relative path
         relative_path = exp_folder.relative_to(seq_folder)
         target_folder = output_folder / relative_path
         process_targets(targets, exp_folder, target_folder)
     
-    print("Done")
     print(divider)
