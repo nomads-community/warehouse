@@ -56,18 +56,21 @@ def extract(seq_folder: Path, output_folder: Path):
     print(f"   Target: {output_folder}")
 
     #Identify all experimental folders
-    all_folders = [folder for folder in identify_all_folders(seq_folder, True) ]
+    #all_folders = [folder for folder in identify_all_folders(seq_folder, True) ]
     exp_folders = [folder for folder in identify_all_folders(seq_folder) ]
     
-    for exp_folder in all_folders:
-        if exp_folder in exp_folders:
-            print("")
-            print(divider)
-            print(f"Copying {exp_folder.name}")
-            print("")
+    for exp_folder in exp_folders:
         #Get the relative path
         relative_path = exp_folder.relative_to(seq_folder)
         target_folder = output_folder / relative_path
+        
+        #User feedback
+        print("")
+        print(divider)
+        print(f"Copying {exp_folder.name}")
+        print("")
+        
+        #Process
         process_targets(targets, exp_folder, target_folder)
     
     print(divider)
