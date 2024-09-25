@@ -36,7 +36,11 @@ def extract(seq_folder: Path, output_folder: Path):
             },
         "nomadic" : {
             "name" : "nomadic" ,
-            "recursive" : False
+            "recursive" : False,
+            "subfolders" : {
+                "metadata" :{ 
+                    "name" : "metadata", "recursive" : False}
+                }
             },
         "metadata" : {
             "name" : "metadata" ,
@@ -56,7 +60,6 @@ def extract(seq_folder: Path, output_folder: Path):
     print(f"   Target: {output_folder}")
 
     #Identify all experimental folders
-    #all_folders = [folder for folder in identify_all_folders(seq_folder, True) ]
     exp_folders = [folder for folder in identify_all_folders(seq_folder) ]
     
     for exp_folder in exp_folders:

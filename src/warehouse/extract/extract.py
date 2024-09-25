@@ -10,7 +10,6 @@ def extract_outputs(source_dir: Path, target_dir: Path, recursive: bool = False)
         target_dir(Path): The path to the target folder
         recursive(bool): Copy top-level files or entire directory
     """
-
     if recursive:
         rsync_components = ["rsync", "-zvrc", source_dir, target_dir]
     else:
@@ -21,7 +20,7 @@ def extract_outputs(source_dir: Path, target_dir: Path, recursive: bool = False)
     print(f"{" ".join(rsync_feedback)}")
 
     # Fromat the rsync command properly for bash to run it
-    rsync_command = [ f"{f.as_posix()}" if isinstance(f, Path) else f for f in rsync_components]
+    rsync_command = [ f"{f.resolve()}/  " if isinstance(f, Path) else f for f in rsync_components]
     subprocess.run(rsync_command)
     print("")
     
