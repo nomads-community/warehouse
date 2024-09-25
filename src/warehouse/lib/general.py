@@ -219,7 +219,7 @@ def identify_files_by_search(
 
         # Ensure there is at least one match
         if len(matches) == 0:
-            raise ValueError("No matching files found.")
+            raise ValueError(f"No matching files found matching pattern: {pattern}")
 
         # Feedback to user what has been found
         if verbose:
@@ -231,7 +231,7 @@ def identify_files_by_search(
         return None
 
     except StopIteration:
-        print("No matching file found")
+        print(f"No matching file found matching pattern: {pattern}")
         return None
 
     except ValueError as error_msg:
