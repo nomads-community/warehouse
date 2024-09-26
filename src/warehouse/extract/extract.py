@@ -20,7 +20,7 @@ def extract_outputs(source_dir: Path, target_dir: Path, recursive: bool = False)
     print(f"{" ".join(rsync_feedback)}")
 
     # Fromat the rsync command properly for bash to run it
-    rsync_command = [ f"{f.resolve()}/  " if isinstance(f, Path) else f for f in rsync_components]
+    rsync_command = [ f"{f.resolve()}/" if isinstance(f, Path) else f for f in rsync_components]
     subprocess.run(rsync_command)
     print("")
     
