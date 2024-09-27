@@ -196,9 +196,10 @@ def identify_files_by_search(
     Identify all files in a folder that match a search pattern"
 
     Args:
-    folder (Path): path to the search folder.
-    pattern (re.pattern): Compiled RE pattern to match filename against
-    recursive (Bool): Select whether search should be recursive
+    folder_path (Path):     path to the search folder.
+    pattern (re.pattern):   Compiled RE pattern to match filename against
+    recursive (bool):       Select whether search should be recursive
+    verbose (bool):         print outputs or now
 
     Returns:
         list[Path]: List of paths to the matching file(s), or None if not found.
@@ -348,28 +349,33 @@ def filter_nested_dict_by_attribute(nested_dict: dict, attributes: str | list) -
     return filtered_entries
 
 
-def filter_dict_by_key(data_dict: dict, dict_keys: str | list) -> dict:
-    """
-    Filters a dictionary to defined key(s)
+def filter_dict_by_key_or_value(data_dict: dict, dict_term: str | list, search_key: bool = None) -> dict:
+        """
+        Filters a dictionary to defined key(s)
 
-    Args:
-        data_dict (dict):   Data dictionary to filter
-        dict_keys (str|list):    key(s) to search for in the dict values
+        Args:
+            data_dict (dict):       Data dictionary to filter
+            dict_keys (str|list):   key(s) to search for in the dict values
 
-    Returns:
-        dict
-    """
+        Returns:
+            dict
+        """
 
-    if isinstance(dict_keys, str):
-        # Single entry (convert to list for consistency)
-        dict_keys = [dict_keys]
+        if isinstance(dict_term, str):
+            # Convert to set for consistency
+            dict_term = [ dict_term ]
+            
+        # Filter for attribute in key or value
+        if search_key:
+            filtered_entries = {
+                key: value for key, value in data_dict.items() if any(item in key for item in dict_term)
+            }
+        else:
+            filtered_entries = {
+                key: value for key, value in data_dict.items() if any(item in value for item in dict_term) 
+            }
 
-    # Filter based on all attributes being present
-    filtered_entries = {
-        key: value for key, value in data_dict.items() if key in dict_keys
-    }
-
-    return filtered_entries
+        return filtered_entries
 
 
 def reformat_nested_dict(
@@ -397,41 +403,45 @@ def reformat_nested_dict(
     }
 
 
-def get_dict_entries(
-    data_dict: dict,
-    attribute_key: str,
-    search_attribute: str,
+def filter_nested_dict(
+    nested_dict: dict,
+    new_key_field: str,
+    new_value_field: str,
     exclude_value: Optional[str] = None,
     reverse: bool = False,
 ) -> dict:
     """
-    Returns a dictionary containing only keys with a defined data type.
+    Returns a dictionary containing entries with a defined nested key.
+
+    Args:
+        nested_dict (dict):     Nested Dictionary
+        new_key_field(str):     Nested field to use as key
+        new_value_field (str):  Nested field to use as value
+        exclude_value:          Nested field to filter on
+        reverse (bool):         Whether to filter in (True) or out (False)
 
     Returns:
-        field_ref (str):      Top level key that references a particular field in the dataschema_dict e.g. DATE
-        attribute (str):      Attribute associated with the field_ref e.g. datatype
-        reverse_selection (bool):   Bool to determine whether to include / exclude based on presence / absence of attribute
+        dict:           All entries that fulfill the input requirements
     """
-    # Filter the entries to those containing the desired attribute
-    dict_entries = {
-        key: value for key, value in data_dict.items() if search_attribute in value
-    }
+    # Filter to ensure that the entries contain both the new key and new value entries
+    dict_entries=filter_dict_by_key_or_value(nested_dict, new_value_field, search_key=False)
+    dict_entries=filter_dict_by_key_or_value(dict_entries, new_key_field, search_key=False)    
 
-    # Modify entries if needed
-    if exclude_value is not None:
-        if reverse:
-            # Only include those containing the key
-            return {
-                value[attribute_key]: value[search_attribute]
-                for value in dict_entries.values()
-                if value[search_attribute] == exclude_value
-            }
-        # Exclude those containing the value
+    #If no exclude value then create a dict with the attribute_key
+    if exclude_value is None:
+        return {value[new_key_field]: value[new_value_field] for value in dict_entries.values()}
+    
+    # Only include those containing the key
+    if reverse:
         return {
-            value[attribute_key]: value[search_attribute]
+            value[new_key_field]: value[new_value_field]
             for value in dict_entries.values()
-            if value[search_attribute] != exclude_value
+            if value[new_value_field] == exclude_value
         }
-    return {
-        value[attribute_key]: value[search_attribute] for value in dict_entries.values()
+    
+    # Exclude all entries containing the exclude_value
+    return {    
+        value[new_key_field]: value[new_value_field]
+        for value in dict_entries.values()
+        if value[new_value_field] != exclude_value
     }

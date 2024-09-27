@@ -8,8 +8,8 @@ from warehouse.lib.general import (
     create_dict_from_ini,
     identify_exptid_from_fn,
     get_nested_key_value,
-    get_dict_entries,
-    filter_dict_by_key,
+    filter_nested_dict,
+    filter_dict_by_key_or_value,
     reformat_nested_dict,
     identify_exptid_from_path,
     produce_dir,
@@ -627,9 +627,9 @@ class SampleDataSchemaFields:
         ini_files = identify_files_by_search(csv_path.parent, re.compile(".*.ini"))
 
         if len(ini_files) > 1:
-            print(f"Multiple .ini files found, using first one: {ini_files[0]}")
+            print(f"Multiple .ini files found, using first one: {ini_files[0].name}")
         self.dataschema_dict = create_dict_from_ini(ini_files[0])
-
+        
         # Create simple dict of field and labels
         self.field_labels = reformat_nested_dict(self.dataschema_dict, "field", "label")
 
@@ -638,19 +638,19 @@ class SampleDataSchemaFields:
             field_value = get_nested_key_value(self.dataschema_dict, dict_key, "field")
             label_value = get_nested_key_value(self.dataschema_dict, dict_key, "label")
             setattr(self, dict_key.upper(), (field_value, label_value))
-
+        
         # Identify all with datatype entries
-        self.dtypes = get_dict_entries(
-            self.dataschema_dict, "field", "datatype", "date"
-        )
+        self.dtypes = filter_nested_dict(
+            self.dataschema_dict, new_key_field="field", new_value_field="datatype", exclude_value="date")
+        
         # Identify all that ARE dates
-        self.datefields = get_dict_entries(
-            self.dataschema_dict, "field", "datatype", "date", True
-        )
+        self.datefields = filter_nested_dict(
+            self.dataschema_dict, new_key_field="field", new_value_field="datatype", exclude_value="date", reverse=True )
+        
         # Identify all dates that have a defined format
-        self.dateformats = get_dict_entries(self.dataschema_dict, "field", "dateformat")
-
-
+        self.dateformats = filter_nested_dict(
+            self.dataschema_dict, new_key_field="field", new_value_field="dateformat")
+   
 class SampleMetadataParser:
     """
     Extract sample metadata from a single csv file, define fieldnames and labels,
@@ -662,20 +662,20 @@ class SampleMetadataParser:
         # Load dataschema for sample set and save as attribute
         SampleDataSchema = SampleDataSchemaFields(sample_csv_path)
         self.DataSchema = SampleDataSchema
-
         ExpDataSchema = ExpDataSchemaFields()
+        
         # load the data from the CSV file
         df = pd.read_csv(
-            sample_csv_path,
+            sample_csv_path,    
             dtype=SampleDataSchema.dtypes,
         )
-
+        
         # Filter out any missing sample_id's and ensure it is not an int
         df = df[df[SampleDataSchema.SAMPLE_ID[0]].notna()]
         df[SampleDataSchema.SAMPLE_ID[0]] = df[SampleDataSchema.SAMPLE_ID[0]].astype(
             "string"
         )
-
+        
         # Ensure dates are correctly formatted
         for datefield in SampleDataSchema.datefields:
             f = SampleDataSchema.dateformats.get(datefield, "")
@@ -687,7 +687,7 @@ class SampleMetadataParser:
             # Check if dates parsed correctly
             if not pd.api.types.is_datetime64_dtype(df[datefield]):
                 raise DataFormatError(f"Date errors in field / column: {datefield}")
-
+        
         # Determine the point each sample has got through to in testing
         if rxn_df is not None:
             # Create status column and fill with not tested
@@ -696,7 +696,7 @@ class SampleMetadataParser:
             )
             # Define what is present
             types_present = rxn_df[ExpDataSchema.EXP_TYPE[0]].unique()
-
+            
             for (
                 exp_type
             ) in ExpThroughputDataScheme.EXP_TYPES:  # Ensure order is followed
@@ -764,7 +764,7 @@ class SequencingMetadataParser:
         ExpDataSchema = exp_data.DataSchema
 
         # Filter dict to key fields to match on
-        key_fields = filter_dict_by_key(
+        key_fields = filter_dict_by_key_or_value(
             ExpDataSchema.dataschema_dict,
             ["EXP_ID", "SAMPLE_ID", "EXTRACTIONID", "BARCODE"],
         )
