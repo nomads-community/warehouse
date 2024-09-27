@@ -28,23 +28,32 @@ def extract(seq_folder: Path, output_folder: Path):
     targets = { 
         "savanna" : {
             "name" : "savanna",
-            "recursive" : False, 
+            "recursive" : False,
+            "exclude" : [], 
             "subfolders" : {
                 "summary" :{ 
-                    "name" : "summary", "recursive" : True}
+                    "name" : "summary", 
+                    "recursive" : True,
+                    "exclude" : []
+                    }
                 }
             },
         "nomadic" : {
             "name" : "nomadic" ,
             "recursive" : False,
+            "exclude" : ["summary.depth.csv", "summary.fastq.csv"],
             "subfolders" : {
                 "metadata" :{ 
-                    "name" : "metadata", "recursive" : False}
+                    "name" : "metadata", 
+                    "recursive" : False,
+                    "exclude" : []
+                    }
                 }
             },
         "metadata" : {
             "name" : "metadata" ,
-            "recursive" : False
+            "recursive" : False,
+            "exclude" : []
             }
         }
 

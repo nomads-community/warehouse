@@ -2,7 +2,7 @@ from pathlib import Path
 import subprocess
 from warehouse.lib.general import produce_dir
 
-def extract_outputs(source_dir: Path, target_dir: Path, recursive: bool = False):
+def extract_outputs(source_dir: Path, target_dir: Path, exclusions: list, recursive: bool = False):
     """Copies contents of a folder to a new location.
 
     Args:
@@ -10,11 +10,20 @@ def extract_outputs(source_dir: Path, target_dir: Path, recursive: bool = False)
         target_dir(Path): The path to the target folder
         recursive(bool): Copy top-level files or entire directory
     """
-    if recursive:
-        rsync_components = ["rsync", "-zvrc", source_dir, target_dir]
-    else:
-        rsync_components = ["rsync", "-zvrc", "--exclude", "*/", source_dir, target_dir ]
-        
+    #Starting entry
+    rsync_components = ["rsync", "-zvrc"]
+
+    # Add in exclusions:
+    for exclusion in exclusions:
+        rsync_components.extend(["--exclude", exclusion])
+    
+    # Add in folder exclusions
+    if not recursive:
+        rsync_components.extend(["--exclude", "*/"])
+
+    #Complete the list:
+    rsync_components.extend([source_dir, target_dir])
+            
     # Give user feedback on the rsync command being run
     rsync_feedback = [ f"{f.name}" if isinstance(f, Path) else f for f in rsync_components]
     print(f"{" ".join(rsync_feedback)}")
@@ -52,8 +61,11 @@ def process_targets(targets: dict, source_base_dir: Path, target_base_dir: Path)
         # Get recursive flag from target configuration
         recursive = target_config.get("recursive", False)
         
+        #Identify anything to exclude
+        exclusions = target_config.get("exclude", [])
+
         # Call extract_outputs for each target
-        extract_outputs(source_dir, target_dir, recursive)
+        extract_outputs(source_dir, target_dir, exclusions, recursive)
         
         # Handle subfolders if present
         subfolders = target_config.get("subfolders", {})
