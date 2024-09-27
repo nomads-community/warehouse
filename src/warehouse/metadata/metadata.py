@@ -538,12 +538,9 @@ class ExpMetadataMerge:
                 if col.startswith(ExpDataSchema.EXP_TYPE[0])
             ]
             alldata_df.drop(dropcols, axis=1, inplace=True)
-
-            # Create an instance attribute
-            self.all_df = alldata_df
-
+            
             # Fill in the nan values
-            alldata_df = alldata_df.fillna("None")
+            alldata_df_na = alldata_df.fillna("None")
 
             print("Summarising rxn performed")
             # Group and aggregate the df to give a list of all experiments performed on each sample
@@ -555,13 +552,16 @@ class ExpMetadataMerge:
                 ExpDataSchema.PCR_IDENTIFIER[0],
                 ExpDataSchema.SEQLIB_IDENTIFIER[0],
             ]
-            collapsed_df = collapse_columns(alldata_df, col_roots)
+            collapsed_df = collapse_columns(alldata_df_na, col_roots)
             self.exp_summary_df = (
                 collapsed_df[col_roots]
                 .groupby([ExpDataSchema.SAMPLE_ID[0], ExpDataSchema.PCR_ASSAY[0]])
                 .agg(list)
                 .reset_index()
             )
+        
+        # Create an instance attribute
+        self.all_df = alldata_df
 
         print("Done")
         print("=" * 80)
@@ -588,7 +588,6 @@ class ExpMetadataMerge:
         print("Experiments performed:")
         print(expt_summary_df)
         print("=" * 80)
-
 
     def _check_duplicate_expid(self, filepaths: list[Path]) -> None:
         """
@@ -667,7 +666,7 @@ class SampleMetadataParser:
         # load the data from the CSV file
         df = pd.read_csv(
             sample_csv_path,    
-            dtype=SampleDataSchema.dtypes,
+            #dtype=SampleDataSchema.dtypes,
         )
         
         # Filter out any missing sample_id's and ensure it is not an int
@@ -766,8 +765,9 @@ class SequencingMetadataParser:
         # Filter dict to key fields to match on
         key_fields = filter_dict_by_key_or_value(
             ExpDataSchema.dataschema_dict,
-            ["EXP_ID", "SAMPLE_ID", "EXTRACTIONID", "BARCODE"],
+            ["EXP_ID", "SAMPLE_ID", "EXTRACTIONID", "BARCODE"], search_key=True
         )
+        
         # Simplify dict to a list of keys (fieldnames)
         key_fields = list(reformat_nested_dict(key_fields, "field", "label").keys())
 

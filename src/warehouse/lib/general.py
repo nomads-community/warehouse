@@ -349,7 +349,7 @@ def filter_nested_dict_by_attribute(nested_dict: dict, attributes: str | list) -
     return filtered_entries
 
 
-def filter_dict_by_key_or_value(data_dict: dict, dict_term: str | list, search_key: bool = None) -> dict:
+def filter_dict_by_key_or_value(data_dict: dict, dict_term: str | list, search_key: bool = True) -> dict:
         """
         Filters a dictionary to defined key(s)
 
