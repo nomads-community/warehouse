@@ -1,5 +1,4 @@
 import re
-import os
 import configparser
 from typing import Optional
 from pathlib import Path
@@ -240,7 +239,7 @@ def identify_files_by_search(
         raise
 
 
-def produce_dir(*args) -> str:
+def produce_dir(*args, verbose: bool = True) -> str:
     """
     Produce a new directory by concatenating `args`,
     if it does not already exist
@@ -252,19 +251,20 @@ def produce_dir(*args) -> str:
             e.g. str1/str2/str3
 
     returns
-        dir_name: str
-            Directory name created from *args.
+        dir: Path to directory name created from *args.
 
     """
 
     # Define directory path
-    dir_name = os.path.join(*args)
+    dir = Path(*args)
+    
     # Create if doesn't exist
-    if not os.path.exists(dir_name):
-        os.makedirs(dir_name)
-        print(f"   {dir_name} created")
+    if not dir.exists():
+        dir.mkdir(parents=True, exist_ok=False)
+        if verbose:
+            print(f"   {dir.absolute()} created")
 
-    return dir_name
+    return dir
 
 
 def create_dict_from_ini(ini_files: Path | list[Path]) -> dict:

@@ -1,7 +1,7 @@
 import click
 from pathlib import Path
 from dash import Dash
-from warehouse.lib.general import identify_files_by_search, check_path_present
+from warehouse.lib.general import identify_files_by_search, check_path_present, produce_dir
 from warehouse.lib.regex import Regex_patterns
 from warehouse.metadata.metadata import (
     ExpMetadataMerge,
@@ -62,10 +62,11 @@ def visualise(exp_folder: Path, sample_csv: Path, seq_folder: Path):
     combined_data = CombinedData(exp_data, sequence_data, sample_data)
 
     # OUTPUTS FOR NOTEBOOK ETC
-    debug = False
+    debug = True
     if debug:
         print("Exporting data for debugging")
         nb_folder = Path("./notebooks")
+        produce_dir(nb_folder)
         exp_data.swga_df.to_csv(nb_folder.joinpath("rxn_swga_df.csv"), index=False)
         exp_data.pcr_df.to_csv(nb_folder.joinpath("rxn_pcr_df.csv"), index=False)
         exp_data.seqlib_df.to_csv(nb_folder.joinpath("rxn_seqlib_df.csv"), index=False)
