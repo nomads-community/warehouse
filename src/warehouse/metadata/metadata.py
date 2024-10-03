@@ -663,18 +663,19 @@ class SampleMetadataParser:
         self.DataSchema = SampleDataSchema
         ExpDataSchema = ExpDataSchemaFields()
         
-        # load the data from the CSV file
-        df = pd.read_csv(
-            sample_csv_path,    
-            #dtype=SampleDataSchema.dtypes,
-        )
-        
-        # Filter out any missing sample_id's and ensure it is not an int
+        # load the data from the CSV file and ensure sampleID is a str
+        #don't use the user-defined dtypes as this may error out (apply later)
+        df = pd.read_csv(sample_csv_path, dtype={SampleDataSchema.SAMPLE_ID[0] : str})
+
+        # Filter out any missing sample_id's
         df = df[df[SampleDataSchema.SAMPLE_ID[0]].notna()]
-        df[SampleDataSchema.SAMPLE_ID[0]] = df[SampleDataSchema.SAMPLE_ID[0]].astype(
-            "string"
-        )
-        
+
+        #Try to ensure fields are correct datatypes
+        for key, value in SampleDataSchema.dtypes.items():
+            try:
+                df[key] = df[key].astype(value)
+            except ValueError as e:
+                print(f"Error converting column '{key}' to type '{value}': {e}")
         # Ensure dates are correctly formatted
         for datefield in SampleDataSchema.datefields:
             f = SampleDataSchema.dateformats.get(datefield, "")
@@ -706,7 +707,7 @@ class SampleMetadataParser:
                             ExpDataSchema.SAMPLE_ID[0]
                         ]
                         .unique()
-                        .astype("str")
+                        .astype(str)
                     )
                     # Enter result into df overwriting previous entries
                     df.loc[
