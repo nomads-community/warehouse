@@ -1,9 +1,10 @@
 import pandas as pd
 import pathlib as Path
 from itertools import chain
+from .general import produce_dir
 
 
-def collapse_columns(df: pd.DataFrame, field_roots: list) -> pd.DataFrame:
+def collapse_repeat_columns(df: pd.DataFrame, field_roots: list) -> pd.DataFrame:
     """
     Merging dataframes creates duplicated fields that only differ by a suffix e.g. _pcr
     or _x. These need to be collapsed so that a single column captures the details needed.
@@ -66,3 +67,22 @@ def export_df_to_csv(df: pd.DataFrame, folder: Path, filename: str) -> None:
 
     path = folder / filename
     df.to_csv(path, index=False)
+
+
+def identify_export_dataframe_attributes(obj, output_dir):
+    """
+    Outputs all attributes of an object that are DataFrames as individual CSV files.
+
+    Args:
+        obj: The object whose attributes to inspect.
+        output_dir: The directory where the CSV files will be saved.
+    """
+    print("   Exporting dataframe attributes:")
+    for attr_name in dir(obj):
+        attr = getattr(obj, attr_name)
+        if isinstance(attr, pd.DataFrame):
+            produce_dir(output_dir)
+            csv_file = f"{output_dir}/{attr_name}.csv"
+            attr.to_csv(csv_file, index=False)
+            print(f"      '{attr_name}' saved to {csv_file}")
+    print("   Done")

@@ -14,7 +14,7 @@ from warehouse.lib.general import (
     identify_exptid_from_path,
     produce_dir,
 )
-from warehouse.lib.dataframes import collapse_columns, export_df_to_csv
+from warehouse.lib.dataframes import collapse_repeat_columns, identify_export_dataframe_attributes
 from warehouse.lib.regex import Regex_patterns
 from warehouse.lib.decorators import singleton
 
@@ -376,6 +376,11 @@ class ExpMetadataMerge:
         # Check that there aren't duplicate experiment IDs
         self._check_duplicate_expid(filepaths)
 
+        #Output all data into a metadata subfolder for ease of use
+        if output_folder:
+            output_folder = output_folder / "metadata"
+            produce_dir(output_folder)
+
         # Extract each file as an object into a dictionary
         expdata_dict = {
             identify_exptid_from_fn(filepath): ExpMetadataParser(
@@ -529,7 +534,7 @@ class ExpMetadataMerge:
                     )
 
             # Collapse columns where multiple entries exist
-            alldata_df = collapse_columns(alldata_df, [ExpDataSchema.SAMPLE_ID[0]])
+            alldata_df = collapse_repeat_columns(alldata_df, [ExpDataSchema.SAMPLE_ID[0]])
 
             # Remove the expt_type fields as they are not informative in a merged df
             dropcols = [
@@ -552,7 +557,7 @@ class ExpMetadataMerge:
                 ExpDataSchema.PCR_IDENTIFIER[0],
                 ExpDataSchema.SEQLIB_IDENTIFIER[0],
             ]
-            collapsed_df = collapse_columns(alldata_df_na, col_roots)
+            collapsed_df = collapse_repeat_columns(alldata_df_na, col_roots)
             self.exp_summary_df = (
                 collapsed_df[col_roots]
                 .groupby([ExpDataSchema.SAMPLE_ID[0], ExpDataSchema.PCR_ASSAY[0]])
@@ -572,17 +577,7 @@ class ExpMetadataMerge:
         
         # Optionally export the aggregate data
         if output_folder:
-            print(
-                f"Outputting merged and summary experimental data to folder: {output_folder.name}"
-            )
-            export_df_to_csv(expt_summary_df, output_folder, "experimental_summary.csv")
-            export_df_to_csv(self.all_df, output_folder, "all_merged_data.csv")
-            export_df_to_csv(
-                self.exp_summary_df, output_folder, "sample_status.csv"
-            )
-
-            print("Done")
-            print("=" * 80)
+            identify_export_dataframe_attributes(self, output_folder)
         
         #Give user a summary of experiments performed
         print("Experiments performed:")
@@ -657,7 +652,7 @@ class SampleMetadataParser:
 
     """
 
-    def __init__(self, sample_csv_path: Path, rxn_df: pd.DataFrame = None):
+    def __init__(self, sample_csv_path: Path, rxn_df: pd.DataFrame = None, output_folder: Path = None):
         # Load dataschema for sample set and save as attribute
         SampleDataSchema = SampleDataSchemaFields(sample_csv_path)
         self.DataSchema = SampleDataSchema
@@ -718,6 +713,11 @@ class SampleMetadataParser:
         # Define attributes
         self.df = df
 
+        #export data
+        if output_folder:
+            output_folder = output_folder / "samples"
+            identify_export_dataframe_attributes(self, output_folder)
+
 
 @singleton
 class SeqDataSchemaFields:
@@ -755,7 +755,7 @@ class SequencingMetadataParser:
 
     """
 
-    def __init__(self, seqdata_folder: Path, exp_data: object):
+    def __init__(self, seqdata_folder: Path, exp_data: object, output_folder: Path = None):
         # Load dataschema for sample set and save as an object attribute
         SeqDataSchema = SeqDataSchemaFields()
         self.DataSchema = SeqDataSchema
@@ -808,7 +808,7 @@ class SequencingMetadataParser:
                 how="inner",
             )
             # Ensure duplicate columns are collapsed to a single one
-            merged = collapse_columns(merged, ["sample_id", "expt_id", "barcode"])
+            merged = collapse_repeat_columns(merged, ["sample_id", "expt_id", "barcode"])
             return merged
 
         print("   Searching for bamstats file(s)")
@@ -830,7 +830,19 @@ class SequencingMetadataParser:
             seqdata_folder, Regex_patterns.SEQDATA_EXPTQC_CSV, recursive=True
         )
         self.summary_exptqc = extract_add_concat(exptqcfiles, match_df)
+        
+        #Merge the exptqc and bam outputs and drop repeat columns
+        summary_bamqc = pd.merge(left=self.summary_bam,
+                                            right=self.summary_exptqc,
+                                            on=[SeqDataSchema.BARCODE[0], SeqDataSchema.EXP_ID[0]],
+                                            how='outer'
+                                            )
+        collapse_repeat_columns(summary_bamqc, [SeqDataSchema.SAMPLE_ID[0]])
+        self.summary_bamqc = summary_bamqc
 
+        if output_folder:
+            output_folder= output_folder / "sequence"
+            identify_export_dataframe_attributes(self, output_folder)
 
 @singleton
 class ExpDataSchemaFields_Combined:
@@ -885,13 +897,13 @@ class CombinedData:
     Merge all data sources
     """
 
-    def __init__(self, exp_data, sequence_data, sample_data):
+    def __init__(self, exp_data, sequence_data, sample_data, output_folder: Path = None):
         ExpDataSchema = ExpDataSchemaFields_Combined(exp_data)
         SeqDataSchema = sequence_data.DataSchema
         SampleDataSchema = sample_data.DataSchema
         alldata_df = pd.merge(
             exp_data.all_df,
-            sequence_data.summary_bam,
+            sequence_data.summary_bamqc,
             left_on=[
                 ExpDataSchema.BARCODE[0],
                 ExpDataSchema.EXP_ID_SEQLIB[0],
@@ -951,6 +963,9 @@ class CombinedData:
         for dict_value in self.datasource_fields.values():
             all_field_labels = all_field_labels | dict_value
         self.all_field_labels = all_field_labels
+
+        if output_folder:
+            identify_export_dataframe_attributes(self, output_folder)
 
 
 class ExpThroughputDataScheme:

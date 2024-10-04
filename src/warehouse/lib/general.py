@@ -90,7 +90,7 @@ def identify_experiment_file(folder: Path, expt_id: str) -> Path | None:
         return matches[0]
 
 
-def _check_no_openfiles_identified(fn_list: list):
+def check_no_openfiles_identified(fn_list: list):
     """
     Identify if there are any files from a list that are currently open"
 
@@ -107,7 +107,7 @@ def _check_no_openfiles_identified(fn_list: list):
         )
 
 
-def _check_duplicate_names(entries):
+def check_duplicate_names(entries):
     """Checks for duplicate names in a list of pathlib entries.
 
     Args:
@@ -212,10 +212,10 @@ def identify_files_by_search(
         ]
 
         # Check that there are no open files
-        _check_no_openfiles_identified(matches)
+        check_no_openfiles_identified(matches)
 
         # Check there are no duplicate names
-        _check_duplicate_names(matches)
+        check_duplicate_names(matches)
 
         # Ensure there is at least one match
         if len(matches) == 0:
