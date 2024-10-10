@@ -2,9 +2,13 @@ import re
 import configparser
 from typing import Optional
 from pathlib import Path
-from .exceptions import DataFormatError, PathError
-from .regex import Regex_patterns
+import logging
 
+from warehouse.lib.exceptions import DataFormatError, PathError
+from warehouse.lib.regex import Regex_patterns
+
+#Get logging process
+log = logging.getLogger("general")
 
 def identify_exptid_from_path(path: Path) -> str:
     """
@@ -29,8 +33,9 @@ def identify_exptid_from_path(path: Path) -> str:
         return match.group(0)
 
     except StopIteration:
-        # print(f"Unable to identify an ExpID in: {path.name}")
-        raise DataFormatError(f"Unable to identify an ExpID in: {path.name}")
+        msg = f"Unable to identify an ExpID in: {path.name}"
+        log.debug(msg)
+        raise DataFormatError(msg)
 
 
 def identify_exptid_from_fn(path: Path) -> str | None:
@@ -53,7 +58,7 @@ def identify_exptid_from_fn(path: Path) -> str | None:
         return None
 
     except StopIteration:
-        print(f"Unable to identify an ExpID in: {path.name}")
+        log.info(f"Unable to identify an ExpID in: {path.name}")
         return None
 
 
@@ -68,7 +73,7 @@ def identify_experiment_file(folder: Path, expt_id: str) -> Path | None:
     Returns:
         Path: The path to the matching file, or None if not found.
     """
-    print("Searching for all NOMADS template files")
+    log.info("Searching for all NOMADS template files")
     matches = identify_files_by_search(
         folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True
     )
@@ -76,7 +81,7 @@ def identify_experiment_file(folder: Path, expt_id: str) -> Path | None:
     if not matches:
         return None
 
-    print(f"Searching for files with {expt_id} in name")
+    log.info(f"Searching for files with {expt_id} in name")
     search_pattern = re.compile(f"{expt_id}")
     matches = [f for f in matches if search_pattern.search(f.name)]
 
@@ -223,23 +228,23 @@ def identify_files_by_search(
 
         # Feedback to user what has been found
         if verbose:
-            print(f"Found {len(matches)} matching file(s)")
+            log.info(f"Found {len(matches)} matching file(s)")
         return matches
 
     except FileNotFoundError:
-        print(f"Error: Folder '{folder_path.name}' not found.")
+        log.info(f"Error: Folder '{folder_path.name}' not found.")
         return None
 
     except StopIteration:
-        print(f"No matching file found matching pattern: {pattern}")
+        log.info(f"No matching file found matching pattern: {pattern}")
         return None
 
     except ValueError as error_msg:
-        print(str(error_msg))
+        log.info(str(error_msg))
         raise
 
 
-def produce_dir(*args, verbose: bool = True) -> str:
+def produce_dir(*args, verbose: bool = True) -> Path:
     """
     Produce a new directory by concatenating `args`,
     if it does not already exist
@@ -262,7 +267,7 @@ def produce_dir(*args, verbose: bool = True) -> str:
     if not dir.exists():
         dir.mkdir(parents=True, exist_ok=False)
         if verbose:
-            print(f"   {dir.absolute()} created")
+            log.info(f"   {dir.absolute()} created")
 
     return dir
 

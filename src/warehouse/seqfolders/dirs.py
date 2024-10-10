@@ -1,7 +1,11 @@
 from pathlib import Path
 import configparser
+import logging
+
 from warehouse.lib.general import produce_dir
 
+#Define logging process
+log = logging.getLogger("dirs")
 
 class ExperimentDirectories:
     """
@@ -28,7 +32,7 @@ class ExperimentDirectories:
         self.expt_dir = produce_dir(self.experiments_dir, expt_name)
 
         if not dir_ini:
-            print(" No .ini file supplied, using default")
+            log.info(" No .ini file supplied, using default")
             dir_ini = script_dir / "dir_structure.ini"
 
         # Read in the values from the ini file
@@ -41,7 +45,7 @@ class ExperimentDirectories:
             produce_dir(self.expt_dir, default_value)
             # set an attribute for further ref
             att_name = default_key + "_dir"
-            att_value = self.expt_dir + "/" + default_value
+            att_value = self.expt_dir / default_value
             setattr(self, att_name, att_value)
 
             # Produce any defined sub-directories
@@ -49,5 +53,5 @@ class ExperimentDirectories:
                 for sub_key, sub_value in config.items(default_key):
                     produce_dir(self.expt_dir, default_value, sub_value)
 
-        print(" All folders created / available in:")
-        print(f"   {self.expt_dir}")
+        log.info(" All folders created / available in:")
+        log.info(f"   {self.expt_dir}")

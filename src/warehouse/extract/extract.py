@@ -3,10 +3,9 @@ import subprocess
 import logging
 
 from warehouse.lib.general import produce_dir
-from warehouse.lib.logging import divider
 
 #Get logging process
-log = logging.getLogger()
+log = logging.getLogger("extract")
 
 def extract_outputs(source_dir: Path, 
                     target_dir: Path, 
@@ -85,4 +84,3 @@ def process_targets(targets: dict,
         if subfolders:
             # Recursively process subfolders with appropriate source and target paths
             process_targets(subfolders, source_dir, target_dir)
-            

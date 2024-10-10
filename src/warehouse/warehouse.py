@@ -1,9 +1,8 @@
 import click
 from pathlib import Path
 from collections import OrderedDict
-import logging
 
-from warehouse.lib.logging import config_root_logger, identify_cli_command, divider
+from warehouse.lib.logging import config_root_logger
 from warehouse.metadata.commands import metadata
 from warehouse.seqfolders.commands import seqfolders
 from warehouse.visualise.commands import visualise

@@ -43,7 +43,7 @@ def metadata(exp_folder: Path, expt_id: str, output_folder: Path):
     from .metadata import ExpMetadataParser
 
     #Set up child log and enter cli cmd
-    log = logging.getLogger("metadata")
+    log = logging.getLogger("metadata_commands")
     log.info(divider)
     log.debug(identify_cli_command())
 

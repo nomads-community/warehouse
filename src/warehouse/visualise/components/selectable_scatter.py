@@ -1,6 +1,10 @@
 from dash import Dash, html, dcc, Input, Output
 import plotly.express as px
 from . import ids
+import logging
+
+#Define logging process
+log = logging.getLogger("selectable_scatter")
 
 
 def create_scatter(
@@ -14,7 +18,6 @@ def create_scatter(
     if x_series is None:
         x_series = DataSchema["PCR_PRODUCT"]["field"]
     if y_series is None:
-        # y_series = DataSchema["EXTRACTION_ID"]["field"]
         y_series = DataSchema["N_PRIMARY"]["field"]
     if colour_series is None:
         colour_series = DataSchema["EXP_ID"]["field"] + "_seqlib"
@@ -27,7 +30,7 @@ def create_scatter(
     dff.dropna(axis=0, how="any", inplace=True)
     dff.mask(dff.eq("None")).dropna(axis=0, how="any", inplace=True)
 
-    print(
+    log.info(
         f"Plotting x: {x_series}, y: {y_series}, colour: {colour_series}, df shape ={dff.shape}"
     )
 

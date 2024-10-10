@@ -19,9 +19,10 @@ from warehouse.lib.general import (
 from warehouse.lib.dataframes import collapse_repeat_columns, identify_export_dataframe_attributes
 from warehouse.lib.regex import Regex_patterns
 from warehouse.lib.decorators import singleton
+from warehouse.lib.logging import divider
 
-#Get logging process
-log = logging.getLogger()
+#Define logging process
+log = logging.getLogger("metadata")
 
 # import pretty_errors
 # pretty_errors.configure(
@@ -116,7 +117,7 @@ class ExpMetadataParser:
         # Pull in the dynamically created ExpDataSchema
         ExpDataSchema = ExpDataSchemaFields()
 
-        print(f"{file_path.name}")
+        log.info(f"{file_path.name}")
         self.tabnames = ["expt_metadata", "rxn_metadata"]
         # Store filename
         self.filepath = file_path
@@ -143,7 +144,7 @@ class ExpMetadataParser:
         self._check_for_columns(self.expt_req_cols, self.expt_df)
         self._check_number_rows(1, self.expt_df, self.filepath)
         self._check_expt_id_fn_sheet()
-        print("      Experimental metadata passed formatting checks.")
+        log.info("      Experimental metadata passed formatting checks.")
 
         # Load rxn data
         ###################
@@ -159,9 +160,9 @@ class ExpMetadataParser:
             if include_unclassified:
                 self.barcodes.append("unclassified")
             self._check_barcodes_valid()
-        print("      Rxn metadata passed formatting checks.")
+        log.info("      Rxn metadata passed formatting checks.")
 
-        print(f"      Merging experimental and rxn data for {self.expt_id}...")
+        log.info(f"      Merging experimental and rxn data for {self.expt_id}...")
         self.df = pd.merge(self.expt_df, self.rxn_df, on="expt_id", how="inner")
         # Add expt_type back into the rxn dataframe after the merge otherwise there
         # will be duplicate expt_type cols
@@ -173,13 +174,13 @@ class ExpMetadataParser:
             #Store individual experiments in a subfolder
             individual_dir=output_folder / "individual_expts"
             produce_dir(individual_dir)
-            print(f"      Outputting experimental data to folder: {individual_dir.name}")
+            log.info(f"      Outputting experimental data to folder: {individual_dir.name}")
             output_dict = {"expt": self.expt_df, "rxn": self.rxn_df}
             for output in output_dict:
                 filename = self.expt_id + "_" + output + "_metadata.csv"
                 path = individual_dir / filename
                 output_dict[output].to_csv(path, index=False)
-        print("Done")
+        log.info("Done")
 
     def _extract_excel_data(self, filename: Path, tabname: str) -> pd.DataFrame:
         """
@@ -204,7 +205,7 @@ class ExpMetadataParser:
         Define all required fields, counts etc for the exp type.
 
         """
-        print(f"      Identified as {self.expt_type} type experiment")
+        log.info(f"      Identified as {self.expt_type} type experiment")
         self.rxn_identifier_col = self.expt_type + "_identifier"
         ExpDataSchema = ExpDataSchemaFields()
 
@@ -276,7 +277,7 @@ class ExpMetadataParser:
         found_rows = df.shape[0]
 
         if found_rows != num_rows:
-            print(f"WARNING: Expected {num_rows} rows, but found {found_rows}!")
+            log.info(f"WARNING: Expected {num_rows} rows, but found {found_rows}!")
 
         if found_rows == 0:
             raise DataFormatError(f"No rows found in {filename}!")
@@ -392,7 +393,7 @@ class ExpMetadataMerge:
             )
             for filepath in filepaths
         }
-        print("=" * 80)
+        log.info(divider)
 
         # Concatenate all the exp level data into a df
         self.expts_df = pd.concat(expdata_dict[key].expt_df for key in expdata_dict)
@@ -419,7 +420,7 @@ class ExpMetadataMerge:
 
         # Provide for a case where only a single expt type is present
         if len(self.expt_types) == 1:
-            print(f"Only a single expt type ({expt_type}) identified")
+            log.info(f"Only a single expt type ({expt_type}) identified")
             alldata_df = expt_df_dict[expt_type]
         else:
             # Create joins dict according to experiment types present
@@ -451,13 +452,13 @@ class ExpMetadataMerge:
                     "mismatch_escape": (ExpDataSchema.PCR_IDENTIFIER[0], "no pcr"),
                 }
 
-            print("Checking for data validity and merging dataframes for:")
+            log.info("Checking for data validity and merging dataframes for:")
 
             # Cycle through all of the joins required based on the data present. Enumerate from 1
             for count, join in enumerate(joins, start=1):
                 # Load the current join from the dict
                 join_dict = joins[join]
-                print(f"   {join_dict['joining'][0]} and {join_dict['joining'][1]}")
+                log.info(f"   {join_dict['joining'][0]} and {join_dict['joining'][1]}")
 
                 # Join the two df together
                 data_df = pd.merge(
@@ -495,11 +496,11 @@ class ExpMetadataMerge:
 
                 # Give user feedback
                 if len(missing_records_df) > 0:
-                    print(
+                    log.info(
                         f"   WARNING: {join_dict['joining'][0]} data missing (present in {join_dict['joining'][1]} dataframe)"
                     )
-                    print(missing_records_df[show_cols].to_string(index=False))
-                    print("")
+                    log.info(missing_records_df[show_cols].to_string(index=False))
+                    log.info("")
 
                 # Create df with matched records
                 matched_df = data_df[data_df["_merge"] == "both"]
@@ -512,9 +513,9 @@ class ExpMetadataMerge:
                     mismatches_df = matched_df.loc[(col1 != col2)]
                     # Feedback to user
                     if mismatches_df.shape[0] > 0:
-                        print(f"   WARNING: Mismatches identified for {c}")
-                        print(f"   {mismatches_df[show_cols].to_string(index=False)}")
-                        print("")
+                        log.info(f"   WARNING: Mismatches identified for {c}")
+                        log.info(f"   {mismatches_df[show_cols].to_string(index=False)}")
+                        log.info("")
 
                 # To ensure that all columns have the correct suffix, you need to rejoin the columns with or wthout
                 # suffixes depending on whether it is the first (right hand df has no suffix) or last join (both given suffixes)
@@ -551,7 +552,7 @@ class ExpMetadataMerge:
             # Fill in the nan values
             alldata_df_na = alldata_df.fillna("None")
 
-            print("Summarising rxn performed")
+            log.info("Summarising rxn performed")
             # Group and aggregate the df to give a list of all experiments performed on each sample
             col_roots = [
                 ExpDataSchema.SAMPLE_ID[0],
@@ -572,8 +573,8 @@ class ExpMetadataMerge:
         # Create an instance attribute
         self.all_df = alldata_df
 
-        print("Done")
-        print("=" * 80)
+        log.info("Done")
+        log.info(divider)
 
         #Remove columns from expts_df
         expt_cols=["expt_id", "expt_date", "expt_user", "expt_type", "expt_rxns", "expt_notes", "expt_summary"]
@@ -584,9 +585,9 @@ class ExpMetadataMerge:
             identify_export_dataframe_attributes(self, output_folder)
         
         #Give user a summary of experiments performed
-        print("Experiments performed:")
-        print(expt_summary_df)
-        print("=" * 80)
+        log.info("Experiments performed:")
+        log.info(expt_summary_df)
+        log.info(divider)
 
     def _check_duplicate_expid(self, filepaths: list[Path]) -> None:
         """
@@ -625,7 +626,7 @@ class SampleDataSchemaFields:
         ini_files = identify_files_by_search(csv_path.parent, re.compile(".*.ini"))
 
         if len(ini_files) > 1:
-            print(f"Multiple .ini files found, using first one: {ini_files[0].name}")
+            log.info(f"Multiple .ini files found, using first one: {ini_files[0].name}")
         self.dataschema_dict = create_dict_from_ini(ini_files[0])
         
         # Create simple dict of field and labels
@@ -675,7 +676,7 @@ class SampleMetadataParser:
             try:
                 df[key] = df[key].astype(value)
             except ValueError as e:
-                print(f"Error converting column '{key}' to type '{value}': {e}")
+                log.info(f"Error converting column '{key}' to type '{value}': {e}")
         # Ensure dates are correctly formatted
         for datefield in SampleDataSchema.datefields:
             f = SampleDataSchema.dateformats.get(datefield, "")
@@ -816,13 +817,13 @@ class SequencingMetadataParser:
             merged = collapse_repeat_columns(merged, ["sample_id", "expt_id", "barcode"])
             return merged
 
-        print("   Searching for bamstats file(s)")
+        log.info("   Searching for bamstats file(s)")
         bamfiles = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_BAMSTATS_CSV, recursive=True
         )
         self.summary_bam = extract_add_concat(bamfiles, match_df)
 
-        print("   Searching for bedcov file(s)")
+        log.info("   Searching for bedcov file(s)")
         bedcovfiles = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_BEDCOV_CSV, recursive=True
         )
@@ -830,7 +831,7 @@ class SequencingMetadataParser:
         bedcovfiles = [x for x in bedcovfiles if "nomadic" not in str(x)]
         self.summary_bedcov = extract_add_concat(bedcovfiles, match_df)
 
-        print("   Searching for exptqc file(s)")
+        log.info("   Searching for exptqc file(s)")
         exptqcfiles = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_EXPTQC_CSV, recursive=True
         )
@@ -886,7 +887,7 @@ class ExpDataSchemaFields_Combined:
         fields = [value["field"] for value in allposs_fields.values()]
         new = [x for x in df_cols if x not in fields]
         if len(new) > 0:
-            print(f"WARNING: {new} not found in columns")
+            log.info(f"WARNING: {new} not found in columns")
 
         self.dataschema_dict = dataschema_dict
         # Set attributes for each of the entries in the dataschema

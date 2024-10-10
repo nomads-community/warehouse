@@ -1,9 +1,12 @@
 import click
 from pathlib import Path
+import logging
+
 from warehouse.metadata.metadata import ExpMetadataParser
-from .dirs import ExperimentDirectories
+from warehouse.seqfolders.dirs import ExperimentDirectories
 from warehouse.lib.general import identify_experiment_file
 from warehouse.lib.exceptions import DataFormatError
+from warehouse.lib.logging import identify_cli_command, divider
 
 
 @click.command(
@@ -43,39 +46,43 @@ def seqfolders(
     """
     Create NOMADS sequencing folder structure including relevent data
     """
+    #Set up child log
+    log = logging.getLogger("seqfolders_commands")
+    log.info(divider)
+    log.debug(identify_cli_command())
+
     # Extract metadata
     matching_filepath = identify_experiment_file(exp_folder, expt_id)
     exp_metadata = ExpMetadataParser(matching_filepath)
-    print("=" * 80)
 
     # Make sure it is a seqlib expt
     if not exp_metadata.expt_type == "seqlib":
         raise DataFormatError(f"{matching_filepath.name} is not a seqlib expt")
 
     # Give user feedback
-    print(f"Experiment details for {exp_metadata.expt_id}")
-    print(f"  Experiment date: {exp_metadata.expt_date}")
-    print(f"  Experiment ID: {expt_id}")
-    print(f"  Experiment Summary: {exp_metadata.expt_summary}")
-    print("=" * 80)
+    log.info(f"Experiment details for {exp_metadata.expt_id}")
+    log.info(f"  Experiment date: {exp_metadata.expt_date}")
+    log.info(f"  Experiment ID: {expt_id}")
+    log.info(f"  Experiment Summary: {exp_metadata.expt_summary}")
+    log.info("=" * 80)
 
-    print("Creating NOMADS sequencing folder structure...")
+    log.info("Creating NOMADS sequencing folder structure...")
     expt_name = create_experiment_name(
         exp_metadata.expt_date, expt_id, exp_metadata.expt_summary
     )
     expt_dirs = ExperimentDirectories(expt_name, output_folder, dir_structure)
-    print("Done")
-    print("=" * 80)
+    log.info("Done")
+    log.info(divider)
 
     # Copying metadata
-    print(
+    log.info(
         "Exporting sequencing library information for downstream tools e.g. nomadic and savanna"
     )
     exp_metadata.df.to_csv(
         f"{expt_dirs.metadata_dir}/{expt_id}_sample_info.csv", index=False
     )
-    print("Done")
-    print("=" * 80)
+    log.info("Done")
+    log.info(divider)
 
 
 def create_experiment_name(expt_date: str, expt_id: str, expt_summary) -> str:

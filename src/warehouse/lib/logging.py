@@ -3,7 +3,7 @@ import click
 from datetime import datetime 
 from pathlib import Path
 
-from .general import produce_dir
+from warehouse.lib.general import produce_dir
 
 divider = "*" * 80
 
