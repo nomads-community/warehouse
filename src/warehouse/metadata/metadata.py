@@ -2,6 +2,8 @@ import re
 from pathlib import Path
 import pandas as pd
 from datetime import datetime
+import logging
+
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import (
     identify_files_by_search,
@@ -18,6 +20,9 @@ from warehouse.lib.dataframes import collapse_repeat_columns, identify_export_da
 from warehouse.lib.regex import Regex_patterns
 from warehouse.lib.decorators import singleton
 
+#Get logging process
+log = logging.getLogger()
+
 # import pretty_errors
 # pretty_errors.configure(
 #     stack_depth=1,
@@ -27,7 +32,6 @@ from warehouse.lib.decorators import singleton
 # Define where the script is running from so you can reference internal files etc
 script_dir = Path(__file__).parent.resolve()
 default_ini_folder = Path(script_dir, "dataschemas/")
-
 
 @singleton
 class ExpDataSchemaFields:
@@ -659,8 +663,9 @@ class SampleMetadataParser:
         ExpDataSchema = ExpDataSchemaFields()
         
         # load the data from the CSV file and ensure sampleID is a str
-        #don't use the user-defined dtypes as this may error out (apply later)
-        df = pd.read_csv(sample_csv_path, dtype={SampleDataSchema.SAMPLE_ID[0] : str})
+        # Don't use the user-defined dtypes when loading - rather apply later
+        df = pd.read_csv(sample_csv_path, 
+                         dtype={SampleDataSchema.SAMPLE_ID[0] : str})
 
         # Filter out any missing sample_id's
         df = df[df[SampleDataSchema.SAMPLE_ID[0]].notna()]

@@ -1,8 +1,18 @@
 from pathlib import Path
 import subprocess
-from warehouse.lib.general import produce_dir
+import logging
 
-def extract_outputs(source_dir: Path, target_dir: Path, exclusions: list, recursive: bool = False):
+from warehouse.lib.general import produce_dir
+from warehouse.lib.logging import divider
+
+#Get logging process
+log = logging.getLogger()
+
+def extract_outputs(source_dir: Path, 
+                    target_dir: Path, 
+                    exclusions: list, 
+                    recursive: bool = False,
+                    ):
     """Copies contents of a folder to a new location.
 
     Args:
@@ -26,15 +36,18 @@ def extract_outputs(source_dir: Path, target_dir: Path, exclusions: list, recurs
             
     # Give user feedback on the rsync command being run
     rsync_feedback = [ f"{f.name}" if isinstance(f, Path) else f for f in rsync_components]
-    print(f"{" ".join(rsync_feedback)}")
+    log.info(f"{" ".join(rsync_feedback)}")
 
     # Fromat the rsync command properly for bash to run it
     rsync_command = [ f"{f.resolve()}/" if isinstance(f, Path) else f for f in rsync_components]
     subprocess.run(rsync_command)
-    print("")
+    log.info("")
     
 
-def process_targets(targets: dict, source_base_dir: Path, target_base_dir: Path):
+def process_targets(targets: dict, 
+                    source_base_dir: Path, 
+                    target_base_dir: Path,
+                    ):
     """Iterates through a dictionary of targets and calls extract_outputs for each.
 
     Args:
@@ -72,3 +85,4 @@ def process_targets(targets: dict, source_base_dir: Path, target_base_dir: Path)
         if subfolders:
             # Recursively process subfolders with appropriate source and target paths
             process_targets(subfolders, source_dir, target_dir)
+            

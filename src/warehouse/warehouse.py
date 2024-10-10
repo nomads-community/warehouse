@@ -1,5 +1,9 @@
 import click
+from pathlib import Path
 from collections import OrderedDict
+import logging
+
+from warehouse.lib.logging import config_root_logger, identify_cli_command, divider
 from warehouse.metadata.commands import metadata
 from warehouse.seqfolders.commands import seqfolders
 from warehouse.visualise.commands import visualise
@@ -10,6 +14,10 @@ from warehouse.extract.commands import extract
 #
 # ================================================================
 
+# Configure logging before subcommand execution
+warehouse_dir = Path(__file__).parent.parent.parent.resolve()
+log_dir = warehouse_dir / "logs"
+config_root_logger(log_dir=log_dir, verbose=False)
 
 class OrderedGroup(click.Group):
     def __init__(self, name=None, commands=None, **attrs):

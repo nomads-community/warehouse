@@ -1,5 +1,9 @@
 import click
+import logging
+
 from pathlib import Path
+
+from warehouse.lib.logging import identify_cli_command, divider
 from warehouse.lib.general import (
     identify_files_by_search,
     Regex_patterns,
@@ -37,6 +41,11 @@ def metadata(exp_folder: Path, expt_id: str, output_folder: Path):
 
     from .metadata import ExpMetadataMerge
     from .metadata import ExpMetadataParser
+
+    #Set up child log and enter cli cmd
+    log = logging.getLogger("metadata")
+    log.info(divider)
+    log.debug(identify_cli_command())
 
     # Extract all metadata
     if expt_id:

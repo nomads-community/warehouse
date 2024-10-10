@@ -1,0 +1,27 @@
+# YAML file to generate a dictionary for all target to extract from a 
+# sequencing folder hierarchy
+
+savanna:
+  name: savanna
+  recursive: false
+  exclude: []
+  subfolders:
+    summary:
+      name: summary
+      recursive: true
+      exclude: []
+nomadic:
+  name: nomadic
+  recursive: false
+  exclude:
+    - summary.depth.csv
+    - summary.fastq.csv
+  subfolders:
+    metadata:
+      name: metadata
+      recursive: false
+      exclude: []
+metadata:
+  name: metadata
+  recursive: false
+  exclude: []
