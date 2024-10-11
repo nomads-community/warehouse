@@ -14,3 +14,4 @@ dependencies:
  - plotly
  - dash-bootstrap-components
  - pretty_errors
+ - pyyaml
