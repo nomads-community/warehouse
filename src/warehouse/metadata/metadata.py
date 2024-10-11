@@ -4,6 +4,12 @@ import pandas as pd
 from datetime import datetime
 import logging
 
+import pretty_errors
+pretty_errors.configure(
+    stack_depth=1,
+    display_locals=1
+)
+
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import (
     identify_files_by_search,
@@ -23,12 +29,6 @@ from warehouse.lib.logging import divider
 
 #Define logging process
 log = logging.getLogger("metadata")
-
-# import pretty_errors
-# pretty_errors.configure(
-#     stack_depth=1,
-#     display_locals=1
-# )
 
 # Define where the script is running from so you can reference internal files etc
 script_dir = Path(__file__).parent.resolve()

@@ -12,4 +12,5 @@ dependencies:
  - numpy
  - dash
  - plotly
- - dash-bootstrap-components 
+ - dash-bootstrap-components
+ - pretty_errors
