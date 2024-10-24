@@ -1,9 +1,10 @@
 import pandas as pd
 import pathlib as Path
+import json
 from itertools import chain
 import logging
 
-from warehouse.lib.general import produce_dir
+from warehouse.lib.general import produce_dir, identify_exptid_from_path
 
 #Get logging process
 log = logging.getLogger("dataframes")
@@ -90,3 +91,82 @@ def identify_export_dataframe_attributes(obj, output_dir):
             attr.to_csv(csv_file, index=False)
             log.info(f"      '{attr_name}' saved to {csv_file}")
     log.info("   Done")
+
+def merge_additional_rxn_level_fields(main_df: pd.DataFrame, exp_seq_df: pd.DataFrame, colnames: list[str]) -> pd.DataFrame:
+    """
+    Function to merge in additional experimental data to a df.
+
+    Args:
+        main_df (df):  df to have additional data added to
+        exp_seq_df (df):   Experimental data Dataframe to extract data from
+        colnames list(str): colnames for left_exp_id, left_barcode, right_exp_id, right_barcode
+    """
+    if len(colnames) != 4:
+        log.info("Incorrect number of entries given")
+    
+    df = pd.merge(
+        left=main_df,
+        right=exp_seq_df,
+        left_on=[colnames[0], colnames[1]],
+        right_on=[colnames[2], colnames[3]],
+        how="inner",
+    )
+    # Ensure duplicate columns are collapsed to a single one
+    df = collapse_repeat_columns(df, ["sample_id", "expt_id", "barcode"])
+    return df
+
+def concat_files_add_expID(files: list[Path], EXP_ID_COL: str = 'expt_id') -> pd.DataFrame:
+
+    """
+    Function to extract and concatenate multiple files of the same type into a df.
+
+    Args:
+        files list(Path):  List of Path names
+        EXP_ID_COL (str):   Column name for experimental ID
+    """
+    # Create empty df
+    df = pd.DataFrame()
+
+    # Extract data, add in experiment ID and concatenate all data
+    for file in files:
+        expid = identify_exptid_from_path(file)
+        if  file.suffix == ".csv":
+            data = pd.read_csv(file)  
+            data[EXP_ID_COL] = expid
+        
+        if file.suffix == ".json":
+            with open(file, 'r') as f:
+                json_dict = json.load(f)
+            data = pd.DataFrame(json_dict, index=[expid]).reset_index()
+            data.rename(columns={'index': EXP_ID_COL}, inplace=True)
+        
+        df = pd.concat([df, data], ignore_index=True)
+    return df
+
+def filtered_dataframe(df : pd.DataFrame, colname: str, values: list[str]) -> pd.DataFrame:
+    """
+    Filters the DataFrame based on the selected experiment IDs.
+
+    Args:
+        df (pd.DataFrame): The DataFrame to filter
+        colname (str): The column name to filter on
+        values (list): The values to filter the colname for
+
+    Returns:
+        pd.DataFrame: The filtered DataFrame.
+    """
+        
+    df_filtered = df.query(f"{colname} in @values")
+    return df_filtered
+
+def dataframe_not_empty(df) -> bool:
+    """
+    Checks if a DataFrame or Series is not empty.
+
+    Args:
+        df (pd.DataFrame): The DataFrame to check.
+
+    Returns:
+        bool: True if the DataFrame is not empty, False otherwise.
+    """
+    return not df.empty

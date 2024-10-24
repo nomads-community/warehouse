@@ -5,16 +5,11 @@ from datetime import datetime
 import logging
 
 import pretty_errors
-pretty_errors.configure(
-    stack_depth=1,
-    display_locals=1
-)
 
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import (
     identify_files_by_search,
     create_dict_from_ini,
-    identify_exptid_from_fn,
     get_nested_key_value,
     filter_nested_dict,
     filter_dict_by_key_or_value,
@@ -22,10 +17,20 @@ from warehouse.lib.general import (
     identify_exptid_from_path,
     produce_dir,
 )
-from warehouse.lib.dataframes import collapse_repeat_columns, identify_export_dataframe_attributes
+from warehouse.lib.dataframes import (
+    collapse_repeat_columns, 
+    identify_export_dataframe_attributes,
+    concat_files_add_expID,
+    merge_additional_rxn_level_fields,
+)
 from warehouse.lib.regex import Regex_patterns
 from warehouse.lib.decorators import singleton
 from warehouse.lib.logging import divider
+
+pretty_errors.configure(
+    stack_depth=1,
+    display_locals=1
+)
 
 #Define logging process
 log = logging.getLogger("metadata")
@@ -360,7 +365,7 @@ class ExpMetadataParser:
         """
         Check that the expt_id in the filename is the same as the expt_id given in the spreadsheet
         """
-        filename_expt_id = identify_exptid_from_fn(self.filepath)
+        filename_expt_id = identify_exptid_from_path(self.filepath)
 
         if not filename_expt_id == self.expt_id:
             raise DataFormatError(
@@ -388,7 +393,7 @@ class ExpMetadataMerge:
 
         # Extract each file as an object into a dictionary
         expdata_dict = {
-            identify_exptid_from_fn(filepath): ExpMetadataParser(
+            identify_exptid_from_path(filepath): ExpMetadataParser(
                 filepath, output_folder=output_folder
             )
             for filepath in filepaths
@@ -605,7 +610,7 @@ class ExpMetadataMerge:
         keys_seen = set()
 
         for filepath in filepaths:
-            expid = identify_exptid_from_fn(filepath)
+            expid = identify_exptid_from_path(filepath)
             if expid in keys_seen:
                 raise ValueError(
                     f"Duplicate expt_id identfied: {expid} in files: {filepath.name} and {expid_dict[expid]}"
@@ -748,16 +753,21 @@ class SeqDataSchemaFields:
             setattr(self, dict_key.upper(), (field_value, label_value))
 
         # Define list of fields for mapped list
-        self.MAPPED_LIST = [
+        self.READS_MAPPED_TYPE = [
             value["field"]
             for value in self.dataschema_dict.values()
-            if "mapping_list" in value
+            if "reads_mapped_type" in value
         ]
 
+        ### TO DO:
+        #Pull out the information and sort it based on mapping_list index
+        # [ [value['field'], value["reads_mapped_type"]] for 
+        #  value in self.dataschema_dict.values() if "reads_mapped_type" in value ]
+        # breakpoint()
 
 class SequencingMetadataParser:
     """
-    Extract sequencing data from one or more csv files.
+    Extract all identifiable sequencing data from nomadic / savanna pipelings.
 
     """
 
@@ -769,83 +779,64 @@ class SequencingMetadataParser:
         # Define the expdataschema object
         ExpDataSchema = exp_data.DataSchema
 
-        # Filter dict to key fields to match on
+        # Filter expdataschema to key fields needed
         key_fields = filter_dict_by_key_or_value(
             ExpDataSchema.dataschema_dict,
             ["EXP_ID", "SAMPLE_ID", "EXTRACTIONID", "BARCODE"], search_key=True
         )
         
-        # Simplify dict to a list of keys (fieldnames)
+        # Simplify dict to a list of keys (fieldnames in df)
         key_fields = list(reformat_nested_dict(key_fields, "field", "label").keys())
-
+        
         # Need to match the sequence data outputs to the exp.rxn_df to merge correctly
         # Make a deep copy of the df
         match_df = exp_data.rxns_df.copy()
         # Trim to relevent columns
         match_df = match_df[key_fields]
-
-        def extract_add_concat(
-            files: list[Path], exp_seq_df: pd.DataFrame
-        ) -> pd.DataFrame:
-            """
-            Function to extract, modify and concatenate multiple csv files of the same type into a df.
-            Then merge the df to experimental data to add additional required details.
-
-            Args:
-                files list(Path):  List of Path names
-                exp_seq_df (df):   Experimental data Dataframe to match to csv
-            """
-            # Create empty df
-            temp = pd.DataFrame()
-
-            # Extract data, add in experiment ID and concatenate all data
-            for file in files:
-                expid = identify_exptid_from_path(file)
-                data = pd.read_csv(file)
-                data[ExpDataSchema.EXP_ID[0]] = expid
-                temp = pd.concat([temp, data], ignore_index=True)
-
-            # Merge to add in additional cols from the exp_data ie sample_id and extraction_id
-            merged = pd.merge(
-                left=temp,
-                right=exp_seq_df,
-                left_on=[SeqDataSchema.EXP_ID[0], SeqDataSchema.BARCODE[0]],
-                right_on=[ExpDataSchema.EXP_ID[0], ExpDataSchema.BARCODE[0]],
-                how="inner",
-            )
-            # Ensure duplicate columns are collapsed to a single one
-            merged = collapse_repeat_columns(merged, ["sample_id", "expt_id", "barcode"])
-            return merged
-
+        csv_cols_to_match = [SeqDataSchema.EXP_ID[0], SeqDataSchema.BARCODE[0], 
+                             ExpDataSchema.EXP_ID[0], ExpDataSchema.BARCODE[0]]
+        
         log.info("   Searching for bamstats file(s)")
         bamfiles = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_BAMSTATS_CSV, recursive=True
         )
-        self.summary_bam = extract_add_concat(bamfiles, match_df)
-
+        summary_bam = concat_files_add_expID(bamfiles, SeqDataSchema.EXP_ID[0])
+        self.summary_bam = merge_additional_rxn_level_fields(summary_bam, match_df, csv_cols_to_match)
+        
         log.info("   Searching for bedcov file(s)")
         bedcovfiles = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_BEDCOV_CSV, recursive=True
         )
         # Remove any with nomadic in path as this output is identically named in nomadic and savanna and only want latter
         bedcovfiles = [x for x in bedcovfiles if "nomadic" not in str(x)]
-        self.summary_bedcov = extract_add_concat(bedcovfiles, match_df)
+        summary_bedcov = concat_files_add_expID(bedcovfiles, SeqDataSchema.EXP_ID[0])
+        self.summary_bedcov = merge_additional_rxn_level_fields(summary_bedcov, match_df, csv_cols_to_match)
 
-        log.info("   Searching for exptqc file(s)")
+        log.info("   Searching for sample QC file(s)")
         exptqcfiles = identify_files_by_search(
-            seqdata_folder, Regex_patterns.SEQDATA_EXPTQC_CSV, recursive=True
+            seqdata_folder, Regex_patterns.SEQDATA_QC_PER_SAMPLE_CSV, recursive=True
         )
-        self.summary_exptqc = extract_add_concat(exptqcfiles, match_df)
+        qc_per_sample = concat_files_add_expID(exptqcfiles, SeqDataSchema.EXP_ID[0])
+        qc_per_sample = merge_additional_rxn_level_fields(qc_per_sample, match_df, csv_cols_to_match)
+        #Add in info on sample type e.g. control or sample
+        qc_per_sample['sample_type'] = qc_per_sample.apply(lambda row: "positive" if row['is_positive'] else ("negative" if row['is_negative'] else "sample"), axis=1)
+        self.qc_per_sample = qc_per_sample
+        
+        log.info("   Searching for experiment QC file(s)")
+        qc_per_expt_files = identify_files_by_search(
+            seqdata_folder, Regex_patterns.SEQDATA_QC_PER_EXPT_JSON, recursive=True
+        )
+        self.qc_per_expt = concat_files_add_expID(qc_per_expt_files,SeqDataSchema.EXP_ID[0])
         
         #Merge the exptqc and bam outputs and drop repeat columns
         summary_bamqc = pd.merge(left=self.summary_bam,
-                                            right=self.summary_exptqc,
+                                            right=self.qc_per_sample,
                                             on=[SeqDataSchema.BARCODE[0], SeqDataSchema.EXP_ID[0]],
                                             how='outer'
                                             )
         collapse_repeat_columns(summary_bamqc, [SeqDataSchema.SAMPLE_ID[0]])
         self.summary_bamqc = summary_bamqc
-
+        
         if output_folder:
             output_folder= output_folder / "sequence"
             identify_export_dataframe_attributes(self, output_folder)

@@ -1,8 +1,11 @@
 import os
 from pathlib import Path
 import configparser
+import logging
 from warehouse.lib.decorators import singleton
 
+#Define logging process
+log = logging.getLogger("controls")
 
 @singleton
 class load_controls:
@@ -17,10 +20,10 @@ class load_controls:
         """
 
         if controls_ini is None:
-            print(" No .ini file supplied")
+            log.info(" No .ini file supplied")
             script_dir = Path.cwd()
             controls_ini = script_dir / "scripts/lib/controls.ini"
-            print(" Using default .ini file")
+            log.info(" Using default .ini file")
 
         if not os.path.exists(controls_ini):
             raise ValueError(f"Unable to find {controls_ini}")

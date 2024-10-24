@@ -7,12 +7,14 @@ import logging
 log = logging.getLogger("selectable_scatter")
 
 
-def create_scatter(
-    combined_data: object, x_series=None, y_series=None, colour_series=None
-):
+def create_scatter(all_data: object,
+                   x_series=None, 
+                   y_series=None, 
+                   colour_series=None) -> px.scatter:
+    
     # Define the dataschemadict and the field-label dict
-    DataSchema = combined_data.dataschema_dict
-    FieldLabels = combined_data.all_field_labels
+    DataSchema = all_data.dataschema_dict
+    FieldLabels = all_data.all_field_labels
 
     # Define a default set of values in case none are passed
     if x_series is None:
@@ -23,7 +25,7 @@ def create_scatter(
         colour_series = DataSchema["EXP_ID"]["field"] + "_seqlib"
 
     # Filter the data so that there are no empty values
-    df = combined_data.df
+    df = all_data.df
     # Slice the data to the three key columns
     dff = df[[x_series, y_series, colour_series]].copy(deep=True)
     # Drop in place
@@ -48,9 +50,9 @@ def render(app: Dash, combined_data):
     @app.callback(
         Output(ids.SELECTABLE_SCATTER, "figure"),
         [
-            Input(ids.COLUMN_DROPDOWN + "_1", "value"),
-            Input(ids.COLUMN_DROPDOWN + "_2", "value"),
-            Input(ids.COLUMN_DROPDOWN + "_3", "value"),
+            Input(ids.DYNAMIC_OPTIONS + "_1", "value"),
+            Input(ids.DYNAMIC_OPTIONS + "_2", "value"),
+            Input(ids.DYNAMIC_OPTIONS + "_3", "value"),
         ],
     )
     def update_scatter(dd1, dd2, dd3) -> px.scatter:
@@ -60,5 +62,82 @@ def render(app: Dash, combined_data):
         return fig
 
     # Build initial graph
+    dropdowns=dropdowns_panel(app, combined_data)
     fig = create_scatter(combined_data)
-    return html.Div(dcc.Graph(figure=fig, id=ids.SELECTABLE_SCATTER))
+
+    return html.Div(
+        className="panel",
+        children=[
+            html.H2("Selectable data:"),
+            dropdowns,
+            dcc.Graph(figure=fig, id=ids.SELECTABLE_SCATTER)
+        ]
+        )
+
+def create_dropdown_set(number: int, options: dict) -> html.Div:
+    """
+    Creates a double dropdown with options that can be dynamically updated.
+
+    Args:
+        dropdown_number (int): The sequential number for the dropdown (starting from 1).
+        options (dict): Dictionary containing the key value pairs to show user and value for each selection
+
+    Returns:
+        dcc.Dropdown: The created dropdown component.
+    """
+    static = dcc.Dropdown(id=f"{ids.DATASOURCES}_{number}",
+                          options=options,
+                          className="wide_dropdown")
+    dynamic = dcc.Dropdown(id=f"{ids.DYNAMIC_OPTIONS}_{number}",
+                          options=options,
+                          className="wide_dropdown")
+    axes = [ "Select x axis", "Select y axis", "Select colour"]
+    return html.Div(
+        className="dropdown-fill",
+        children=[
+            axes[number-1],
+            static,
+            dynamic
+            ]
+            )
+
+
+def dropdowns_panel(app: Dash, all_data: object) -> html.Div:
+    """
+    Renders dropdowns for x, y and colour axes
+
+    Args:
+        app (Dash): The Dash app instance.
+    """
+
+    @app.callback(
+        [
+            Output(ids.DYNAMIC_OPTIONS + "_1", "options"),
+            Output(ids.DYNAMIC_OPTIONS + "_2", "options"),
+            Output(ids.DYNAMIC_OPTIONS + "_3", "options"),
+        ],
+        [
+            Input(ids.DATASOURCES + "_1", "value"),
+            Input(ids.DATASOURCES + "_2", "value"),
+            Input(ids.DATASOURCES + "_3", "value"),
+        ],
+    )
+    def update_dropdowns(select1, select2, select3):
+        # Return the selection made to populate the dropdown with appropriate dict
+        return [
+            all_data.datasource_fields.get(select1, ["Select datasource first"]),
+            all_data.datasource_fields.get(select2, ["Select datasource first"]),
+            all_data.datasource_fields.get(select3, ["Select datasource first"]),
+        ]
+    
+    dropdown1 = create_dropdown_set(1, all_data.datasources_dict)
+    dropdown2 = create_dropdown_set(2, all_data.datasources_dict)
+    dropdown3 = create_dropdown_set(3, all_data.datasources_dict)
+
+    return html.Div(
+        className="row-flex",
+        children=[dropdown1,
+                  dropdown2,
+                  dropdown3
+                  ]
+    )

@@ -1,8 +1,7 @@
-/* Overall styling ------------------------------------------------------------------ */
+/* Styling ------------------------------------------------------------------ */
 
 :root {
     --grey: #ecebeb;
-    --red: #ff0000;
 }
 
 
@@ -11,7 +10,9 @@ body {
     background: var(--grey);
 }
 
-#overall {
+/* Single entry for the entire webpage */
+
+#entire {
     margin: 20px;
     padding: 20px;
     border-radius: 20px;
@@ -19,25 +20,38 @@ body {
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-/* Banner ------------------------------------------------------------------ */
+/* General use set-ups */
+.panel {
+    padding: 20px;
+    margin: 20px;
+    background: white;
+    border-color: var(--grey);
+    border-width: 2px;
+    border-style: solid;
+    border-radius: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
 
-/* .logo-and-summary {
+.row-flex {
     display: flex;
     flex-direction: row;
-    margin-bottom: 20px;
+    gap: 20px;
+    justify-content: space-around;
 }
 
-#logo {
-    margin-left: 0px;
-    width: 500px;
-    flex: 0.1;
+.dropdown-fill {
+    width: 100%;  /* Set the width to 100% */
 }
 
-#expt-summary {
-    margin-left: 20px;
-    flex: 0.9;
-} */
+.dropdown-button {
+    width: 300px;  /* Set the width to 100% */
+}
 
-.wide_dropdown{
-    width: 500px;
+/* Specific sections */
+
+/* QC Data */
+#qc-selectors {
+    /* display: flex;
+    flex-direction: row; */
+    width: 50px;
 }

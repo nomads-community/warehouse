@@ -38,28 +38,28 @@ def identify_exptid_from_path(path: Path) -> str:
         raise DataFormatError(msg)
 
 
-def identify_exptid_from_fn(path: Path) -> str | None:
-    """
-    Extract the experimental ID from a filename
+# def identify_exptid_from_fn(path: Path) -> str | None:
+#     """
+#     Extract the experimental ID from a filename
 
-    Args:
-        path (Path): path to the file
+#     Args:
+#         path (Path): path to the file
 
-    Returns:
-        expt_id (str): the extracted experiment id or None if not found
-    """
+#     Returns:
+#         expt_id (str): the extracted experiment id or None if not found
+#     """
 
-    try:
-        match = re.search(Regex_patterns.NOMADS_EXPID, path.name)
-        if match:
-            expt_id = match.group(0)
-            return expt_id
+#     try:
+#         match = re.search(Regex_patterns.NOMADS_EXPID, path.name)
+#         if match:
+#             expt_id = match.group(0)
+#             return expt_id
 
-        return None
+#         return None
 
-    except StopIteration:
-        log.info(f"Unable to identify an ExpID in: {path.name}")
-        return None
+#     except StopIteration:
+#         log.info(f"Unable to identify an ExpID in: {path.name}")
+#         return None
 
 
 def identify_experiment_file(folder: Path, expt_id: str) -> Path | None:
@@ -95,7 +95,7 @@ def identify_experiment_file(folder: Path, expt_id: str) -> Path | None:
         return matches[0]
 
 
-def check_no_openfiles_identified(fn_list: list):
+def check_no_openfiles(fn_list: list):
     """
     Identify if there are any files from a list that are currently open"
 
@@ -217,7 +217,7 @@ def identify_files_by_search(
         ]
 
         # Check that there are no open files
-        check_no_openfiles_identified(matches)
+        check_no_openfiles(matches)
 
         # Check there are no duplicate names
         check_duplicate_names(matches)

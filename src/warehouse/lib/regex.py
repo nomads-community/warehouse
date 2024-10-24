@@ -14,4 +14,5 @@ class Regex_patterns:
     # Sequence Data filetypes
     SEQDATA_BAMSTATS_CSV = re.compile(r".*summary.bamstats.*.csv")
     SEQDATA_BEDCOV_CSV = re.compile(r".*summary.bedcov.*.csv")
-    SEQDATA_EXPTQC_CSV = re.compile(r".*summary.sample_qc.*.csv")
+    SEQDATA_QC_PER_SAMPLE_CSV = re.compile(r".*summary.sample_qc.*.csv")
+    SEQDATA_QC_PER_EXPT_JSON = re.compile(r".*summary.experiment_qc.*.json")

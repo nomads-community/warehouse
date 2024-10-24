@@ -24,16 +24,18 @@ def render(app: Dash, sample_data, experiment_data):
 
     # Create a layout with three dcc.Graph elements
     layout = html.Div(
-        [
-            dcc.Graph(figure=fig, id=f"{ids.TRYPTICH}_{col}")
-            for col, fig in zip(values_cols, triptych)
-        ],
-        style={
-            "display": "flex",
-            "flex-direction": "row",
-            "justify-content": "space-evenly",
-        },
+        className="panel",
+        children= [html.H2("Sample throughput:"),
+                   html.Div(
+                       className="row-flex",
+                       children=[dcc.Graph(figure=fig, 
+                                           id=f"{ids.TRYPTICH}_{col}")
+                                           for col, fig in zip(values_cols, triptych)
+                                           ]
+                   )
+        ]
     )
+
     return layout
 
 
