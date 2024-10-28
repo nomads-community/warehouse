@@ -7,6 +7,7 @@ from warehouse.visualise.components import ids
 from warehouse.lib.general import reformat_nested_dict
 from warehouse.lib.dataframes import filtered_dataframe
 
+#List of different charts that can be shown to the user based on their selection
 charts=[ "Reads Mapped", "Amplicon Pass Rates", "Sample pass rate" ]
 
 def render_qc_panel(app: Dash, sequence_data) -> html.Div:
@@ -23,7 +24,18 @@ def render_qc_panel(app: Dash, sequence_data) -> html.Div:
 
 
 def selection_panel(app: Dash, sequence_data) -> html.Div:
-    
+    """
+    Provides an html.Div container that has the different options to the user for selection
+
+    Requires:
+        app (Dash) : Dash app for callbacks
+        sequence_data(Object) : Object with all seq data
+
+    Returns:
+        html.Div
+
+    """
+    #Pull out the data schema for labels etc
     SeqDataSchema = sequence_data.DataSchema
     #Generate a list of unique expt_ids
     expt_ids = sequence_data.qc_per_expt[SeqDataSchema.EXP_ID[0]].unique().tolist()
@@ -41,13 +53,14 @@ def selection_panel(app: Dash, sequence_data) -> html.Div:
             Input(ids.SEQ_QC_SAMPLE_TYPE_SELECTOR, "n_clicks"),
             Input(ids.SEQ_QC_EXPT_CHART_TYPE, "value"),
     )
-    def update_text_and_button_visibility(n_clicks: int, chart_type: str) -> str:
+    def update_sampletype_selection_and_button_visibility(n_clicks: int, chart_type: str) -> str:
         # Update the text on the selection button
         if n_clicks % 2 == 0:
             sample_type="Filter to Samples"
         else:
             sample_type="Filter to Controls"
-        # Update whether the button should be shown
+
+        # Update whether the button should be visible
         if chart_type != charts[1]:
             visible={'display': 'none'}
         else:
@@ -55,7 +68,7 @@ def selection_panel(app: Dash, sequence_data) -> html.Div:
 
         return sample_type, visible
     
-    
+    #Get expt selection panel
     expts = expt_selections(expt_ids)
     chart_selection = dcc.Dropdown(
                 id=ids.SEQ_QC_EXPT_CHART_TYPE,
@@ -129,10 +142,13 @@ def qc_chart(app: Dash, sequence_data):
         else:
             df=filtered_dataframe(qc_reads_mapped, SeqDataSchema.EXP_ID[0], expt_ids)
             fig=fig_reads_mapped(df, SeqDataSchema)
+            # panel = panel_reads_mapped(app, df, SeqDataSchema)
+            # return panel
         
         if df.empty:
-            return html.Div("No data selected.", id="1")                   
-    
+            return html.Div("No data selected.")                   
+        
+        # return panel
         return html.Div(dcc.Graph(figure=fig), id=ids.SEQ_QC_EXPT_CHART)
 
     return html.Div(id=ids.SEQ_QC_EXPT_CHART)
@@ -318,50 +334,61 @@ def panel_reads_mapped(app, df : pd.DataFrame, SeqDataSchema) -> html.Div:
         # fig.update_yaxes(type="linear")
         # fig.update_yaxes(title="# Reads")
         return "Log" #, fig
+    
+    def _fig_reads_mapped(df : pd.DataFrame, SeqDataSchema) -> px.bar:
+        """
+        Creates a barchart of number of reads
+        """
 
-    # Define colour map
-    colour_map = {
-        SeqDataSchema.N_PRIMARY[1]: "#0037FF" ,
-        SeqDataSchema.N_SECONDARY[1]: "#4285F4",
-        SeqDataSchema.N_CHIMERA[1]: "#90CAF9",
-        SeqDataSchema.N_UNMAPPED[1]: "grey",
-    }
+        # Define colour map
+        colour_map = {
+            SeqDataSchema.N_PRIMARY[1]: "#0037FF" ,
+            SeqDataSchema.N_SECONDARY[1]: "#4285F4",
+            SeqDataSchema.N_CHIMERA[1]: "#90CAF9",
+            SeqDataSchema.N_UNMAPPED[1]: "grey",
+        }
 
-    # Define column list for melting
-    cols = SeqDataSchema.READS_MAPPED_TYPE + [SeqDataSchema.EXP_ID[0]]
+        # Define column list for melting
+        cols = SeqDataSchema.READS_MAPPED_TYPE + [SeqDataSchema.EXP_ID[0]]
 
-    # Melt and Group Data
-    df_tmp = df[cols].melt(
-        id_vars=SeqDataSchema.EXP_ID[0], var_name="category", value_name="count"
-    )
-    df = (
-        df_tmp.groupby([SeqDataSchema.EXP_ID[0], "category"])["count"]
-        .sum()
-        .reset_index()
-    )
+        # Melt and Group Data
+        df_tmp = df[cols].melt(
+            id_vars=SeqDataSchema.EXP_ID[0], var_name="category", value_name="count"
+        )
+        df = (
+            df_tmp.groupby([SeqDataSchema.EXP_ID[0], "category"])["count"]
+            .sum()
+            .reset_index()
+        )
 
-    # Sort by Category into a custom order
-    df.sort_values(
-        by="category",
-        key=lambda col: col.map(SeqDataSchema.READS_MAPPED_TYPE.index),
-        inplace=True,
-    )
-    # Replace Category name to user friendly version
-    df["category_label"] = df["category"].replace(SeqDataSchema.field_labels)
+        # Sort by Category into a custom order
+        df.sort_values(
+            by="category",
+            key=lambda col: col.map(SeqDataSchema.READS_MAPPED_TYPE.index),
+            inplace=True,
+        )
+        # Replace Category name to user friendly version
+        df["category_label"] = df["category"].replace(SeqDataSchema.field_labels)
 
-    # Create the stacked bar graph
-    fig = px.bar(
-        df,
-        x=SeqDataSchema.EXP_ID[0],
-        y="count",
-        color="category_label",
-        color_discrete_map=colour_map,
-        barmode="stack",
-    )
+        # Create the stacked bar graph
+        fig = px.bar(
+            df,
+            x=SeqDataSchema.EXP_ID[0],
+            y="count",
+            color="category_label",
+            color_discrete_map=colour_map,
+            barmode="stack",
+        )
 
-    # Customize plot
-    fig.update_xaxes(title="Experiment ID")
-    fig.update_layout(legend_title_text="Mapped Reads")
+        # Customize plot
+        fig.update_xaxes(title="Experiment ID")
+        fig.update_layout(legend_title_text="Mapped Reads")
+
+        #Generate the scale_switcher
+        # switcher = qc_reads_switcher(app)
+        return fig
+
+    fig = _fig_reads_mapped(df, SeqDataSchema)
     figure = html.Div(dcc.Graph(figure=fig), id=ids.SEQ_QC_EXPT_CHART)
     
     #Generate the scale_switcher

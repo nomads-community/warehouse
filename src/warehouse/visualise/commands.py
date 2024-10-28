@@ -52,6 +52,9 @@ log = logging.getLogger("visualise")
 
 def visualise(exp_folder: Path, sample_csv: Path, seq_folder: Path, output_folder: Path = None):
     
+    #Add in cli_flags
+    cli_flags=[exp_folder, seq_folder, sample_csv]
+
     # divider=("=" * 80)
     # print("Loading controls data")
     # controls = load_controls()
@@ -88,5 +91,5 @@ def visualise(exp_folder: Path, sample_csv: Path, seq_folder: Path, output_folde
     
     app = Dash(__name__, external_stylesheets=CSS_STYLE)
     app.title = "Warehouse"
-    app.layout = create_layout(app, sample_data, exp_data, sequence_data, combined_data)
+    app.layout = create_layout(app, sample_data, exp_data, sequence_data, combined_data, cli_flags)
     app.run()

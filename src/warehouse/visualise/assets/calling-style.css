@@ -11,13 +11,18 @@ body {
 }
 
 /* Single entry for the entire webpage */
-
 #entire {
     margin: 20px;
     padding: 20px;
     border-radius: 20px;
     background: white;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.banner {
+    display: flex;
+    align-items: left;
+    gap: 50px;
 }
 
 /* General use set-ups */
