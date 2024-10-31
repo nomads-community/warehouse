@@ -110,13 +110,10 @@ def qc_chart(app: Dash, sequence_data):
     )
     def update_chart(expt_ids: list[str], chart_type: str, type_clicks: int, scale_clicks: int) -> html.Div:
         #Filters the entries to field samples or controls as relevent
-        if type_clicks % 2 == 0:
-            samples=True
-        else:
-            samples=False
+        samples = not(type_clicks % 2 == 0)
 
         # Update scale
-        logy = scale_clicks % 2 == 0
+        logy = not(scale_clicks % 2 == 0)
         
         #Generate the chart
         if chart_type==charts[1]:
@@ -154,9 +151,9 @@ def fig_amplicon_pass_coverage (df : pd.DataFrame, SeqDataSchema,
     """
     #Filter the df to samples or not samples
     if sample:
-        df_f = df[df[SeqDataSchema.SAMPLE_TYPE[0]]=='sample']
+        df_f = df[df[SeqDataSchema.SAMPLE_TYPE[0]]=='Field']
     else:
-        df_f = df[df[SeqDataSchema.SAMPLE_TYPE[0]]!='sample']
+        df_f = df[df[SeqDataSchema.SAMPLE_TYPE[0]]!='Field']
     df = df_f.copy()
     
     #Calulate the %age passing
@@ -283,6 +280,7 @@ def fig_reads_mapped(df : pd.DataFrame, SeqDataSchema, logy: bool) -> px.bar:
     # Generate log in df and plot on y as needed
     df['count_log'] = np.log10(df['count'])
     y = 'count_log' if logy else 'count'
+    ytitle = 'Reads (log)' if logy else 'Reads'
     
     # Create the stacked bar graph
     fig = px.bar(
@@ -297,6 +295,7 @@ def fig_reads_mapped(df : pd.DataFrame, SeqDataSchema, logy: bool) -> px.bar:
 
     # Customize plot
     fig.update_xaxes(title="Experiment ID")
+    fig.update_yaxes(title=ytitle)
     fig.update_layout(legend_title_text="Mapped Reads")
 
     return fig
@@ -339,9 +338,9 @@ def switch_scale(app) -> html.Button:
     def update_text_and_visibility(chart_type, n_clicks):
     # Update the text on the selection button
         if n_clicks % 2 == 0:
-            sample_type="Linear"
+            sample_type="Change to log y-axis"
         else:
-            sample_type="Log"
+            sample_type="Change to linear y-axis"
 
         if chart_type != charts[0]:
             visible={'display': 'none'}
@@ -350,7 +349,7 @@ def switch_scale(app) -> html.Button:
         return visible, sample_type
 
     button = html.Button(
-        children="Log",
+        children="Change to Log y-axis",
         id=ids.SEQ_QC_SCALE_BUTTON,
         n_clicks=0,
     )

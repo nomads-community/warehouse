@@ -782,7 +782,7 @@ class SequencingMetadataParser:
         # Filter expdataschema to key fields needed
         key_fields = filter_dict_by_key_or_value(
             ExpDataSchema.dataschema_dict,
-            ["EXP_ID", "SAMPLE_ID", "EXTRACTIONID", "BARCODE"], search_key=True
+            ["EXP_ID", "SAMPLE_ID", "EXTRACTIONID", "BARCODE", "SAMPLE_TYPE"], search_key=True
         )
         
         # Simplify dict to a list of keys (fieldnames in df)
@@ -793,7 +793,7 @@ class SequencingMetadataParser:
         match_df = exp_data.rxns_df.copy()
         # Trim to relevent columns
         match_df = match_df[key_fields]
-        csv_cols_to_match = [SeqDataSchema.EXP_ID[0], SeqDataSchema.BARCODE[0], 
+        cols_to_match = [SeqDataSchema.EXP_ID[0], SeqDataSchema.BARCODE[0], 
                              ExpDataSchema.EXP_ID[0], ExpDataSchema.BARCODE[0]]
         
         log.info("   Searching for bamstats file(s)")
@@ -801,7 +801,7 @@ class SequencingMetadataParser:
             seqdata_folder, Regex_patterns.SEQDATA_BAMSTATS_CSV, recursive=True
         )
         summary_bam = concat_files_add_expID(bamfiles, SeqDataSchema.EXP_ID[0])
-        self.summary_bam = merge_additional_rxn_level_fields(summary_bam, match_df, csv_cols_to_match)
+        self.summary_bam = merge_additional_rxn_level_fields(summary_bam, match_df, cols_to_match)
         
         log.info("   Searching for bedcov file(s)")
         bedcovfiles = identify_files_by_search(
@@ -810,16 +810,21 @@ class SequencingMetadataParser:
         # Remove any with nomadic in path as this output is identically named in nomadic and savanna and only want latter
         bedcovfiles = [x for x in bedcovfiles if "nomadic" not in str(x)]
         summary_bedcov = concat_files_add_expID(bedcovfiles, SeqDataSchema.EXP_ID[0])
-        self.summary_bedcov = merge_additional_rxn_level_fields(summary_bedcov, match_df, csv_cols_to_match)
+        self.summary_bedcov = merge_additional_rxn_level_fields(summary_bedcov, match_df, cols_to_match)
 
         log.info("   Searching for sample QC file(s)")
         exptqcfiles = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_QC_PER_SAMPLE_CSV, recursive=True
         )
         qc_per_sample = concat_files_add_expID(exptqcfiles, SeqDataSchema.EXP_ID[0])
-        qc_per_sample = merge_additional_rxn_level_fields(qc_per_sample, match_df, csv_cols_to_match)
-        #Add in info on sample type e.g. control or sample
-        qc_per_sample['sample_type'] = qc_per_sample.apply(lambda row: "positive" if row['is_positive'] else ("negative" if row['is_negative'] else "sample"), axis=1)
+        qc_per_sample = merge_additional_rxn_level_fields(qc_per_sample, match_df, cols_to_match)
+        
+        #Add in info on sample type if not supplied from the template
+        qc_per_sample['sample_type'] = qc_per_sample.apply(lambda row: 
+                                                           row['sample_type'] if pd.notnull(row['sample_type']) 
+                                                           else (
+                                                               "Positive" if row['is_positive'] 
+                                                               else ("Negative" if row['is_negative'] else "Field")), axis=1)
         self.qc_per_sample = qc_per_sample
         
         log.info("   Searching for experiment QC file(s)")
