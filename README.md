@@ -211,26 +211,22 @@ Each warehouse command also has a `--help` menu.
 ### `metadata`
 Extract and validate all experimental data from Excel files: 
 ```
-warehouse metadata -e example_data/experimental/no_errors/ `
-```
-Extract and validate all experimental data from Excel files(with errors):
-```
-warehouse metadata -e example_data/experimental/with_errors/`
+warehouse metadata -e example_data/experimental/`
 ```
 Extract, validate and output all experimental data:
 ```
-warehouse metadata -e example_data/experimental/no_errors/ -o experiments/ `
+warehouse metadata -e example_data/experimental/ -o experiments/ `
 ```
 ### `seqfolders`
 Create standardised directory hierarchy for sequencing run SLJS034 using default directory structure:
 ```
-warehouse seqfolders -e example_data/experimental/no_errors -e SLJS034
+warehouse seqfolders -e example_data/experimental/ -e SLJS034
 ```
 An `.ini` file can be used to define the desired folder structure, including sub-folders (see `resources/seqfolders` for an example).
 ### `visualise`
 View dashboard of all experimental, sample and sequence data available.
 ```
-warehouse visualise -e example_data/experimental/no_errors/ -s example_data/seqdata/ -c example_data/sample/sample_metadata.csv
+warehouse visualise -e example_data/experimental/ -s example_data/seqdata/ -c example_data/sample/sample_metadata.csv
 ```
 ### `extract`
 Extract sequence data summaries for sharing:
