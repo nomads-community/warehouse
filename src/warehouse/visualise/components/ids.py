@@ -16,10 +16,10 @@ SEQ_SELECT_ALL_EXPTS_BUTTON="select_all_expts_button"
 SEQ_QC_EXPT_CHART="seq_qc_chart"
 
 # Not currently used:
-SEQ_READSMAPPED_SCALE_BTN = "seq_readsmapped_scale_button"
-SEQ_QC_AMPLICON_SCALE_BUTTON = "seq_qc_amplicon_scale_button"
+SEQ_QC_SCALE_BUTTON = "seq_qc_scale_button"
 SEQ_QC_EXPT_SELECTOR="seq_qc_expt_selector"
 SEQ_QC_SAMPLE_TYPE_SELECTOR="seq_qc_controls_samples_selector"
+
 
 # Dropdowns for data selection
 DATASOURCES = "datasource_dropdown"

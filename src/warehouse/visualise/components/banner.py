@@ -9,7 +9,7 @@ def render(app: Dash, cli_flags: list[str]) -> html.Div:
 
     return html.Div(
         className="banner",
-        children=[html.Img(src=LOGO_PATH),
+        children=[html.Img(src=LOGO_PATH, height=80),
                   html.P(
                          [
                              f"Experiment folder: {exp_folder}",

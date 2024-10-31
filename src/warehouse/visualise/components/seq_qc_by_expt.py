@@ -1,5 +1,6 @@
 from dash import Dash, html, dcc
 import pandas as pd
+import numpy as np
 import plotly.express as px
 from dash.dependencies import Input, Output
 
@@ -10,22 +11,26 @@ from warehouse.lib.dataframes import filtered_dataframe
 #List of different charts that can be shown to the user based on their selection
 charts=[ "Reads Mapped", "Amplicon Pass Rates", "Sample pass rate" ]
 
-def render_qc_panel(app: Dash, sequence_data) -> html.Div:
-    selections = selection_panel(app, sequence_data)
+def render(app: Dash, sequence_data) -> html.Div:
+    selections = main_selection_panel(app, sequence_data)
     chart = qc_chart(app, sequence_data)
+    chart_selections= select_sample_type(app)
+    scale = switch_scale(app)
     return html.Div(
         className="panel",
         children=[
             html.H2("Sequencing Overview:"),
             selections,
-            chart
+            chart,
+            chart_selections,
+            scale
         ]
     )
 
 
-def selection_panel(app: Dash, sequence_data) -> html.Div:
+def main_selection_panel(app: Dash, sequence_data) -> html.Div:
     """
-    Provides an html.Div container that has the different options to the user for selection
+    Provides an html.Div container that has the universal options for the user to select
 
     Requires:
         app (Dash) : Dash app for callbacks
@@ -47,26 +52,6 @@ def selection_panel(app: Dash, sequence_data) -> html.Div:
     def reset_expt_list(_: int) -> list[str]:
         return expt_ids
     
-    @app.callback(
-            Output(ids.SEQ_QC_SAMPLE_TYPE_SELECTOR, "children"),
-            Output(ids.SEQ_QC_SAMPLE_TYPE_SELECTOR, "style"),
-            Input(ids.SEQ_QC_SAMPLE_TYPE_SELECTOR, "n_clicks"),
-            Input(ids.SEQ_QC_EXPT_CHART_TYPE, "value"),
-    )
-    def update_sampletype_selection_and_button_visibility(n_clicks: int, chart_type: str) -> str:
-        # Update the text on the selection button
-        if n_clicks % 2 == 0:
-            sample_type="Filter to Samples"
-        else:
-            sample_type="Filter to Controls"
-
-        # Update whether the button should be visible
-        if chart_type != charts[1]:
-            visible={'display': 'none'}
-        else:
-            visible={'display': 'block'}
-
-        return sample_type, visible
     
     #Get expt selection panel
     expts = expt_selections(expt_ids)
@@ -76,18 +61,13 @@ def selection_panel(app: Dash, sequence_data) -> html.Div:
                 value=charts[0],
                 multi=False,
             )
-    sample_control = html.Button(
-                children="Filter to Controls",
-                id=ids.SEQ_QC_SAMPLE_TYPE_SELECTOR,
-                n_clicks=0,
-            )
+    
     
     return html.Div(
         className="flex-row",
         children=[
             chart_selection,
-            expts,
-            sample_control
+            expts
         ]
     )
 
@@ -118,21 +98,27 @@ def qc_chart(app: Dash, sequence_data):
     qc_per_sample_df = sequence_data.qc_per_sample
     qc_reads_mapped = sequence_data.summary_bam
 
+    #Update the chart
     @app.callback(
         Output(ids.SEQ_QC_EXPT_CHART, "children"),
         [
             Input(ids.SEQ_QC_EXPT_LIST, "value"),
             Input(ids.SEQ_QC_EXPT_CHART_TYPE, "value"),
-            Input(ids.SEQ_QC_SAMPLE_TYPE_SELECTOR, "n_clicks")
+            Input(ids.SEQ_QC_SAMPLE_TYPE_SELECTOR, "n_clicks"),
+            Input(ids.SEQ_QC_SCALE_BUTTON, "n_clicks"),
             ],
     )
-    def filter_sample_type(expt_ids: list[str], chart_type: str, n_clicks: int) -> html.Div:
-        #Filters the entries to samples or controls as relevent
-        if n_clicks % 2 == 0:
+    def update_chart(expt_ids: list[str], chart_type: str, type_clicks: int, scale_clicks: int) -> html.Div:
+        #Filters the entries to field samples or controls as relevent
+        if type_clicks % 2 == 0:
             samples=True
         else:
             samples=False
+
+        # Update scale
+        logy = scale_clicks % 2 == 0
         
+        #Generate the chart
         if chart_type==charts[1]:
             df=filtered_dataframe(qc_per_sample_df, SeqDataSchema.EXP_ID[0], expt_ids)
             fig=fig_amplicon_pass_coverage(df, SeqDataSchema, sample=samples)
@@ -141,15 +127,12 @@ def qc_chart(app: Dash, sequence_data):
             fig=fig_qc_by_exptid(df, SeqDataSchema)
         else:
             df=filtered_dataframe(qc_reads_mapped, SeqDataSchema.EXP_ID[0], expt_ids)
-            fig=fig_reads_mapped(df, SeqDataSchema)
-            # panel = panel_reads_mapped(app, df, SeqDataSchema)
-            # return panel
-        
+            fig=fig_reads_mapped(df, SeqDataSchema, logy=logy)
+            
         if df.empty:
-            return html.Div("No data selected.")                   
+            return html.Div("No data selected.")
         
-        # return panel
-        return html.Div(dcc.Graph(figure=fig), id=ids.SEQ_QC_EXPT_CHART)
+        return dcc.Graph(figure=fig)
 
     return html.Div(id=ids.SEQ_QC_EXPT_CHART)
 
@@ -262,9 +245,9 @@ def fig_qc_by_exptid (df : pd.DataFrame, SeqDataSchema, y_axis: str = "test") ->
     
     return fig
 
-def fig_reads_mapped(df : pd.DataFrame, SeqDataSchema) -> px.bar:
+def fig_reads_mapped(df : pd.DataFrame, SeqDataSchema, logy: bool) -> px.bar:
     """
-    Creates a barchart of number of reads
+    Creates a barchart of number of mapped reads by type
     """
 
     # Define colour map
@@ -297,106 +280,78 @@ def fig_reads_mapped(df : pd.DataFrame, SeqDataSchema) -> px.bar:
     # Replace Category name to user friendly version
     df["category_label"] = df["category"].replace(SeqDataSchema.field_labels)
 
+    # Generate log in df and plot on y as needed
+    df['count_log'] = np.log10(df['count'])
+    y = 'count_log' if logy else 'count'
+    
     # Create the stacked bar graph
     fig = px.bar(
         df,
         x=SeqDataSchema.EXP_ID[0],
-        y="count",
+        y=y,
         color="category_label",
         color_discrete_map=colour_map,
         barmode="stack",
+        log_y=logy
     )
 
     # Customize plot
     fig.update_xaxes(title="Experiment ID")
     fig.update_layout(legend_title_text="Mapped Reads")
 
-    #Generate the scale_switcher
-    # switcher = qc_reads_switcher(app)
     return fig
 
 
-def panel_reads_mapped(app, df : pd.DataFrame, SeqDataSchema) -> html.Div:
-    """
-    Creates a panel of a barchart and scale selector
-    """
+def select_sample_type(app) -> html.Button:
     @app.callback(
-        Output(ids.SEQ_READSMAPPED_SCALE_BTN, "children"),
-        #Output(ids.SEQ_QC_EXPT_CHART, "figure"),
-        Input(ids.SEQ_READSMAPPED_SCALE_BTN, "n_clicks"),
-    )
-    def update_scale_and_text(n_clicks: int) -> str :
-        print(f"n_clicks: {n_clicks}")
+        [Output(ids.SEQ_QC_SAMPLE_TYPE_SELECTOR, "style"),
+         Output(ids.SEQ_QC_SAMPLE_TYPE_SELECTOR, "children")],
+        [Input(ids.SEQ_QC_EXPT_CHART_TYPE, "value"),
+         Input(ids.SEQ_QC_SAMPLE_TYPE_SELECTOR, "n_clicks")]
+        )
+    def update_text_and_visibility(chart_type, n_clicks):
+    # Update the text on the selection button
         if n_clicks % 2 == 0:
-            # fig.update_yaxes(type="log")
-            # fig.update_yaxes(title="# Reads (log)")
-            return "Linear" #, fig
-        # fig.update_yaxes(type="linear")
-        # fig.update_yaxes(title="# Reads")
-        return "Log" #, fig
-    
-    def _fig_reads_mapped(df : pd.DataFrame, SeqDataSchema) -> px.bar:
-        """
-        Creates a barchart of number of reads
-        """
+            sample_type="Filter to Field Samples"
+        else:
+            sample_type="Filter to Controls"
 
-        # Define colour map
-        colour_map = {
-            SeqDataSchema.N_PRIMARY[1]: "#0037FF" ,
-            SeqDataSchema.N_SECONDARY[1]: "#4285F4",
-            SeqDataSchema.N_CHIMERA[1]: "#90CAF9",
-            SeqDataSchema.N_UNMAPPED[1]: "grey",
-        }
+        if chart_type != charts[1]:
+            visible={'display': 'none'}
+        else:
+            visible={'display': 'block'}
+        return visible, sample_type
 
-        # Define column list for melting
-        cols = SeqDataSchema.READS_MAPPED_TYPE + [SeqDataSchema.EXP_ID[0]]
-
-        # Melt and Group Data
-        df_tmp = df[cols].melt(
-            id_vars=SeqDataSchema.EXP_ID[0], var_name="category", value_name="count"
-        )
-        df = (
-            df_tmp.groupby([SeqDataSchema.EXP_ID[0], "category"])["count"]
-            .sum()
-            .reset_index()
-        )
-
-        # Sort by Category into a custom order
-        df.sort_values(
-            by="category",
-            key=lambda col: col.map(SeqDataSchema.READS_MAPPED_TYPE.index),
-            inplace=True,
-        )
-        # Replace Category name to user friendly version
-        df["category_label"] = df["category"].replace(SeqDataSchema.field_labels)
-
-        # Create the stacked bar graph
-        fig = px.bar(
-            df,
-            x=SeqDataSchema.EXP_ID[0],
-            y="count",
-            color="category_label",
-            color_discrete_map=colour_map,
-            barmode="stack",
-        )
-
-        # Customize plot
-        fig.update_xaxes(title="Experiment ID")
-        fig.update_layout(legend_title_text="Mapped Reads")
-
-        #Generate the scale_switcher
-        # switcher = qc_reads_switcher(app)
-        return fig
-
-    fig = _fig_reads_mapped(df, SeqDataSchema)
-    figure = html.Div(dcc.Graph(figure=fig), id=ids.SEQ_QC_EXPT_CHART)
-    
-    #Generate the scale_switcher
-    switcher = html.Button(
-        children="Log",
-        id=ids.SEQ_READSMAPPED_SCALE_BTN,
+    button = html.Button(
+        children="Filter to Controls",
+        id=ids.SEQ_QC_SAMPLE_TYPE_SELECTOR,
         n_clicks=0,
     )
+    return button
 
-    return html.Div(
-        children=[figure,switcher])
+def switch_scale(app) -> html.Button:
+    @app.callback(
+        [Output(ids.SEQ_QC_SCALE_BUTTON, "style"),
+         Output(ids.SEQ_QC_SCALE_BUTTON, "children")],
+        [Input(ids.SEQ_QC_EXPT_CHART_TYPE, "value"),
+         Input(ids.SEQ_QC_SCALE_BUTTON, "n_clicks")]
+        )
+    def update_text_and_visibility(chart_type, n_clicks):
+    # Update the text on the selection button
+        if n_clicks % 2 == 0:
+            sample_type="Linear"
+        else:
+            sample_type="Log"
+
+        if chart_type != charts[0]:
+            visible={'display': 'none'}
+        else:
+            visible={'display': 'block'}
+        return visible, sample_type
+
+    button = html.Button(
+        children="Log",
+        id=ids.SEQ_QC_SCALE_BUTTON,
+        n_clicks=0,
+    )
+    return button
