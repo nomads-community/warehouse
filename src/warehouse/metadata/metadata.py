@@ -1,4 +1,5 @@
 import re
+import numpy as np
 from pathlib import Path
 import pandas as pd
 from datetime import datetime
@@ -759,12 +760,6 @@ class SeqDataSchemaFields:
             if "reads_mapped_type" in value
         ]
 
-        ### TO DO:
-        #Pull out the information and sort it based on mapping_list index
-        # [ [value['field'], value["reads_mapped_type"]] for 
-        #  value in self.dataschema_dict.values() if "reads_mapped_type" in value ]
-        # breakpoint()
-
 class SequencingMetadataParser:
     """
     Extract all identifiable sequencing data from nomadic / savanna pipelings.
@@ -791,8 +786,14 @@ class SequencingMetadataParser:
         # Need to match the sequence data outputs to the exp.rxn_df to merge correctly
         # Make a deep copy of the df
         match_df = exp_data.rxns_df.copy()
-        # Trim to relevent columns
-        match_df = match_df[key_fields]
+        
+        # Trim to key_fields that are present
+        match_df = match_df[[col for col in key_fields if col in match_df.columns]]
+        # Add in field if missing
+        if ExpDataSchema.SAMPLE_TYPE[0] not in match_df.columns:
+            match_df[ExpDataSchema.SAMPLE_TYPE[0]] = np.nan
+
+        #Define the colnames that are needed for matching seqdata to expdata
         cols_to_match = [SeqDataSchema.EXP_ID[0], SeqDataSchema.BARCODE[0], 
                              ExpDataSchema.EXP_ID[0], ExpDataSchema.BARCODE[0]]
         
@@ -820,8 +821,8 @@ class SequencingMetadataParser:
         qc_per_sample = merge_additional_rxn_level_fields(qc_per_sample, match_df, cols_to_match)
         
         #Add in info on sample type if not supplied from the template
-        qc_per_sample['sample_type'] = qc_per_sample.apply(lambda row: 
-                                                           row['sample_type'] if pd.notnull(row['sample_type']) 
+        qc_per_sample[ExpDataSchema.SAMPLE_TYPE[0]] = qc_per_sample.apply(lambda row: 
+                                                           row[ExpDataSchema.SAMPLE_TYPE[0]] if pd.notnull(row[ExpDataSchema.SAMPLE_TYPE[0]]) 
                                                            else (
                                                                "Positive" if row['is_positive'] 
                                                                else ("Negative" if row['is_negative'] else "Field")), axis=1)
@@ -883,7 +884,7 @@ class ExpDataSchemaFields_Combined:
         fields = [value["field"] for value in allposs_fields.values()]
         new = [x for x in df_cols if x not in fields]
         if len(new) > 0:
-            log.info(f"WARNING: {new} not found in columns")
+            log.info(f"WARNING: {new} are not defined in the dataschemas")
 
         self.dataschema_dict = dataschema_dict
         # Set attributes for each of the entries in the dataschema

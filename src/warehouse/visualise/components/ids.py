@@ -17,6 +17,7 @@ SEQ_QC_EXPT_CHART="seq_qc_chart"
 
 # Not currently used:
 SEQ_QC_SCALE_BUTTON = "seq_qc_scale_button"
+SEQ_QC_PCT_NUM_BUTTON = "seq_qc_percent_number_button"
 SEQ_QC_EXPT_SELECTOR="seq_qc_expt_selector"
 SEQ_QC_SAMPLE_TYPE_SELECTOR="seq_qc_controls_samples_selector"
 

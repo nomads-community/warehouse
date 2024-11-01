@@ -15,7 +15,8 @@ def render(app: Dash, sequence_data) -> html.Div:
     selections = main_selection_panel(app, sequence_data)
     chart = qc_chart(app, sequence_data)
     chart_selections= select_sample_type(app)
-    scale = switch_scale(app)
+    scale = switch_y_axis_scale(app)
+    plot = switch_percent_num(app)
     return html.Div(
         className="panel",
         children=[
@@ -23,7 +24,8 @@ def render(app: Dash, sequence_data) -> html.Div:
             selections,
             chart,
             chart_selections,
-            scale
+            scale,
+            plot
         ]
     )
 
@@ -106,25 +108,33 @@ def qc_chart(app: Dash, sequence_data):
             Input(ids.SEQ_QC_EXPT_CHART_TYPE, "value"),
             Input(ids.SEQ_QC_SAMPLE_TYPE_SELECTOR, "n_clicks"),
             Input(ids.SEQ_QC_SCALE_BUTTON, "n_clicks"),
+            Input(ids.SEQ_QC_PCT_NUM_BUTTON, "n_clicks"),
             ],
     )
-    def update_chart(expt_ids: list[str], chart_type: str, type_clicks: int, scale_clicks: int) -> html.Div:
-        #Filters the entries to field samples or controls as relevent
-        samples = not(type_clicks % 2 == 0)
+    def update_chart(expt_ids: list[str], 
+                     chart_type: str, 
+                     type_clicks: int, 
+                     scale_clicks: int,
+                     pct_num_clicks: int) -> html.Div:
+        #Filter to field samples or controls
+        field = type_clicks % 2 == 0
 
-        # Update scale
-        logy = not(scale_clicks % 2 == 0)
+        # Update scale from linear to log
+        y_linear = scale_clicks % 2 == 0
+
+        #Select whether to show percent or count on y axis
+        pct_num = pct_num_clicks % 2 == 0
         
         #Generate the chart
         if chart_type==charts[1]:
             df=filtered_dataframe(qc_per_sample_df, SeqDataSchema.EXP_ID[0], expt_ids)
-            fig=fig_amplicon_pass_coverage(df, SeqDataSchema, sample=samples)
+            fig=fig_amplicon_pass_coverage(df, SeqDataSchema, field=field, percent=pct_num)
         elif chart_type==charts[2]:
             df=filtered_dataframe(qc_per_expt_df, SeqDataSchema.EXP_ID[0], expt_ids)
             fig=fig_qc_by_exptid(df, SeqDataSchema)
         else:
             df=filtered_dataframe(qc_reads_mapped, SeqDataSchema.EXP_ID[0], expt_ids)
-            fig=fig_reads_mapped(df, SeqDataSchema, logy=logy)
+            fig=fig_reads_mapped(df, SeqDataSchema, y_linear=y_linear)
             
         if df.empty:
             return html.Div("No data selected.")
@@ -136,7 +146,7 @@ def qc_chart(app: Dash, sequence_data):
 
 def fig_amplicon_pass_coverage (df : pd.DataFrame, SeqDataSchema,
                                       percent: bool = True, 
-                                      sample: bool = True) -> px.bar:
+                                      field: bool = True) -> px.bar:
     """
     Generates a figure of the percentage of amplicons passing a threshold coverage for
     each sample in an expt
@@ -144,13 +154,13 @@ def fig_amplicon_pass_coverage (df : pd.DataFrame, SeqDataSchema,
     Args:
         df (pd.DataFrame): Dataframe of per sample amplicon outputs
         percent (bool): Output y axis as a percentage of samples in expt or raw count
-        sample (bool): Filter dataframe for samples or controls
+        field (bool): Filter dataframe for samples or controls
 
     Returns:
         fig: A px.bar of the data
     """
     #Filter the df to samples or not samples
-    if sample:
+    if field:
         df_f = df[df[SeqDataSchema.SAMPLE_TYPE[0]]=='Field']
     else:
         df_f = df[df[SeqDataSchema.SAMPLE_TYPE[0]]!='Field']
@@ -180,10 +190,7 @@ def fig_amplicon_pass_coverage (df : pd.DataFrame, SeqDataSchema,
     final_df['percent_passed'] = (final_df['count']/final_df['total']) * 100
     
     #Define y axis
-    if percent:
-        y_col = 'percent_passed'
-    else:
-        y_col = 'count'
+    y_col = 'percent_passed' if percent else 'count'
     
     fig = px.bar(final_df, 
                  x=SeqDataSchema.EXP_ID[0], 
@@ -195,9 +202,10 @@ def fig_amplicon_pass_coverage (df : pd.DataFrame, SeqDataSchema,
                          'count': 'Number samples',
                          'amplicons_pass': SeqDataSchema.N_AMPLICONSPASSCOV[1]}
                 )
+    
     return fig
 
-def fig_qc_by_exptid (df : pd.DataFrame, SeqDataSchema, y_axis: str = "test") -> px.bar:
+def fig_qc_by_exptid (df : pd.DataFrame, SeqDataSchema) -> px.bar:
     """
     Generates a figure of the percentage of samples succesfully sequenced in each expt
 
@@ -207,14 +215,12 @@ def fig_qc_by_exptid (df : pd.DataFrame, SeqDataSchema, y_axis: str = "test") ->
     Returns:
         fig: A px.bar of the data
     """
-    #TO DO
-    #Filter the df to samples or not samples
-   
+
     #Define metrics for figure
     labels= reformat_nested_dict(SeqDataSchema.dataschema_dict, 'field', 'label')
     x=SeqDataSchema.EXP_ID[0]
     y=SeqDataSchema.PERCENT_PASSED_EXC_NEG_CTRL[0]
-    # y=SeqDataSchema.f"{y_axis}"
+    threshold=60
 
     colour_map = {
         True : "green",
@@ -232,8 +238,8 @@ def fig_qc_by_exptid (df : pd.DataFrame, SeqDataSchema, y_axis: str = "test") ->
                 type="line",
                 x0=0,
                 x1=1,
-                y0=60,
-                y1=60,
+                y0=threshold,
+                y1=threshold,
                 xref="paper",
                 yref="y",
                 line=dict(color="green", width=2, dash="dash")
@@ -242,9 +248,16 @@ def fig_qc_by_exptid (df : pd.DataFrame, SeqDataSchema, y_axis: str = "test") ->
     
     return fig
 
-def fig_reads_mapped(df : pd.DataFrame, SeqDataSchema, logy: bool) -> px.bar:
+def fig_reads_mapped(df : pd.DataFrame, SeqDataSchema, y_linear: bool) -> px.bar:
     """
     Creates a barchart of number of mapped reads by type
+
+    Args:
+        df (pd.DataFrame): Dataframe of per experiment qc
+        SeqDataSchema (object): Dataschema
+        y_linear (bool): Plot linear or log y-axis
+    Returns:
+        fig: A px.bar of the data
     """
 
     # Define colour map
@@ -279,8 +292,8 @@ def fig_reads_mapped(df : pd.DataFrame, SeqDataSchema, logy: bool) -> px.bar:
 
     # Generate log in df and plot on y as needed
     df['count_log'] = np.log10(df['count'])
-    y = 'count_log' if logy else 'count'
-    ytitle = 'Reads (log)' if logy else 'Reads'
+    y = 'count' if y_linear else 'count_log'
+    ytitle = 'Reads' if y_linear else 'Reads (log)'
     
     # Create the stacked bar graph
     fig = px.bar(
@@ -289,8 +302,7 @@ def fig_reads_mapped(df : pd.DataFrame, SeqDataSchema, logy: bool) -> px.bar:
         y=y,
         color="category_label",
         color_discrete_map=colour_map,
-        barmode="stack",
-        log_y=logy
+        barmode="stack"
     )
 
     # Customize plot
@@ -309,17 +321,11 @@ def select_sample_type(app) -> html.Button:
          Input(ids.SEQ_QC_SAMPLE_TYPE_SELECTOR, "n_clicks")]
         )
     def update_text_and_visibility(chart_type, n_clicks):
-    # Update the text on the selection button
-        if n_clicks % 2 == 0:
-            sample_type="Filter to Field Samples"
-        else:
-            sample_type="Filter to Controls"
-
-        if chart_type != charts[1]:
-            visible={'display': 'none'}
-        else:
-            visible={'display': 'block'}
-        return visible, sample_type
+        # Update the text on the selection button
+        btn_text="Filter to Controls" if n_clicks % 2 == 0 else "Filter to Field Samples"
+        # And visibility
+        visible={'display': 'block'} if chart_type in charts[1] else {'display': 'none'} 
+        return visible, btn_text
 
     button = html.Button(
         children="Filter to Controls",
@@ -328,7 +334,7 @@ def select_sample_type(app) -> html.Button:
     )
     return button
 
-def switch_scale(app) -> html.Button:
+def switch_y_axis_scale(app) -> html.Button:
     @app.callback(
         [Output(ids.SEQ_QC_SCALE_BUTTON, "style"),
          Output(ids.SEQ_QC_SCALE_BUTTON, "children")],
@@ -336,21 +342,36 @@ def switch_scale(app) -> html.Button:
          Input(ids.SEQ_QC_SCALE_BUTTON, "n_clicks")]
         )
     def update_text_and_visibility(chart_type, n_clicks):
-    # Update the text on the selection button
-        if n_clicks % 2 == 0:
-            sample_type="Change to log y-axis"
-        else:
-            sample_type="Change to linear y-axis"
-
-        if chart_type != charts[0]:
-            visible={'display': 'none'}
-        else:
-            visible={'display': 'block'}
-        return visible, sample_type
+        # Update the text on the selection button
+        btn_text="Change to log y-axis" if n_clicks % 2 == 0 else "Change to linear y-axis"
+        # And the visibility
+        visible={'display': 'block'} if chart_type == charts[0] else {'display': 'none'}
+        return visible, btn_text
 
     button = html.Button(
         children="Change to Log y-axis",
         id=ids.SEQ_QC_SCALE_BUTTON,
+        n_clicks=0,
+    )
+    return button
+
+def switch_percent_num(app) -> html.Button:
+    @app.callback(
+        [Output(ids.SEQ_QC_PCT_NUM_BUTTON, "style"),
+         Output(ids.SEQ_QC_PCT_NUM_BUTTON, "children")],
+        [Input(ids.SEQ_QC_EXPT_CHART_TYPE, "value"),
+         Input(ids.SEQ_QC_PCT_NUM_BUTTON, "n_clicks")]
+        )
+    def update_text_and_visibility(chart_type, n_clicks):
+        # Update the text on the selection button
+        btn_text="Change to sample count on y_axis" if n_clicks % 2 == 0 else "Change to percent on y_axis"
+        # And the visibility
+        visible={'display': 'block'} if chart_type == charts[1] else {'display': 'none'}
+        return visible, btn_text
+
+    button = html.Button(
+        children="Change to count on y_axis",
+        id=ids.SEQ_QC_PCT_NUM_BUTTON,
         n_clicks=0,
     )
     return button
