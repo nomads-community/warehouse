@@ -5,6 +5,7 @@ from itertools import chain
 import logging
 
 from warehouse.lib.general import produce_dir, identify_exptid_from_path
+from warehouse.lib.exceptions import DataFormatError
 
 #Get logging process
 log = logging.getLogger("dataframes")
@@ -124,8 +125,9 @@ def concat_files_add_expID(files: list[Path], EXP_ID_COL: str = 'expt_id') -> pd
         files list(Path):  List of Path names
         EXP_ID_COL (str):   Column name for experimental ID
     """
-    # Create empty df
+    # Create empty df to add data to and list of expids
     df = pd.DataFrame()
+    expids = []
 
     # Extract data, add in experiment ID and concatenate all data
     for file in files:
@@ -139,6 +141,12 @@ def concat_files_add_expID(files: list[Path], EXP_ID_COL: str = 'expt_id') -> pd
                 json_dict = json.load(f)
             data = pd.DataFrame(json_dict, index=[expid]).reset_index()
             data.rename(columns={'index': EXP_ID_COL}, inplace=True)
+        
+        if expid in expids:
+            raise DataFormatError(f"{expid} duplicate experiment ID detected: ")
+        
+        #Add expid to list
+        expids.append(expid)
         
         df = pd.concat([df, data], ignore_index=True)
     return df
