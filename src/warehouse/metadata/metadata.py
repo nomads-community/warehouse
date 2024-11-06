@@ -663,17 +663,22 @@ class SampleMetadataParser:
 
     """
 
-    def __init__(self, sample_csv_path: Path, rxn_df: pd.DataFrame = None, output_folder: Path = None):
+    def __init__(self, metadata_file: Path, rxn_df: pd.DataFrame = None, output_folder: Path = None):
         # Load dataschema for sample set and save as attribute
-        SampleDataSchema = SampleDataSchemaFields(sample_csv_path)
+        SampleDataSchema = SampleDataSchemaFields(metadata_file)
         self.DataSchema = SampleDataSchema
         ExpDataSchema = ExpDataSchemaFields()
         
-        # load the data from the CSV file and ensure sampleID is a str
-        # Don't use the user-defined dtypes when loading - rather apply later
-        df = pd.read_csv(sample_csv_path, 
+        # load the data from the metadata file and ensure sampleID is a str
+        # Don't use the user-defined dtypes when loading as causes errors - rather apply later
+        if metadata_file.suffix.lower() == '.csv':
+            df = pd.read_csv(metadata_file, 
                          dtype={SampleDataSchema.SAMPLE_ID[0] : str})
-
+        elif metadata_file.suffix.lower() in ('.xlsx', '.xls'):
+            df = pd.read_excel(metadata_file, dtype={SampleDataSchema.SAMPLE_ID[0]: str})
+        else:   
+            raise DataFormatError(f"Unknown file type for {metadata_file}")
+        
         # Filter out any missing sample_id's
         df = df[df[SampleDataSchema.SAMPLE_ID[0]].notna()]
 

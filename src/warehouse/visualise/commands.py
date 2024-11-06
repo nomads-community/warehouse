@@ -36,11 +36,11 @@ log = logging.getLogger("visualise")
     help="Path to folder containing outputs from Nomadic / Savannah.",
 )
 @click.option(
-    "-c",
-    "--sample_csv",
+    "-m",
+    "--metadata_file",
     type=Path,
     required=True,
-    help="Path to csv file containing sample metadata information.",
+    help="Path to file (csv or xlsx) containing sample metadata information.",
 )
 @click.option(
     "-o",
@@ -50,10 +50,10 @@ log = logging.getLogger("visualise")
     help="Output aggregated data for downstream analysis",
 )
 
-def visualise(exp_folder: Path, sample_csv: Path, seq_folder: Path, output_folder: Path = None):
+def visualise(exp_folder: Path, metadata_file: Path, seq_folder: Path, output_folder: Path = None):
     
     #Add in cli_flags
-    cli_flags=[exp_folder, seq_folder, sample_csv]
+    cli_flags=[exp_folder, seq_folder, metadata_file]
 
     # divider=("=" * 80)
     # print("Loading controls data")
@@ -68,8 +68,8 @@ def visualise(exp_folder: Path, sample_csv: Path, seq_folder: Path, output_folde
     exp_data = ExpMetadataMerge(exp_fns, output_folder)
 
     log.info("Extracting sample data")
-    check_path_present(sample_csv, isfile=True)
-    sample_data = SampleMetadataParser(sample_csv,
+    check_path_present(metadata_file, isfile=True)
+    sample_data = SampleMetadataParser(metadata_file,
                                        exp_data.rxns_df,
                                        output_folder)
     log.info(divider)
