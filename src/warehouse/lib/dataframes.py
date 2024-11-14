@@ -22,6 +22,9 @@ def collapse_repeat_columns(df: pd.DataFrame, field_roots: list) -> pd.DataFrame
     Returns:
         df (pd.DataFrame): The pandas DataFrame with the duplicate columns dropped.
     """
+    
+    #Copy df so there aren't any slice conflicts
+    df = df.copy(deep=True)
 
     for root in field_roots:
         # Identify all the fields

@@ -522,10 +522,20 @@ class ExpMetadataMerge:
                         log.info(f"   WARNING: Mismatches identified for {c}")
                         log.info(f"   {mismatches_df[show_cols].to_string(index=False)}")
                         log.info("")
-
+                
                 # To ensure that all columns have the correct suffix, you need to rejoin the columns with or wthout
                 # suffixes depending on whether it is the first (right hand df has no suffix) or last join (both given suffixes)
-                if count < len(joins):
+                # The following combos are possible SWGA-PCR, PCR-SEQLIB and / or both of them
+                if len(joins) == 1:
+                    # Single  merged so give all a suffix
+                        alldata_df = pd.merge(
+                            left=join_dict["left_df"],
+                            right=join_dict["right_df"],
+                            how="outer",
+                            on=join_dict["on"],
+                            suffixes=(join_dict["suffixes"]),
+                        )
+                elif count < len(joins):
                     # Another df to add so leave common fields without a suffix
                     alldata_df = pd.merge(
                         left=join_dict["left_df"],
@@ -533,26 +543,28 @@ class ExpMetadataMerge:
                         how="outer",
                         on=join_dict["on"],
                         suffixes=([join_dict["suffixes"][0], None]),
-                    )
+                        )
                 else:
                     # Last df being merged so give all a suffix
                     alldata_df = pd.merge(
-                        left=alldata_df,
-                        right=join_dict["right_df"],
-                        how="outer",
-                        on=join_dict["on"],
-                        suffixes=(join_dict["suffixes"]),
+                    left=alldata_df,
+                    right=join_dict["right_df"],
+                    how="outer",
+                    on=join_dict["on"],
+                    suffixes=(join_dict["suffixes"]),
                     )
+                 
+            
+            # Collapse columns where multiple identical entries exist
+            cols_2_collapse = [ExpDataSchema.SAMPLE_ID[0], ExpDataSchema.EXTRACTION_ID[0], 
+                               ExpDataSchema.PCR_IDENTIFIER[0], ExpDataSchema.SWGA_IDENTIFIER[0],
+                               ExpDataSchema.SAMPLE_TYPE[0]]
 
-            # Collapse columns where multiple entries exist
-            alldata_df = collapse_repeat_columns(alldata_df, [ExpDataSchema.SAMPLE_ID[0]])
+            alldata_df = collapse_repeat_columns(alldata_df, cols_2_collapse)
 
             # Remove the expt_type fields as they are not informative in a merged df
-            dropcols = [
-                col
-                for col in alldata_df.columns
-                if col.startswith(ExpDataSchema.EXP_TYPE[0])
-            ]
+            dropcols = [ col for col in alldata_df.columns
+            if col.startswith(ExpDataSchema.EXP_TYPE[0])]
             alldata_df.drop(dropcols, axis=1, inplace=True)
             
             # Fill in the nan values

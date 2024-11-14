@@ -2,12 +2,11 @@ import click
 from pathlib import Path
 import logging
 
-from warehouse.metadata.metadata import ExpMetadataParser
+from warehouse.metadata.metadata import ExpMetadataParser, ExpMetadataMerge
 from warehouse.seqfolders.dirs import ExperimentDirectories
-from warehouse.lib.general import identify_experiment_file
+from warehouse.lib.general import identify_experiment_files
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.logging import identify_cli_command, divider
-
 
 @click.command(
     short_help="Create appropriate NOMADS directory structure for a sequencing run"
@@ -40,9 +39,9 @@ from warehouse.lib.logging import identify_cli_command, divider
     required=False,
     help="Base folder to output sequencing directory structure to.",
 )
+
 def seqfolders(
-    exp_folder: Path, expt_id: str, output_folder: Path, dir_structure: Path = None
-):
+    exp_folder: Path, expt_id: str, output_folder: Path, dir_structure: Path = None):
     """
     Create NOMADS sequencing folder structure including relevent data
     """
@@ -51,22 +50,21 @@ def seqfolders(
     log.info(divider)
     log.debug(identify_cli_command())
 
-    # Extract metadata
-    matching_filepath = identify_experiment_file(exp_folder, expt_id)
-    exp_metadata = ExpMetadataParser(matching_filepath)
+    #First extract the individual experiment
+    seqlib_fn = identify_experiment_files(exp_folder, expt_id)
+    exp_metadata = ExpMetadataParser(seqlib_fn[0])    
 
     # Make sure it is a seqlib expt
     if not exp_metadata.expt_type == "seqlib":
-        raise DataFormatError(f"{matching_filepath.name} is not a seqlib expt")
+        raise DataFormatError(f"{seqlib_fn.name} is not a seqlib expt")
 
     # Give user feedback
     log.info(f"Experiment details for {exp_metadata.expt_id}")
     log.info(f"  Experiment date: {exp_metadata.expt_date}")
-    log.info(f"  Experiment ID: {expt_id}")
     log.info(f"  Experiment Summary: {exp_metadata.expt_summary}")
     log.info("=" * 80)
 
-    log.info("Creating NOMADS sequencing folder structure...")
+    log.info(f"Creating NOMADS sequencing folder structure for {expt_id}...")
     expt_name = create_experiment_name(
         exp_metadata.expt_date, expt_id, exp_metadata.expt_summary
     )
@@ -75,10 +73,23 @@ def seqfolders(
     log.info(divider)
 
     # Copying metadata
-    log.info(
-        "Exporting sequencing library information for downstream tools e.g. nomadic and savanna"
-    )
-    exp_metadata.df.to_csv(
+    log.info(f"Identifying all metadata for samples included in {expt_id}")
+    #Extract all identifiers from swga_identifier and pcr_identifier columns
+    identifiers = exp_metadata.rxn_df['swga_identifier'].dropna().unique().tolist()
+    identifiers.extend( exp_metadata.rxn_df['pcr_identifier'].dropna().unique().tolist() )
+    #strip out the well info and create unique set of expids
+    expids = set( [ id[:-3] for id in identifiers if 'swga' not in id.lower()])
+    expids = list(expids) + [expt_id]
+    
+    matching_filepaths = identify_experiment_files(exp_folder, expids)
+    
+    #Extract all data
+    exp_metadata = ExpMetadataMerge(matching_filepaths, output_folder)
+
+    #Filter to the exptid given by user
+    exp_metadata_df = exp_metadata.all_df[exp_metadata.all_df['expt_id_seqlib'] == expt_id]
+    #Export as sample_info file
+    exp_metadata_df.to_csv(
         f"{expt_dirs.metadata_dir}/{expt_id}_sample_info.csv", index=False
     )
     log.info("Done")

@@ -7,7 +7,7 @@ from warehouse.lib.logging import identify_cli_command, divider
 from warehouse.lib.general import (
     identify_files_by_search,
     Regex_patterns,
-    identify_experiment_file,
+    identify_experiment_files,
 )
 
 
@@ -50,7 +50,7 @@ def metadata(exp_folder: Path, expt_id: str, output_folder: Path):
     # Extract all metadata
     if expt_id:
         # Search for file with exptid in name
-        matching_filepath = identify_experiment_file(exp_folder, expt_id)
+        matching_filepath = identify_experiment_files(exp_folder, expt_id)
         ExpMetadataParser(matching_filepath, output_folder)
     else:
         matching_filepaths = identify_files_by_search(

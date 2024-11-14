@@ -62,37 +62,43 @@ def identify_exptid_from_path(path: Path) -> str:
 #         return None
 
 
-def identify_experiment_file(folder: Path, expt_id: str) -> Path | None:
+def identify_experiment_files(folder: Path, expt_ids: list) -> list:
     """
     Identify if there is an Excel file with a matching ExpID pattern in the list of filenames"
 
     Args:
-    files_list (list): List of file paths.
-    expt_id (str): Experiment ID to search for
+        files_list (list): List of file paths.
+        expt_id (str): Experiment ID to search for
 
     Returns:
-        Path: The path to the matching file, or None if not found.
+        list(Path): List of path(s) to the matching file(s)
     """
+    if isinstance(expt_ids, str):
+        expt_ids = [ expt_ids]
+
     log.info("Searching for all NOMADS template files")
-    matches = identify_files_by_search(
+    template_files = identify_files_by_search(
         folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True
     )
-
-    if not matches:
-        return None
-
-    log.info(f"Searching for files with {expt_id} in name")
-    search_pattern = re.compile(f"{expt_id}")
-    matches = [f for f in matches if search_pattern.search(f.name)]
-
-    # Ensure there is at least one match
-    if len(matches) == 0:
-        raise ValueError("No matching files found.")
-    elif len(matches) > 1:
-        raise ValueError(f"Multiple matches found: {matches}")
-    else:
-        # Extract path from the  list object
-        return matches[0]
+    if not template_files:
+        raise ValueError("No NOMADS template files found.")
+    
+    filepaths=[]
+    for expt_id in expt_ids:
+        log.info(f"   Searching for {expt_id} in filename")
+        search_pattern = re.compile(f"{expt_id}")
+        
+        matches = [f for f in template_files if search_pattern.search(f.name)]
+        
+        # Ensure there is at least one match
+        if len(matches) == 0:
+            raise ValueError(f"No matching files found for {expt_id}.")
+        elif len(matches) > 1:
+            raise ValueError(f"Multiple matches found: {matches}")
+        else:
+            # Extract path from the  list object
+            filepaths.append(matches[0])        
+    return filepaths
 
 
 def check_no_openfiles(fn_list: list):
