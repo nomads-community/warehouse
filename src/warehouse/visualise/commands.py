@@ -67,7 +67,7 @@ def visualise(exp_folder: Path, metadata_file: Path, seq_folder: Path, output_fo
                                        )
     exp_data = ExpMetadataMerge(exp_fns, output_folder)
 
-    log.info("Extracting sample data")
+    log.info("Extracting sample metadata")
     check_path_present(metadata_file, isfile=True)
     sample_data = SampleMetadataParser(metadata_file,
                                        exp_data.rxns_df,

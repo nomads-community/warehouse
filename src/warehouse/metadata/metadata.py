@@ -389,7 +389,7 @@ class ExpMetadataMerge:
 
         #Output all data into a metadata subfolder for ease of use
         if output_folder:
-            output_folder = output_folder / "metadata"
+            output_folder = output_folder / "experimental"
             produce_dir(output_folder)
 
         # Extract each file as an object into a dictionary
@@ -684,13 +684,12 @@ class SampleMetadataParser:
         # load the data from the metadata file and ensure sampleID is a str
         # Don't use the user-defined dtypes when loading as causes errors - rather apply later
         if metadata_file.suffix.lower() == '.csv':
-            df = pd.read_csv(metadata_file, 
-                         dtype={SampleDataSchema.SAMPLE_ID[0] : str})
+            df = pd.read_csv(metadata_file, dtype={SampleDataSchema.SAMPLE_ID[0] : str})
         elif metadata_file.suffix.lower() in ('.xlsx', '.xls'):
             df = pd.read_excel(metadata_file, dtype={SampleDataSchema.SAMPLE_ID[0]: str})
         else:   
             raise DataFormatError(f"Unknown file type for {metadata_file}")
-        
+
         # Filter out any missing sample_id's
         df = df[df[SampleDataSchema.SAMPLE_ID[0]].notna()]
 
