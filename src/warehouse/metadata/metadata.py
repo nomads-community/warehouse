@@ -842,6 +842,8 @@ class SequencingMetadataParser:
                                                            else (
                                                                "Positive" if row['is_positive'] 
                                                                else ("Negative" if row['is_negative'] else "Field")), axis=1)
+        #qc_per_sample.drop(columns=[ SeqDataSchema.ISPOS[0], SeqDataSchema.ISNEG[0]], inplace=True)
+        #TO DO: Would need to edit the dataschema to remove these columns - prob not worth it
         self.qc_per_sample = qc_per_sample
         
         log.info("   Searching for experiment QC file(s)")
@@ -852,11 +854,11 @@ class SequencingMetadataParser:
         
         #Merge the exptqc and bam outputs and drop repeat columns
         summary_bamqc = pd.merge(left=self.summary_bam,
-                                            right=self.qc_per_sample,
-                                            on=[SeqDataSchema.BARCODE[0], SeqDataSchema.EXP_ID[0]],
-                                            how='outer'
-                                            )
-        collapse_repeat_columns(summary_bamqc, [SeqDataSchema.SAMPLE_ID[0]])
+                                 right=self.qc_per_sample,
+                                on=[SeqDataSchema.BARCODE[0], SeqDataSchema.EXP_ID[0]],
+                                how='outer'
+                                )
+        summary_bamqc = collapse_repeat_columns(summary_bamqc, [SeqDataSchema.SAMPLE_ID[0], SeqDataSchema.SAMPLE_TYPE[0]])
         self.summary_bamqc = summary_bamqc
         
         if output_folder:

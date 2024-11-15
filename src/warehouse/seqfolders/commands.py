@@ -84,10 +84,10 @@ def seqfolders(
     matching_filepaths = identify_experiment_files(exp_folder, expids)
     
     #Extract all data
-    exp_metadata = ExpMetadataMerge(matching_filepaths, output_folder)
+    exp_metadata = ExpMetadataMerge(matching_filepaths)
 
-    #Filter to the exptid given by user
-    exp_metadata_df = exp_metadata.all_df[exp_metadata.all_df['expt_id_seqlib'] == expt_id]
+    #Filter to the exptid given by user and sort by barcode column
+    exp_metadata_df = exp_metadata.all_df[exp_metadata.all_df['expt_id_seqlib'] == expt_id].sort_values(by='barcode')
     #Export as sample_info file
     exp_metadata_df.to_csv(
         f"{expt_dirs.metadata_dir}/{expt_id}_sample_info.csv", index=False
