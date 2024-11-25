@@ -1,44 +1,42 @@
-import re
-import numpy as np
-from pathlib import Path
-import pandas as pd
-from datetime import datetime
 import logging
+import re
+from datetime import datetime
+from pathlib import Path
 
+import numpy as np
+import pandas as pd
 import pretty_errors
 
-from warehouse.lib.exceptions import DataFormatError
-from warehouse.lib.general import (
-    identify_files_by_search,
-    create_dict_from_ini,
-    get_nested_key_value,
-    filter_nested_dict,
-    filter_dict_by_key_or_value,
-    reformat_nested_dict,
-    identify_exptid_from_path,
-    produce_dir,
-)
 from warehouse.lib.dataframes import (
-    collapse_repeat_columns, 
-    identify_export_dataframe_attributes,
+    collapse_repeat_columns,
     concat_files_add_expID,
+    identify_export_dataframe_attributes,
     merge_additional_rxn_level_fields,
 )
-from warehouse.lib.regex import Regex_patterns
 from warehouse.lib.decorators import singleton
-from warehouse.lib.logging import divider
-
-pretty_errors.configure(
-    stack_depth=1,
-    display_locals=1
+from warehouse.lib.exceptions import DataFormatError
+from warehouse.lib.general import (
+    create_dict_from_ini,
+    filter_dict_by_key_or_value,
+    filter_nested_dict,
+    get_nested_key_value,
+    identify_exptid_from_path,
+    identify_files_by_search,
+    produce_dir,
+    reformat_nested_dict,
 )
+from warehouse.lib.logging import divider
+from warehouse.lib.regex import Regex_patterns
 
-#Define logging process
+pretty_errors.configure(stack_depth=1, display_locals=1)
+
+# Define logging process
 log = logging.getLogger("metadata")
 
 # Define where the script is running from so you can reference internal files etc
 script_dir = Path(__file__).parent.resolve()
 default_ini_folder = Path(script_dir, "dataschemas/")
+
 
 @singleton
 class ExpDataSchemaFields:
@@ -177,10 +175,12 @@ class ExpMetadataParser:
         )
 
         if output_folder:
-            #Store individual experiments in a subfolder
-            individual_dir=output_folder / "individual_expts"
+            # Store individual experiments in a subfolder
+            individual_dir = output_folder / "individual_expts"
             produce_dir(individual_dir)
-            log.info(f"      Outputting experimental data to folder: {individual_dir.name}")
+            log.info(
+                f"      Outputting experimental data to folder: {individual_dir.name}"
+            )
             output_dict = {"expt": self.expt_df, "rxn": self.rxn_df}
             for output in output_dict:
                 filename = self.expt_id + "_" + output + "_metadata.csv"
@@ -387,7 +387,7 @@ class ExpMetadataMerge:
         # Check that there aren't duplicate experiment IDs
         self._check_duplicate_expid(filepaths)
 
-        #Output all data into a metadata subfolder for ease of use
+        # Output all data into a metadata subfolder for ease of use
         if output_folder:
             output_folder = output_folder / "experimental"
             produce_dir(output_folder)
@@ -520,21 +520,23 @@ class ExpMetadataMerge:
                     # Feedback to user
                     if mismatches_df.shape[0] > 0:
                         log.info(f"   WARNING: Mismatches identified for {c}")
-                        log.info(f"   {mismatches_df[show_cols].to_string(index=False)}")
+                        log.info(
+                            f"   {mismatches_df[show_cols].to_string(index=False)}"
+                        )
                         log.info("")
-                
+
                 # To ensure that all columns have the correct suffix, you need to rejoin the columns with or wthout
                 # suffixes depending on whether it is the first (right hand df has no suffix) or last join (both given suffixes)
                 # The following combos are possible SWGA-PCR, PCR-SEQLIB and / or both of them
                 if len(joins) == 1:
                     # Single  merged so give all a suffix
-                        alldata_df = pd.merge(
-                            left=join_dict["left_df"],
-                            right=join_dict["right_df"],
-                            how="outer",
-                            on=join_dict["on"],
-                            suffixes=(join_dict["suffixes"]),
-                        )
+                    alldata_df = pd.merge(
+                        left=join_dict["left_df"],
+                        right=join_dict["right_df"],
+                        how="outer",
+                        on=join_dict["on"],
+                        suffixes=(join_dict["suffixes"]),
+                    )
                 elif count < len(joins):
                     # Another df to add so leave common fields without a suffix
                     alldata_df = pd.merge(
@@ -543,30 +545,36 @@ class ExpMetadataMerge:
                         how="outer",
                         on=join_dict["on"],
                         suffixes=([join_dict["suffixes"][0], None]),
-                        )
+                    )
                 else:
                     # Last df being merged so give all a suffix
                     alldata_df = pd.merge(
-                    left=alldata_df,
-                    right=join_dict["right_df"],
-                    how="outer",
-                    on=join_dict["on"],
-                    suffixes=(join_dict["suffixes"]),
+                        left=alldata_df,
+                        right=join_dict["right_df"],
+                        how="outer",
+                        on=join_dict["on"],
+                        suffixes=(join_dict["suffixes"]),
                     )
-                 
-            
+
             # Collapse columns where multiple identical entries exist
-            cols_2_collapse = [ExpDataSchema.SAMPLE_ID[0], ExpDataSchema.EXTRACTION_ID[0], 
-                               ExpDataSchema.PCR_IDENTIFIER[0], ExpDataSchema.SWGA_IDENTIFIER[0],
-                               ExpDataSchema.SAMPLE_TYPE[0]]
+            cols_2_collapse = [
+                ExpDataSchema.SAMPLE_ID[0],
+                ExpDataSchema.EXTRACTION_ID[0],
+                ExpDataSchema.PCR_IDENTIFIER[0],
+                ExpDataSchema.SWGA_IDENTIFIER[0],
+                ExpDataSchema.SAMPLE_TYPE[0],
+            ]
 
             alldata_df = collapse_repeat_columns(alldata_df, cols_2_collapse)
 
             # Remove the expt_type fields as they are not informative in a merged df
-            dropcols = [ col for col in alldata_df.columns
-            if col.startswith(ExpDataSchema.EXP_TYPE[0])]
+            dropcols = [
+                col
+                for col in alldata_df.columns
+                if col.startswith(ExpDataSchema.EXP_TYPE[0])
+            ]
             alldata_df.drop(dropcols, axis=1, inplace=True)
-            
+
             # Fill in the nan values
             alldata_df_na = alldata_df.fillna("None")
 
@@ -587,22 +595,30 @@ class ExpMetadataMerge:
                 .agg(list)
                 .reset_index()
             )
-        
+
         # Create an instance attribute
         self.all_df = alldata_df
 
         log.info("Done")
         log.info(divider)
 
-        #Remove columns from expts_df
-        expt_cols=["expt_id", "expt_date", "expt_user", "expt_type", "expt_rxns", "expt_notes", "expt_summary"]
-        expt_summary_df=self.expts_df[expt_cols].sort_values(["expt_date"])
-        
+        # Remove columns from expts_df
+        expt_cols = [
+            "expt_id",
+            "expt_date",
+            "expt_user",
+            "expt_type",
+            "expt_rxns",
+            "expt_notes",
+            "expt_summary",
+        ]
+        expt_summary_df = self.expts_df[expt_cols].sort_values(["expt_date"])
+
         # Optionally export the aggregate data
         if output_folder:
             identify_export_dataframe_attributes(self, output_folder)
-        
-        #Give user a summary of experiments performed
+
+        # Give user a summary of experiments performed
         log.info("Experiments performed:")
         log.info(expt_summary_df)
         log.info(divider)
@@ -646,7 +662,7 @@ class SampleDataSchemaFields:
         if len(ini_files) > 1:
             log.info(f"Multiple .ini files found, using first one: {ini_files[0].name}")
         self.dataschema_dict = create_dict_from_ini(ini_files[0])
-        
+
         # Create simple dict of field and labels
         self.field_labels = reformat_nested_dict(self.dataschema_dict, "field", "label")
 
@@ -655,19 +671,30 @@ class SampleDataSchemaFields:
             field_value = get_nested_key_value(self.dataschema_dict, dict_key, "field")
             label_value = get_nested_key_value(self.dataschema_dict, dict_key, "label")
             setattr(self, dict_key.upper(), (field_value, label_value))
-        
+
         # Identify all with datatype entries
         self.dtypes = filter_nested_dict(
-            self.dataschema_dict, new_key_field="field", new_value_field="datatype", exclude_value="date")
-        
+            self.dataschema_dict,
+            new_key_field="field",
+            new_value_field="datatype",
+            exclude_value="date",
+        )
+
         # Identify all that ARE dates
         self.datefields = filter_nested_dict(
-            self.dataschema_dict, new_key_field="field", new_value_field="datatype", exclude_value="date", reverse=True )
-        
+            self.dataschema_dict,
+            new_key_field="field",
+            new_value_field="datatype",
+            exclude_value="date",
+            reverse=True,
+        )
+
         # Identify all dates that have a defined format
         self.dateformats = filter_nested_dict(
-            self.dataschema_dict, new_key_field="field", new_value_field="dateformat")
-   
+            self.dataschema_dict, new_key_field="field", new_value_field="dateformat"
+        )
+
+
 class SampleMetadataParser:
     """
     Extract sample metadata from a single csv file, define fieldnames and labels,
@@ -675,25 +702,32 @@ class SampleMetadataParser:
 
     """
 
-    def __init__(self, metadata_file: Path, rxn_df: pd.DataFrame = None, output_folder: Path = None):
+    def __init__(
+        self,
+        metadata_file: Path,
+        rxn_df: pd.DataFrame = None,
+        output_folder: Path = None,
+    ):
         # Load dataschema for sample set and save as attribute
         SampleDataSchema = SampleDataSchemaFields(metadata_file)
         self.DataSchema = SampleDataSchema
         ExpDataSchema = ExpDataSchemaFields()
-        
+
         # load the data from the metadata file and ensure sampleID is a str
         # Don't use the user-defined dtypes when loading as causes errors - rather apply later
-        if metadata_file.suffix.lower() == '.csv':
-            df = pd.read_csv(metadata_file, dtype={SampleDataSchema.SAMPLE_ID[0] : str})
-        elif metadata_file.suffix.lower() in ('.xlsx', '.xls'):
-            df = pd.read_excel(metadata_file, dtype={SampleDataSchema.SAMPLE_ID[0]: str})
-        else:   
+        if metadata_file.suffix.lower() == ".csv":
+            df = pd.read_csv(metadata_file, dtype={SampleDataSchema.SAMPLE_ID[0]: str})
+        elif metadata_file.suffix.lower() in (".xlsx", ".xls"):
+            df = pd.read_excel(
+                metadata_file, dtype={SampleDataSchema.SAMPLE_ID[0]: str}
+            )
+        else:
             raise DataFormatError(f"Unknown file type for {metadata_file}")
 
         # Filter out any missing sample_id's
         df = df[df[SampleDataSchema.SAMPLE_ID[0]].notna()]
 
-        #Try to ensure fields are correct datatypes
+        # Try to ensure fields are correct datatypes
         for key, value in SampleDataSchema.dtypes.items():
             try:
                 df[key] = df[key].astype(value)
@@ -710,7 +744,7 @@ class SampleMetadataParser:
             # Check if dates parsed correctly
             if not pd.api.types.is_datetime64_dtype(df[datefield]):
                 raise DataFormatError(f"Date errors in field / column: {datefield}")
-        
+
         # Determine the point each sample has got through to in testing
         if rxn_df is not None:
             # Create status column and fill with not tested
@@ -719,7 +753,7 @@ class SampleMetadataParser:
             )
             # Define what is present
             types_present = rxn_df[ExpDataSchema.EXP_TYPE[0]].unique()
-            
+
             for (
                 exp_type
             ) in ExpThroughputDataScheme.EXP_TYPES:  # Ensure order is followed
@@ -741,7 +775,7 @@ class SampleMetadataParser:
         # Define attributes
         self.df = df
 
-        #export data
+        # export data
         if output_folder:
             output_folder = output_folder / "samples"
             identify_export_dataframe_attributes(self, output_folder)
@@ -776,13 +810,16 @@ class SeqDataSchemaFields:
             if "reads_mapped_type" in value
         ]
 
+
 class SequencingMetadataParser:
     """
     Extract all identifiable sequencing data from nomadic / savanna pipelings.
 
     """
 
-    def __init__(self, seqdata_folder: Path, exp_data: object, output_folder: Path = None):
+    def __init__(
+        self, seqdata_folder: Path, exp_data: object, output_folder: Path = None
+    ):
         # Load dataschema for sample set and save as an object attribute
         SeqDataSchema = SeqDataSchemaFields()
         self.DataSchema = SeqDataSchema
@@ -793,33 +830,40 @@ class SequencingMetadataParser:
         # Filter expdataschema to key fields needed
         key_fields = filter_dict_by_key_or_value(
             ExpDataSchema.dataschema_dict,
-            ["EXP_ID", "SAMPLE_ID", "EXTRACTIONID", "BARCODE", "SAMPLE_TYPE"], search_key=True
+            ["EXP_ID", "SAMPLE_ID", "EXTRACTIONID", "BARCODE", "SAMPLE_TYPE"],
+            search_key=True,
         )
-        
+
         # Simplify dict to a list of keys (fieldnames in df)
         key_fields = list(reformat_nested_dict(key_fields, "field", "label").keys())
-        
+
         # Need to match the sequence data outputs to the exp.rxn_df to merge correctly
         # Make a deep copy of the df
         match_df = exp_data.rxns_df.copy()
-        
+
         # Trim to key_fields that are present
         match_df = match_df[[col for col in key_fields if col in match_df.columns]]
         # Add in field if missing
         if ExpDataSchema.SAMPLE_TYPE[0] not in match_df.columns:
             match_df[ExpDataSchema.SAMPLE_TYPE[0]] = np.nan
 
-        #Define the colnames that are needed for matching seqdata to expdata
-        cols_to_match = [SeqDataSchema.EXP_ID[0], SeqDataSchema.BARCODE[0], 
-                             ExpDataSchema.EXP_ID[0], ExpDataSchema.BARCODE[0]]
-        
+        # Define the colnames that are needed for matching seqdata to expdata
+        cols_to_match = [
+            SeqDataSchema.EXP_ID[0],
+            SeqDataSchema.BARCODE[0],
+            ExpDataSchema.EXP_ID[0],
+            ExpDataSchema.BARCODE[0],
+        ]
+
         log.info("   Searching for bamstats file(s)")
         bamfiles = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_BAMSTATS_CSV, recursive=True
         )
         summary_bam = concat_files_add_expID(bamfiles, SeqDataSchema.EXP_ID[0])
-        self.summary_bam = merge_additional_rxn_level_fields(summary_bam, match_df, cols_to_match)
-        
+        self.summary_bam = merge_additional_rxn_level_fields(
+            summary_bam, match_df, cols_to_match
+        )
+
         log.info("   Searching for bedcov file(s)")
         bedcovfiles = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_BEDCOV_CSV, recursive=True
@@ -827,43 +871,66 @@ class SequencingMetadataParser:
         # Remove any with nomadic in path as this output is identically named in nomadic and savanna and only want latter
         bedcovfiles = [x for x in bedcovfiles if "nomadic" not in str(x)]
         summary_bedcov = concat_files_add_expID(bedcovfiles, SeqDataSchema.EXP_ID[0])
-        self.summary_bedcov = merge_additional_rxn_level_fields(summary_bedcov, match_df, cols_to_match)
+        self.summary_bedcov = merge_additional_rxn_level_fields(
+            summary_bedcov, match_df, cols_to_match
+        )
 
         log.info("   Searching for sample QC file(s)")
         exptqcfiles = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_QC_PER_SAMPLE_CSV, recursive=True
         )
         qc_per_sample = concat_files_add_expID(exptqcfiles, SeqDataSchema.EXP_ID[0])
-        qc_per_sample = merge_additional_rxn_level_fields(qc_per_sample, match_df, cols_to_match)
-        
-        #Add in info on sample type if not supplied from the template
-        qc_per_sample[ExpDataSchema.SAMPLE_TYPE[0]] = qc_per_sample.apply(lambda row: 
-                                                           row[ExpDataSchema.SAMPLE_TYPE[0]] if pd.notnull(row[ExpDataSchema.SAMPLE_TYPE[0]]) 
-                                                           else (
-                                                               "Positive" if row['is_positive'] 
-                                                               else ("Negative" if row['is_negative'] else "Field")), axis=1)
-        #qc_per_sample.drop(columns=[ SeqDataSchema.ISPOS[0], SeqDataSchema.ISNEG[0]], inplace=True)
-        #TO DO: Would need to edit the dataschema to remove these columns - prob not worth it
+        qc_per_sample = merge_additional_rxn_level_fields(
+            qc_per_sample, match_df, cols_to_match
+        )
+
+        # Add in info on sample type if not supplied from the template
+        qc_per_sample[ExpDataSchema.SAMPLE_TYPE[0]] = qc_per_sample.apply(
+            lambda row: row[ExpDataSchema.SAMPLE_TYPE[0]]
+            if pd.notnull(row[ExpDataSchema.SAMPLE_TYPE[0]])
+            else (
+                "Positive"
+                if row["is_positive"]
+                else ("Negative" if row["is_negative"] else "Field")
+            ),
+            axis=1,
+        )
+        # qc_per_sample.drop(columns=[ SeqDataSchema.ISPOS[0], SeqDataSchema.ISNEG[0]], inplace=True)
+        # TODO: Would need to edit the dataschema to remove these columns - prob not worth it
         self.qc_per_sample = qc_per_sample
-        
+
         log.info("   Searching for experiment QC file(s)")
         qc_per_expt_files = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_QC_PER_EXPT_JSON, recursive=True
         )
-        self.qc_per_expt = concat_files_add_expID(qc_per_expt_files,SeqDataSchema.EXP_ID[0])
-        
-        #Merge the exptqc and bam outputs and drop repeat columns
-        summary_bamqc = pd.merge(left=self.summary_bam,
-                                 right=self.qc_per_sample,
-                                on=[SeqDataSchema.BARCODE[0], SeqDataSchema.EXP_ID[0]],
-                                how='outer'
-                                )
-        summary_bamqc = collapse_repeat_columns(summary_bamqc, [SeqDataSchema.SAMPLE_ID[0], SeqDataSchema.SAMPLE_TYPE[0]])
+        qc_per_expt = concat_files_add_expID(qc_per_expt_files, SeqDataSchema.EXP_ID[0])
+        # Add in additional calculations not made from savanna
+        qc_per_expt[SeqDataSchema.PERCENT_SAMPLES_PASSEDCOV[0]] = (
+            qc_per_expt[SeqDataSchema.N_SAMPLES_PASS_COV_THRSHLD[0]]
+            / qc_per_expt[SeqDataSchema.N_SAMPLES[0]]
+        ) * 100
+        qc_per_expt[SeqDataSchema.PERCENT_SAMPLES_PASSEDCONT[0]] = (
+            qc_per_expt[SeqDataSchema.N_SAMPLES_PASS_CONTAM_THRSHLD[0]]
+            / qc_per_expt[SeqDataSchema.N_SAMPLES[0]]
+        ) * 100
+        self.qc_per_expt = qc_per_expt
+
+        # Merge the exptqc and bam outputs and drop repeat columns
+        summary_bamqc = pd.merge(
+            left=self.summary_bam,
+            right=self.qc_per_sample,
+            on=[SeqDataSchema.BARCODE[0], SeqDataSchema.EXP_ID[0]],
+            how="outer",
+        )
+        summary_bamqc = collapse_repeat_columns(
+            summary_bamqc, [SeqDataSchema.SAMPLE_ID[0], SeqDataSchema.SAMPLE_TYPE[0]]
+        )
         self.summary_bamqc = summary_bamqc
-        
+
         if output_folder:
-            output_folder= output_folder / "sequence"
+            output_folder = output_folder / "sequence"
             identify_export_dataframe_attributes(self, output_folder)
+
 
 @singleton
 class ExpDataSchemaFields_Combined:
@@ -918,7 +985,9 @@ class CombinedData:
     Merge all data sources
     """
 
-    def __init__(self, exp_data, sequence_data, sample_data, output_folder: Path = None):
+    def __init__(
+        self, exp_data, sequence_data, sample_data, output_folder: Path = None
+    ):
         ExpDataSchema = ExpDataSchemaFields_Combined(exp_data)
         SeqDataSchema = sequence_data.DataSchema
         SampleDataSchema = sample_data.DataSchema
