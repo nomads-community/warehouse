@@ -1,0 +1,62 @@
+# YAML file containing names of researchers and projects for each NOMADS group
+# Values are used to update template references
+NMEC: 
+  names:
+    - Mulenga Mwenda
+    - Brenda Mambwe
+    - Conceptor Mulube
+    - Carol Chiyesu
+  initials:
+    - MM
+    - BM
+    - CM
+    - CC
+  projects: 
+    - MIS2024
+    - HRP2/3
+    - ATSB2023
+    - GENE8
+    - TES2022
+UCB:
+  names:
+    - Valery Byela
+    - Yves Kwibaka
+  initials:
+    - VB
+    - YB
+  projects: 
+    - MARS
+    - ARMEA
+UNAM: 
+  names:
+    - Lydia Eloff
+  initials:
+    - LE
+  projects: 
+    - NOMADS
+KEMRI_ENTO:
+  names:
+    - Cyprian Adala
+    - Diana Omoke
+    - Cynthia Awuor
+    - Sylvia Milanoi
+    - Brian Polo
+    - Brian Morgan
+  initials:
+    - CA
+    - DO
+    - CA
+    - SM
+    - BP
+    - BM
+  projects:
+    - NOMADS_ento
+KCL:
+  names:
+    - Miriam Combe
+    - Sheila Otieno
+  initials:
+    - MC
+    - SO
+  projects:
+    - ATSB

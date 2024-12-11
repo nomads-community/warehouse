@@ -1,12 +1,14 @@
-import click
-from pathlib import Path
 from collections import OrderedDict
+from pathlib import Path
 
+import click
+
+from warehouse.extract.commands import extract
 from warehouse.lib.logging import config_root_logger
 from warehouse.metadata.commands import metadata
 from warehouse.seqfolders.commands import seqfolders
+from warehouse.templates.commands import templates
 from warehouse.visualise.commands import visualise
-from warehouse.extract.commands import extract
 
 # ================================================================
 # Entry point for all sub-commands
@@ -17,6 +19,7 @@ from warehouse.extract.commands import extract
 warehouse_dir = Path(__file__).parent.parent.parent.resolve()
 log_dir = warehouse_dir / "logs"
 config_root_logger(log_dir=log_dir, verbose=False)
+
 
 class OrderedGroup(click.Group):
     def __init__(self, name=None, commands=None, **attrs):
@@ -46,6 +49,7 @@ cli.add_command(metadata)
 cli.add_command(seqfolders)
 cli.add_command(visualise)
 cli.add_command(extract)
+cli.add_command(templates)
 
 if __name__ == "__main__":
     cli()

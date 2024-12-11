@@ -1,14 +1,15 @@
-import re
 import configparser
-from typing import Optional
-from pathlib import Path
 import logging
+import re
+from pathlib import Path
+from typing import Optional
 
 from warehouse.lib.exceptions import DataFormatError, PathError
 from warehouse.lib.regex import Regex_patterns
 
-#Get logging process
+# Get logging process
 log = logging.getLogger("general")
+
 
 def identify_exptid_from_path(path: Path) -> str:
     """
@@ -38,30 +39,6 @@ def identify_exptid_from_path(path: Path) -> str:
         raise DataFormatError(msg)
 
 
-# def identify_exptid_from_fn(path: Path) -> str | None:
-#     """
-#     Extract the experimental ID from a filename
-
-#     Args:
-#         path (Path): path to the file
-
-#     Returns:
-#         expt_id (str): the extracted experiment id or None if not found
-#     """
-
-#     try:
-#         match = re.search(Regex_patterns.NOMADS_EXPID, path.name)
-#         if match:
-#             expt_id = match.group(0)
-#             return expt_id
-
-#         return None
-
-#     except StopIteration:
-#         log.info(f"Unable to identify an ExpID in: {path.name}")
-#         return None
-
-
 def identify_experiment_files(folder: Path, expt_ids: list) -> list:
     """
     Identify if there is an Excel file with a matching ExpID pattern in the list of filenames"
@@ -74,7 +51,7 @@ def identify_experiment_files(folder: Path, expt_ids: list) -> list:
         list(Path): List of path(s) to the matching file(s)
     """
     if isinstance(expt_ids, str):
-        expt_ids = [ expt_ids]
+        expt_ids = [expt_ids]
 
     log.info("Searching for all NOMADS template files")
     template_files = identify_files_by_search(
@@ -82,14 +59,14 @@ def identify_experiment_files(folder: Path, expt_ids: list) -> list:
     )
     if not template_files:
         raise ValueError("No NOMADS template files found.")
-    
-    filepaths=[]
+
+    filepaths = []
     for expt_id in expt_ids:
         log.info(f"   Searching for {expt_id} in filename")
         search_pattern = re.compile(f"{expt_id}")
-        
+
         matches = [f for f in template_files if search_pattern.search(f.name)]
-        
+
         # Ensure there is at least one match
         if len(matches) == 0:
             raise ValueError(f"No matching files found for {expt_id}.")
@@ -97,7 +74,7 @@ def identify_experiment_files(folder: Path, expt_ids: list) -> list:
             raise ValueError(f"Multiple matches found: {matches}")
         else:
             # Extract path from the  list object
-            filepaths.append(matches[0])        
+            filepaths.append(matches[0])
     return filepaths
 
 
@@ -154,6 +131,7 @@ def check_path_present(path: Path, isfile: bool):
     elif not isfile and path.is_file():
         raise PathError(f"Path should point to a folder, but got a file: {path}")
 
+
 def identify_all_folders(directory: Path, recursive: bool = False):
     """Recursively gets all folders within a directory.
 
@@ -172,6 +150,7 @@ def identify_all_folders(directory: Path, recursive: bool = False):
             if recursive:
                 folders.extend(identify_all_folders(path))
     return folders
+
 
 def identify_all_files(folder: Path, recursive: bool = False) -> list[Path]:
     """
@@ -268,7 +247,7 @@ def produce_dir(*args, verbose: bool = True) -> Path:
 
     # Define directory path
     dir = Path(*args)
-    
+
     # Create if doesn't exist
     if not dir.exists():
         dir.mkdir(parents=True, exist_ok=False)
@@ -360,33 +339,39 @@ def filter_nested_dict_by_attribute(nested_dict: dict, attributes: str | list) -
     return filtered_entries
 
 
-def filter_dict_by_key_or_value(data_dict: dict, dict_term: str | list, search_key: bool = True) -> dict:
-        """
-        Filters a dictionary to defined key(s)
+def filter_dict_by_key_or_value(
+    data_dict: dict, dict_term: str | list, search_key: bool = True
+) -> dict:
+    """
+    Filters a dictionary to defined key(s)
 
-        Args:
-            data_dict (dict):       Data dictionary to filter
-            dict_keys (str|list):   key(s) to search for in the dict values
+    Args:
+        data_dict (dict):       Data dictionary to filter
+        dict_keys (str|list):   key(s) to search for in the dict values
 
-        Returns:
-            dict
-        """
+    Returns:
+        dict
+    """
 
-        if isinstance(dict_term, str):
-            # Convert to set for consistency
-            dict_term = [ dict_term ]
-            
-        # Filter for attribute in key or value
-        if search_key:
-            filtered_entries = {
-                key: value for key, value in data_dict.items() if any(item in key for item in dict_term)
-            }
-        else:
-            filtered_entries = {
-                key: value for key, value in data_dict.items() if any(item in value for item in dict_term) 
-            }
+    if isinstance(dict_term, str):
+        # Convert to set for consistency
+        dict_term = [dict_term]
 
-        return filtered_entries
+    # Filter for attribute in key or value
+    if search_key:
+        filtered_entries = {
+            key: value
+            for key, value in data_dict.items()
+            if any(item in key for item in dict_term)
+        }
+    else:
+        filtered_entries = {
+            key: value
+            for key, value in data_dict.items()
+            if any(item in value for item in dict_term)
+        }
+
+    return filtered_entries
 
 
 def reformat_nested_dict(
@@ -435,13 +420,20 @@ def filter_nested_dict(
         dict:           All entries that fulfill the input requirements
     """
     # Filter to ensure that the entries contain both the new key and new value entries
-    dict_entries=filter_dict_by_key_or_value(nested_dict, new_value_field, search_key=False)
-    dict_entries=filter_dict_by_key_or_value(dict_entries, new_key_field, search_key=False)    
+    dict_entries = filter_dict_by_key_or_value(
+        nested_dict, new_value_field, search_key=False
+    )
+    dict_entries = filter_dict_by_key_or_value(
+        dict_entries, new_key_field, search_key=False
+    )
 
-    #If no exclude value then create a dict with the attribute_key
+    # If no exclude value then create a dict with the attribute_key
     if exclude_value is None:
-        return {value[new_key_field]: value[new_value_field] for value in dict_entries.values()}
-    
+        return {
+            value[new_key_field]: value[new_value_field]
+            for value in dict_entries.values()
+        }
+
     # Only include those containing the key
     if reverse:
         return {
@@ -449,9 +441,9 @@ def filter_nested_dict(
             for value in dict_entries.values()
             if value[new_value_field] == exclude_value
         }
-    
+
     # Exclude all entries containing the exclude_value
-    return {    
+    return {
         value[new_key_field]: value[new_value_field]
         for value in dict_entries.values()
         if value[new_value_field] != exclude_value
