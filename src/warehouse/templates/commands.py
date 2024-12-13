@@ -11,7 +11,9 @@ from warehouse.lib.general import identify_files_by_search, produce_dir
 from warehouse.lib.logging import divider, identify_cli_command
 from warehouse.lib.regex import Regex_patterns
 
+# Resolve file / folder locations irrespective of cwd
 script_dir = Path(__file__).parent.resolve()
+templates_dir = script_dir.parent.parent.parent / "templates"
 
 
 @click.command(short_help="Update template files with group specific data")
@@ -52,7 +54,6 @@ def templates(group_name: str, output_folder: Path):
         )
 
     # Identify all template files
-    templates_dir = Path.cwd() / "templates"
     template_fns = identify_files_by_search(templates_dir, Regex_patterns.EXCEL_FILE)
 
     # Create the output folder
