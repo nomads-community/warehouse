@@ -7,7 +7,7 @@ metadata:
   recursive: false
   exclude: []
   expect:
-    - "*_sample_info.csv"
+    - "*sample_info.csv"
 
 minknow:
   name: minknow
