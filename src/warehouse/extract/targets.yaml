@@ -1,31 +1,43 @@
 # YAML file to generate a dictionary for all targets to extract from a 
 # sequencing folder hierarchy
+# star symbols act as wildcards
 
-savanna:
-  name: savanna
+metadata:
+  name: metadata
   recursive: false
   exclude: []
-  subfolders:
-    summary:
-      name: summary
-      recursive: true
-      exclude: []
+  expect:
+    - "*_sample_info.csv"
+
+minknow:
+  name: minknow
+  recursive: false
+  exclude: ["sequencing_summary_*.txt"]
+  expect:
+    - fastq_pass
+
 nomadic:
   name: nomadic
   recursive: false
   exclude:
     - summary.depth.csv
     - summary.fastq.csv
+  expect:
+    - summary.bam_flagstats.csv
   subfolders:
     metadata:
       name: metadata
       recursive: false
       exclude: []
-metadata:
-  name: metadata
+
+savanna:
+  name: savanna
   recursive: false
   exclude: []
-minknow:
-  name: minknow
-  recursive: false
-  exclude: ["sequencing_summary_*.txt"]
+  expect:
+    - summary
+  subfolders:
+    summary:
+      name: summary
+      recursive: true
+      exclude: []

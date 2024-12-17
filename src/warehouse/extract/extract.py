@@ -2,7 +2,10 @@ import logging
 import subprocess
 from pathlib import Path
 
-from warehouse.lib.general import is_directory_empty, produce_dir
+from warehouse.lib.general import (
+    is_directory_empty,
+    produce_dir,
+)
 
 # Get logging process
 log = logging.getLogger("extract")
@@ -75,12 +78,29 @@ def process_targets(
         if is_directory_empty(source_dir):
             log.info(f"   {source_dir.name} is empty. Skipping this target")
             continue
+        # Check if the expected files are present
+        expected_paths = target_config.get("expect", [])
+
+        for expected_path in expected_paths:
+            # Build path to check
+            full_path = source_dir / expected_path
+            # Try wildcard matching
+            if "*" in expected_path:
+                # Check if there are any matches
+                found_paths = list(source_dir.glob(expected_path))
+                if len(found_paths) > 0:
+                    # Replace if a match was found
+                    full_path = found_paths[0]
+
+            if not full_path.exists():
+                log.warning(
+                    f"   Check File Hierarchy: {full_path.name} not found in {source_dir.name}."
+                )
 
         # Define and create target directory based on target name and target base
         target_dir = target_base_dir / target_name
         produce_dir(target_dir)
 
-        # print(f"source_dir: {source_dir}, target: {target_dir}")
         # Get recursive flag from target configuration
         recursive = target_config.get("recursive", False)
 
