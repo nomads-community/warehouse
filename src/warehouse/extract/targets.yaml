@@ -1,4 +1,4 @@
-# YAML file to generate a dictionary for all target to extract from a 
+# YAML file to generate a dictionary for all targets to extract from a 
 # sequencing folder hierarchy
 
 savanna:
@@ -25,3 +25,7 @@ metadata:
   name: metadata
   recursive: false
   exclude: []
+minknow:
+  name: minknow
+  recursive: false
+  exclude: ["sequencing_summary_*.txt"]

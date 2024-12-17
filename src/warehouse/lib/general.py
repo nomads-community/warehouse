@@ -229,6 +229,23 @@ def identify_files_by_search(
         raise
 
 
+def is_directory_empty(directory_path: Path):
+    """Checks if a directory is empty.
+
+    Args:
+      directory_path: The path to the directory to check.
+
+    Returns:
+      True if the directory is empty, False otherwise.
+    """
+
+    path = Path(directory_path)
+    if path.is_dir():
+        return not any(path.iterdir())
+    else:
+        raise ValueError(f"{directory_path} is not a directory.")
+
+
 def produce_dir(*args, verbose: bool = True) -> Path:
     """
     Produce a new directory by concatenating `args`,
