@@ -70,42 +70,46 @@ def process_targets(
         target_name = target_config.get("name")
         source_dir = source_base_dir / target_name
 
-        # Check if source directory exists
-        if not source_dir.exists():
-            log.info(f"   {source_dir.name} does not exist. Skipping this target")
+        # Check if source directory exists and is not empty
+        if not source_dir.exists() or is_directory_empty(source_dir):
+            log.info(
+                f"   {source_dir.name} is empty or does not exist. Skipping this target"
+            )
             continue
-        # Check if there are any files in the source
-        if is_directory_empty(source_dir):
-            log.info(f"   {source_dir.name} is empty. Skipping this target")
-            continue
-        # Check if the expected files are present
-        expected_paths = target_config.get("expect", [])
 
-        for expected_path in expected_paths:
-            # Build path to check
-            full_path = source_dir / expected_path
-            # Try wildcard matching
-            if "*" in expected_path:
-                # Check if there are any matches
-                found_paths = list(source_dir.glob(expected_path))
-                if len(found_paths) > 0:
-                    # Replace if a match was found
-                    full_path = found_paths[0]
-
-            if not full_path.exists():
-                log.warning(
-                    f"   Check File Hierarchy: {full_path.name} not found in {source_dir.name}."
-                )
+        # Check if expected paths are present:
+        # Pull in details from dict
+        expected_path = target_config.get("expected_path", [])
+        path_type = expected_path.get("type")
+        pattern = expected_path.get("pattern")
+        log.debug(f"Expected path type: {path_type}, and pattern: {pattern}")
+        # Search for matching filepaths:
+        found_paths = list(source_dir.glob(pattern))
+        log.debug(f"Found: {found_paths}")
+        # Warn if multiple or no matches
+        if len(found_paths) == 0:
+            log.warning(f"   Expected path: {pattern} not found in {source_dir}")
+        if len(found_paths) > 1:
+            pathnames = [p.name for p in found_paths]
+            log.warning(
+                f"   Multiple expected {path_type}s: {pathnames} in {source_dir}, using first entry"
+            )
+        # Edit the source_dir if one or more (take the first) expected paths found to
+        # account for different hierarchy
+        if len(found_paths) > 0:
+            source_dir = found_paths[0].parent
+            log.debug(f"   Changed source_dir to: {source_dir}")
 
         # Define and create target directory based on target name and target base
         target_dir = target_base_dir / target_name
         produce_dir(target_dir)
 
         # Get recursive flag from target configuration
-        recursive = target_config.get("recursive", False)
+        recursive = target_config.get("copy_recursive", False)
 
         # Identify anything to exclude
-        exclusions = target_config.get("exclude", [])
+        exclusions = target_config.get("copy_exclude", [])
+        print(exclusions)
 
         # Call extract_outputs for each target
         extract_outputs(source_dir, target_dir, exclusions, recursive)

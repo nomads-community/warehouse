@@ -1,43 +1,51 @@
 # YAML file to generate a dictionary for all targets to extract from a 
 # sequencing folder hierarchy
-# star symbols act as wildcards
 
+# metadata should contain a single file called "*sample_info.csv"
 metadata:
   name: metadata
-  recursive: false
-  exclude: []
-  expect:
-    - "*sample_info.csv"
+  expected_path:
+    type: file
+    pattern: "**/*sample_info.csv"
+  copy_recursive: false
+  copy_exclude: []
 
+#minknow generates five sub-folders, one of which is fastq_pass and a bunch of text files inc "sequencing_summary_*.txt"
 minknow:
   name: minknow
-  recursive: false
-  exclude: ["sequencing_summary_*.txt"]
-  expect:
-    - fastq_pass
+  expected_path:
+    type: folder
+    pattern: "**/*fastq_pass"
+  copy_recursive: false
+  copy_exclude: 
+    - "sequencing_summary_*.txt"
 
+ # nomadic generates three sub-folders, one of which is barcodes and text files including *summary.bam_flagstats*.csv
 nomadic:
   name: nomadic
-  recursive: false
-  exclude:
+  expected_path:
+    type: file
+    pattern: "**/summary.bam_flagstats.csv"
+  copy_recursive: false
+  copy_exclude:
     - summary.depth.csv
     - summary.fastq.csv
-  expect:
-    - summary.bam_flagstats.csv
   subfolders:
     metadata:
       name: metadata
-      recursive: false
-      exclude: []
+      copy_recursive: false
+      copy_exclude: []
 
+# savanna generates four sub-folders, one of which is summary
 savanna:
   name: savanna
-  recursive: false
-  exclude: []
-  expect:
-    - summary
+  expected_path:
+    type: folder
+    pattern: "**/summary"
+  copy_recursive: false
+  copy_exclude: []
   subfolders:
     summary:
       name: summary
-      recursive: true
-      exclude: []
+      copy_recursive: true
+      copy_exclude: []
