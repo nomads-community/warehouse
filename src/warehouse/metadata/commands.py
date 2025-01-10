@@ -1,16 +1,19 @@
-import click
 import logging
-
 from pathlib import Path
 
+import click
 
-from warehouse.metadata.metadata import ExpMetadataMerge, ExpMetadataParser, SampleMetadataParser
-from warehouse.lib.logging import identify_cli_command, divider
 from warehouse.lib.general import (
-    identify_files_by_search,
     Regex_patterns,
+    check_path_present,
     identify_experiment_files,
-    check_path_present
+    identify_files_by_search,
+)
+from warehouse.lib.logging import divider, identify_cli_command
+from warehouse.metadata.metadata import (
+    ExpMetadataMerge,
+    ExpMetadataParser,
+    SampleMetadataParser,
 )
 
 
@@ -37,7 +40,6 @@ from warehouse.lib.general import (
     required=False,
     help="Output individual and aggregated metadata files.",
 )
-
 @click.option(
     "-m",
     "--metadata_file",
@@ -45,21 +47,25 @@ from warehouse.lib.general import (
     required=False,
     help="Path to file (csv or xlsx) containing sample metadata information.",
 )
-
 def metadata(exp_folder: Path, expt_id: str, output_folder: Path, metadata_file: Path):
     """
     Extract, combine and validate all metadata
     """
 
-    #Set up child log and enter cli cmd
+    # Set up child log and enter cli cmd
     log = logging.getLogger("metadata_commands")
     log.info(divider)
     log.debug(identify_cli_command())
 
-    # Extract all metadata
+    # Extract metadata from template file(s) if exptid defined
     if expt_id:
         # Search for file with exptid in name
         matching_filepaths = identify_experiment_files(exp_folder, expt_id)
+
+        # Put outputs into subfolder experimental
+        if output_folder:
+            output_folder = output_folder / "experimental"
+
         ExpMetadataParser(matching_filepaths[0], output_folder)
         exit()
     else:
@@ -68,10 +74,9 @@ def metadata(exp_folder: Path, expt_id: str, output_folder: Path, metadata_file:
         )
         exp_data = ExpMetadataMerge(matching_filepaths, output_folder)
 
-    if metadata_file:
+    # Must be used with an output option
+    if metadata_file and output_folder:
         log.info("Extracting sample metadata")
         check_path_present(metadata_file, isfile=True)
-        SampleMetadataParser(metadata_file,
-                                        exp_data.rxns_df,
-                                        output_folder)
+        SampleMetadataParser(metadata_file, exp_data.rxns_df, output_folder)
         log.info(divider)

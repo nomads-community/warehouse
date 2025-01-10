@@ -1,22 +1,17 @@
-import click
-from pathlib import Path
 import logging
+from pathlib import Path
 
-from warehouse.metadata.metadata import ExpMetadataParser, ExpMetadataMerge
-from warehouse.seqfolders.dirs import ExperimentDirectories
-from warehouse.lib.general import identify_experiment_files
+import click
+
 from warehouse.lib.exceptions import DataFormatError
-from warehouse.lib.logging import identify_cli_command, divider
+from warehouse.lib.general import identify_experiment_files
+from warehouse.lib.logging import divider, identify_cli_command
+from warehouse.metadata.metadata import ExpMetadataMerge, ExpMetadataParser
+from warehouse.seqfolders.dirs import ExperimentDirectories
+
 
 @click.command(
     short_help="Create appropriate NOMADS directory structure for a sequencing run"
-)
-@click.option(
-    "-d",
-    "--dir_structure",
-    type=Path,
-    required=False,
-    help="Directory structure settings from .ini file.",
 )
 @click.option(
     "-e",
@@ -39,20 +34,27 @@ from warehouse.lib.logging import identify_cli_command, divider
     required=False,
     help="Base folder to output sequencing directory structure to.",
 )
-
+@click.option(
+    "-d",
+    "--dir_structure",
+    type=Path,
+    required=False,
+    help="Directory structure settings from .ini file.",
+)
 def seqfolders(
-    exp_folder: Path, expt_id: str, output_folder: Path, dir_structure: Path = None):
+    exp_folder: Path, expt_id: str, output_folder: Path, dir_structure: Path = None
+):
     """
     Create NOMADS sequencing folder structure including relevent data
     """
-    #Set up child log
+    # Set up child log
     log = logging.getLogger("seqfolders_commands")
     log.info(divider)
     log.debug(identify_cli_command())
 
-    #First extract the individual experiment
+    # First extract the individual experiment
     seqlib_fn = identify_experiment_files(exp_folder, expt_id)
-    exp_metadata = ExpMetadataParser(seqlib_fn[0])    
+    exp_metadata = ExpMetadataParser(seqlib_fn[0])
 
     # Make sure it is a seqlib expt
     if not exp_metadata.expt_type == "seqlib":
@@ -74,21 +76,23 @@ def seqfolders(
 
     # Copying metadata
     log.info(f"Identifying all metadata for samples included in {expt_id}")
-    #Extract all identifiers from swga_identifier and pcr_identifier columns
-    identifiers = exp_metadata.rxn_df['swga_identifier'].dropna().unique().tolist()
-    identifiers.extend( exp_metadata.rxn_df['pcr_identifier'].dropna().unique().tolist() )
-    #strip out the well info and create unique set of expids
-    expids = set( [ id[:-3] for id in identifiers if 'swga' not in id.lower()])
+    # Extract all identifiers from swga_identifier and pcr_identifier columns
+    identifiers = exp_metadata.rxn_df["swga_identifier"].dropna().unique().tolist()
+    identifiers.extend(exp_metadata.rxn_df["pcr_identifier"].dropna().unique().tolist())
+    # strip out the well info and create unique set of expids
+    expids = set([id[:-3] for id in identifiers if "swga" not in id.lower()])
     expids = list(expids) + [expt_id]
-    
+
     matching_filepaths = identify_experiment_files(exp_folder, expids)
-    
-    #Extract all data
+
+    # Extract all data
     exp_metadata = ExpMetadataMerge(matching_filepaths)
 
-    #Filter to the exptid given by user and sort by barcode column
-    exp_metadata_df = exp_metadata.all_df[exp_metadata.all_df['expt_id_seqlib'] == expt_id].sort_values(by='barcode')
-    #Export as sample_info file
+    # Filter to the exptid given by user and sort by barcode column
+    exp_metadata_df = exp_metadata.all_df[
+        exp_metadata.all_df["expt_id_seqlib"] == expt_id
+    ].sort_values(by="barcode")
+    # Export as sample_info file
     exp_metadata_df.to_csv(
         f"{expt_dirs.metadata_dir}/{expt_id}_sample_info.csv", index=False
     )

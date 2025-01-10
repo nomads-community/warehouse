@@ -92,9 +92,7 @@ def process_targets(
             log.debug(f"Found: {found_paths}")
             # Warn if multiple or no matches
             if len(found_paths) == 0:
-                log.warning(
-                    f"   Expected path: {found_paths} not found in {source_dir}"
-                )
+                log.warning(f"   Expected path / pattern: {pattern} not found in {source_dir}")
             if len(found_paths) > 1:
                 pathnames = [p.name for p in found_paths]
                 log.warning(
