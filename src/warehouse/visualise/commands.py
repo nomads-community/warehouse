@@ -73,7 +73,7 @@ def visualise(
     exp_data = ExpMetadataMerge(exp_fns, output_folder)
 
     log.info("Extracting sample metadata")
-    check_path_present_raise_error(metadata_file, isfile=True, raiseerror=True)
+    check_path_present_raise_error(metadata_file, isfile=True)
     sample_data = SampleMetadataParser(metadata_file, exp_data.rxns_df, output_folder)
     log.info(divider)
 
