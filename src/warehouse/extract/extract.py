@@ -1,8 +1,11 @@
 import logging
+import os
+import shutil
 import subprocess
 from pathlib import Path
 
 from warehouse.lib.general import (
+    identify_folders_by_pattern,
     is_directory_empty,
     produce_dir,
 )
@@ -92,7 +95,9 @@ def process_targets(
             log.debug(f"Found: {found_paths}")
             # Warn if multiple or no matches
             if len(found_paths) == 0:
-                log.warning(f"   Expected path / pattern: {pattern} not found in {source_dir}")
+                log.warning(
+                    f"   Expected path / pattern: {pattern} not found in {source_dir}"
+                )
             if len(found_paths) > 1:
                 pathnames = [p.name for p in found_paths]
                 log.warning(
@@ -122,3 +127,109 @@ def process_targets(
         if subfolders:
             # Recursively process subfolders with appropriate source and target paths
             process_targets(subfolders, source_dir, target_dir)
+
+
+def NOMADS_move_results(source_dir: Path, dest_dir: Path, symlink: bool = True):
+    """
+    Moves a folder from the source path to the destination path.
+
+    Args:
+      source_dir: The path to the folder to be moved.
+      dest_dir: The path to the destination folder.
+    """
+    # Ensure correct filetypes
+    if not isinstance(source_dir, Path):
+        source_dir = Path(source_dir)
+    if not isinstance(dest_dir, Path):
+        dest_dir = Path(dest_dir)
+
+    # Check if present
+    if not source_dir.exists():
+        raise FileNotFoundError(f"Path '{source_dir}' does not exist.")
+    if not dest_dir.exists():
+        raise FileNotFoundError(f"Path '{source_dir}' does not exist.")
+    try:
+        # Remove the dest_directory
+        shutil.rmtree(str(dest_dir))
+        # Move source to dest
+        shutil.move(str(source_dir), str(dest_dir))
+        if symlink:
+            # Create a symlink
+            os.symlink(str(dest_dir), str(source_dir))
+            log.info("Folder moved successfully and symlink created.")
+        log.info("Folder moved successfully.")
+    except Exception as e:
+        log.info(f"Error moving folder: {str(e)}")
+
+
+def move_folder_optional_sudo_symlink(
+    source_path: Path,
+    dest_path: Path,
+    as_sudo: bool = False,
+    with_symlink: bool = False,
+) -> str:
+    """
+    Moves a folder using the 'sudo' command.
+
+    Args:
+      source_dir: The path to the folder to be moved.
+      dest_dir: The path to the destination folder.
+
+    Returns:
+      A string indicating success or the error message.
+    """
+    try:
+        # Convert pathlib objects to str
+        source_dir = str(source_path.resolve())
+        dest_dir = str(dest_path.resolve())
+
+        # Remove the dest_directory
+        shutil.rmtree(dest_dir)
+        # Move source to dest
+        if as_sudo:
+            subprocess.run(["sudo", "mv", source_dir, dest_dir], check=True)
+            chown_paths_to_user(dest_path)
+        else:
+            subprocess.run(["mv", source_dir, dest_dir], check=True)
+        log.info("   Folder moved successfully.")
+
+        if with_symlink:
+            os.symlink(dest_dir, source_dir)
+            log.info("   Symlink created")
+
+    except subprocess.CalledProcessError as e:
+        return f"   Error moving folder: {e}"
+
+
+def chown_paths_to_user(path: Path):
+    """
+    Recursively change ownership of files / folders within a path.
+
+    Args:
+      path: The path to the directory as a Path object.
+    """
+    user = os.getlogin()
+    dir = str(path.resolve())
+    subprocess.run(["sudo", "chown", f"{user}:{user}", dir], check=True)
+    for path_ob in path.rglob("*"):
+        try:
+            item = str(path_ob.resolve())
+            subprocess.run(["sudo", "chown", f"{user}:{user}", item], check=True)
+        except OSError as e:
+            print(f"   Error changing permissions for '{item}': {e}")
+
+
+def identify_single_folder(folder_path: Path, pattern):
+    """
+    Identify a single target folder using a pattern and optionally test if empty
+
+    Args:
+      path: The path to the directory as a Path object.
+      pattern: The pattern to search for.
+    """
+    folders = identify_folders_by_pattern(folder_path, pattern)
+
+    if len(folders) != 1:
+        return None
+
+    return folders[0]
