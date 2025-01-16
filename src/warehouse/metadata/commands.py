@@ -5,7 +5,7 @@ import click
 
 from warehouse.lib.general import (
     Regex_patterns,
-    check_path_present,
+    check_path_present_raise_error,
     identify_experiment_files,
     identify_files_by_search,
 )
@@ -77,6 +77,6 @@ def metadata(exp_folder: Path, expt_id: str, output_folder: Path, metadata_file:
     # Must be used with an output option
     if metadata_file and output_folder:
         log.info("Extracting sample metadata")
-        check_path_present(metadata_file, isfile=True)
+        check_path_present_raise_error(metadata_file, isfile=True)
         SampleMetadataParser(metadata_file, exp_data.rxns_df, output_folder)
         log.info(divider)

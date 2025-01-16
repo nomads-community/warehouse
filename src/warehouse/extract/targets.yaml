@@ -6,7 +6,7 @@ metadata:
   name: metadata
   expected_path:
     type: file
-    pattern: "**/*sample_info.csv"
+    pattern: "**/*sample_info*.csv"
   copy_recursive: false
   copy_exclude: []
 

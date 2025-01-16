@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from warehouse.lib.exceptions import DataFormatError, PathError
+from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.regex import Regex_patterns
 
 # Get logging process
@@ -115,21 +115,77 @@ def check_duplicate_names(entries):
     return duplicates
 
 
-def check_path_present(path: Path, isfile: bool):
+def check_path_present_raise_error(path: Path, isfile: bool = False) -> bool:
     """
     Checks a path is present and whether it is a folder / file.
 
     Args:
-    path (Path): path to the file or folder.
-    isfile(bool): whether path should be a file or folder
+        path (Path): path to the file or folder.
+        isfile(bool): whether path should be a file or folder
+
+    Returns:
+        bool result
     """
     if not path.exists():
-        raise ValueError(f"{path} does not exist. Exiting...")
+        raise FileNotFoundError(f"Path '{path}' does not exist. Exiting...")
 
     if isfile and not path.is_file():
-        raise PathError(f"Path should point to a file, but got a directory: {path}")
+        raise IsADirectoryError(
+            f"Path '{path}' should point to a file, but its a directory"
+        )
     elif not isfile and path.is_file():
-        raise PathError(f"Path should point to a folder, but got a file: {path}")
+        raise NotADirectoryError(
+            f"Path should point to a folder, but got a file: {path}"
+        )
+
+    return True
+
+
+def check_path_present(path: Path, isfile: bool = False) -> bool:
+    """
+    Checks a path is present and whether it is a folder / file.
+
+    Args:
+        path (Path): path to the file or folder.
+        isfile(bool): whether path should be a file or folder
+
+    Returns:
+        bool result
+    """
+    if not path.exists():
+        return False
+
+    if isfile and not path.is_file():
+        return False
+    elif not isfile and path.is_file():
+        return False
+
+    return True
+
+
+def identify_folders_by_pattern(folder: Path, pattern: str) -> list[Path]:
+    """
+    Searches for folders within a given root directory whose names match the provided regular expression pattern.
+
+    Args:
+      root_dir: The root directory to search within.
+      pattern: The regular expression pattern to match against folder names.
+
+    Returns:
+      A list of Path objects representing the folders that match the pattern.
+    """
+
+    path = Path(folder)
+    matching_folders = []
+
+    if not path.exists():
+        return matching_folders
+
+    for folder in path.iterdir():
+        if folder.is_dir() and re.search(pattern, folder.name):
+            matching_folders.append(folder)
+
+    return matching_folders
 
 
 def identify_all_folders(directory: Path, recursive: bool = False):
@@ -229,7 +285,7 @@ def identify_files_by_search(
         raise
 
 
-def is_directory_empty(directory_path: Path):
+def is_directory_empty(directory_path: Path) -> bool:
     """Checks if a directory is empty.
 
     Args:
