@@ -16,7 +16,7 @@ script_dir = Path(__file__).parent.resolve()
 
 
 @click.command(
-    short_help="Consolidate sequence data summary outputs from nomadic and / or savanna into standardised hierarchy and / or copy to synchronised folder."
+    short_help="Consolidate sequencing data into seqfolders structure and selectively synchronise"
 )
 @click.option(
     "-s",
@@ -79,6 +79,7 @@ def extract(seq_folder: Path, output_folder: Path, expt_id: str, git_folder: Pat
                 source_dir = identify_single_folder(source_dir, f".*{expt_id}.*")
                 if not source_dir:
                     log.info(f"   {key_name} source folder not found. Skipping.")
+                    log.i
                     continue
 
                 # Identify destination dir

@@ -14,26 +14,36 @@ from warehouse.lib.regex import Regex_patterns
 # Resolve file / folder locations irrespective of cwd
 script_dir = Path(__file__).parent.resolve()
 templates_dir = script_dir.parent.parent.parent / "templates"
+# Identify and load targets dict from YAML file (assuming the file exists)
+yaml_file = script_dir / "group_details.yaml"
 
 
-@click.command(short_help="Update template files with group specific data")
+@click.command(
+    short_help="Update NOMADS template files with group specific usernames and projects"
+)
 @click.option(
     "-o",
     "--output_folder",
     type=Path,
-    required=True,
+    required=False,
     help="Path to folder where the updated templates should be output to",
 )
 @click.option(
     "-g",
     "--group_name",
     type=str,
-    required=True,
+    required=False,
     help="Name of group to use",
 )
-def templates(group_name: str, output_folder: Path):
+@click.option(
+    "-l",
+    "--list_groups",
+    is_flag=True,
+    help="List all groups available",
+)
+def templates(group_name: str, output_folder: Path, list_groups: bool):
     """
-    Update templates with user and project names
+    Update NOMADS templates with user and project names
     """
 
     # Set up child log
@@ -42,16 +52,27 @@ def templates(group_name: str, output_folder: Path):
     log.debug(identify_cli_command())
 
     # Identify and load targets dict from YAML file
-    yaml_file = script_dir / "group_details.yaml"
     with open(yaml_file, "r") as f:
         details = yaml.safe_load(f)
+
+    # List group options
+    if list_groups:
+        groups = ", ".join(list(details.keys()))
+        log.info(f"Available groups are: {groups}")
+        log.info(divider)
+        return
 
     # Extract group names
     grp_details = details.get(group_name)
     if grp_details is None:
         raise DataFormatError(
-            f"Group '{group_name}' not found. Options are {list(details.keys())}."
+            f"-g '{group_name}' not found. Options are {list(details.keys())}."
         )
+
+    if output_folder is None:
+        log.info("You have not defined an output folder (-o) option")
+        log.info(divider)
+        return
 
     # Identify all template files
     template_fns = identify_files_by_search(templates_dir, Regex_patterns.EXCEL_FILE)

@@ -11,7 +11,7 @@ from warehouse.seqfolders.dirs import ExperimentDirectories
 
 
 @click.command(
-    short_help="Create appropriate NOMADS directory structure for a sequencing run"
+    short_help="Generate NOMADS directory structure for a sequencing run from NOMADS metadata"
 )
 @click.option(
     "-e",

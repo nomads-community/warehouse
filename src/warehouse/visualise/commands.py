@@ -26,7 +26,7 @@ CSS_STYLE = ["scripts/visualise/assets/calling-style.css"]
 log = logging.getLogger("visualise")
 
 
-@click.command(short_help="Dashboard to visualise summary data from NOMADS assays")
+@click.command(short_help="Dashboard visualisation of NOMADS data from all experiments")
 @click.option(
     "-e",
     "--exp_folder",

@@ -35,7 +35,7 @@ class OrderedGroup(click.Group):
 @click.version_option(message="%(prog)s-v%(version)s")
 def cli():
     """
-    Standardisation, processing and sorting of NOMADS experimental, sample and sequence data
+    Standardisation, extraction and visualisation of NOMADS experimental and sequencing data
 
     """
     pass
@@ -45,11 +45,11 @@ def cli():
 # Individual sub-commands
 # ================================================================
 
+cli.add_command(templates)
 cli.add_command(metadata)
 cli.add_command(seqfolders)
-cli.add_command(visualise)
 cli.add_command(extract)
-cli.add_command(templates)
+cli.add_command(visualise)
 
 if __name__ == "__main__":
     cli()
