@@ -11,7 +11,7 @@ from warehouse.lib.regex import Regex_patterns
 log = logging.getLogger("general")
 
 
-def identify_exptid_from_path(path: Path) -> str:
+def identify_exptid_from_path(path: Path, raise_error: bool = True) -> str:
     """
     Extract the experimental ID from a file or folder
 
@@ -29,7 +29,9 @@ def identify_exptid_from_path(path: Path) -> str:
             # Second try with the full path
             match = re.search(Regex_patterns.NOMADS_EXPID, str(path))
         if match is None:
-            raise DataFormatError(f"Unable to identify an ExpID in: {path}")
+            if raise_error:
+                raise DataFormatError(f"Unable to identify an ExpID in: {path}")
+            return None
 
         return match.group(0)
 
@@ -285,7 +287,7 @@ def identify_files_by_search(
         raise
 
 
-def is_directory_empty(directory_path: Path) -> bool:
+def is_directory_empty(directory_path: Path, raise_error: bool = True) -> bool:
     """Checks if a directory is empty.
 
     Args:
@@ -294,12 +296,20 @@ def is_directory_empty(directory_path: Path) -> bool:
     Returns:
       True if the directory is empty, False otherwise.
     """
-
+    # Ensure it is a pathlib object
     path = Path(directory_path)
-    if path.is_dir():
-        return not any(path.iterdir())
-    else:
-        raise ValueError(f"{directory_path} is not a directory.")
+
+    # Check if it is a dir, error if not
+    if not path.is_dir():
+        if raise_error:
+            raise ValueError(f"{directory_path} is not a directory.")
+        return False
+
+    # Check if path is empty
+    if not any(path.iterdir()):
+        return True
+    # Otherwise it has contents
+    return False
 
 
 def produce_dir(*args, verbose: bool = True) -> Path:

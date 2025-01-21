@@ -620,7 +620,7 @@ class ExpMetadataMerge:
 
         # Give user a summary of experiments performed
         log.info("Experiments performed:")
-        log.info(expt_summary_df)
+        log.info(expt_summary_df.to_string(index=False))
         log.info(divider)
 
     def _check_duplicate_expid(self, filepaths: list[Path]) -> None:

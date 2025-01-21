@@ -3,6 +3,7 @@ from pathlib import Path
 
 import click
 
+from warehouse.aggregate.commands import aggregate
 from warehouse.extract.commands import extract
 from warehouse.lib.logging import config_root_logger
 from warehouse.metadata.commands import metadata
@@ -48,6 +49,7 @@ def cli():
 cli.add_command(templates)
 cli.add_command(metadata)
 cli.add_command(seqfolders)
+cli.add_command(aggregate)
 cli.add_command(extract)
 cli.add_command(visualise)
 
