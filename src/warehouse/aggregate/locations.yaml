@@ -1,0 +1,19 @@
+# YAML file to locate raw data outputs from ONT or NOMADS tools
+
+minknow:
+  git_prefix: False
+  source_dir: "/var/lib/minknow/data"
+  as_sudo: True
+  with_symlink: False
+  
+nomadic:
+  git_prefix: True
+  source_dir: "nomadic/results"
+  as_sudo: False
+  with_symlink: True
+
+savanna:
+  git_prefix: True
+  source_dir: "savanna/results"
+  as_sudo: False
+  with_symlink: True

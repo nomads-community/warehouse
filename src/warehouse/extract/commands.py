@@ -5,18 +5,16 @@ import click
 import yaml
 
 from warehouse.extract.extract import (
-    identify_single_folder,
-    move_folder_optional_sudo_symlink,
     process_targets,
 )
-from warehouse.lib.general import identify_all_folders, is_directory_empty
+from warehouse.lib.general import identify_all_folders
 from warehouse.lib.logging import divider, identify_cli_command
 
 script_dir = Path(__file__).parent.resolve()
 
 
 @click.command(
-    short_help="Consolidate sequence data summary outputs from nomadic and / or savanna into standardised hierarchy and / or copy to synchronised folder."
+    short_help="Consolidate sequencing data into seqfolders structure and selectively synchronise"
 )
 @click.option(
     "-s",
@@ -29,28 +27,13 @@ script_dir = Path(__file__).parent.resolve()
     "-o",
     "--output_folder",
     type=Path,
-    required=False,
+    required=True,
     help="Path to synchronisation folder where summary sequencing outputs should be copied to",
 )
-@click.option(
-    "-i",
-    "--expt_id",
-    type=str,
-    required=False,
-    default="",
-    help="Experiment ID (e.g. SLJS034) to consolidate data into sequencing folder",
-)
-@click.option(
-    "-g",
-    "--git_folder",
-    type=Path,
-    required=False,
-    default=Path.home() / "git",
-    help="Path to git folder containing nomadic and savanna clones",
-)
-def extract(seq_folder: Path, output_folder: Path, expt_id: str, git_folder: Path):
+def extract(seq_folder: Path, output_folder: Path):
     """
-    Consolidate sequence data summaries for sharing
+    Extract summary sequence data files for sharing online
+
     """
     # Set up child log
     log = logging.getLogger("extract_commands")

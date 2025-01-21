@@ -17,7 +17,9 @@ from warehouse.metadata.metadata import (
 )
 
 
-@click.command(short_help="Extract, validate and optionally export experimental data")
+@click.command(
+    short_help="Extract, validate and optionally export experimental data from completed NOMADS templates"
+)
 @click.option(
     "-e",
     "--exp_folder",
