@@ -69,7 +69,7 @@ def metadata(exp_folder: Path, expt_id: str, output_folder: Path, metadata_file:
             output_folder = output_folder / "experimental"
 
         ExpMetadataParser(matching_filepaths[0], output_folder)
-        exit()
+        return
     else:
         matching_filepaths = identify_files_by_search(
             exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True

@@ -40,55 +40,6 @@ def extract(seq_folder: Path, output_folder: Path):
     log.info(divider)
     log.debug(identify_cli_command())
 
-    # First try and consolidate all data into the standardised hierarchy
-    if expt_id:
-        # Identify and load targets dict from YAML file
-        extractions_yaml = script_dir / "extractions.yaml"
-        with open(extractions_yaml, "r") as f:
-            extractions = yaml.safe_load(f)
-
-        # User feedback
-        log.info(f"Consolidating data for experiment {expt_id}")
-
-        exp_folder = identify_single_folder(seq_folder, expt_id)
-        if exp_folder:
-            log.info(divider)
-            for key_name, values in extractions.items():
-                # Identify source_dir
-                if values.get("git_prefix"):
-                    source_dir = git_folder / values.get("source_dir")
-                else:
-                    source_dir = Path(values.get("source_dir"))
-                source_dir = identify_single_folder(source_dir, f".*{expt_id}.*")
-                if not source_dir:
-                    log.info(f"   {key_name} source folder not found. Skipping.")
-                    continue
-
-                # Identify destination dir
-                destination_dir = identify_single_folder(exp_folder, key_name)
-
-                if not destination_dir:
-                    log.info(f"   {key_name} destination folder not found. Skipping.")
-                    continue
-
-                if not is_directory_empty(destination_dir):
-                    log.info(f"   {key_name} destination folder not empty. Skipping.")
-                    continue
-
-                # Give user feedback
-                log.info(f"Source folder: {source_dir}")
-                log.info(f"Destination folder: {destination_dir}")
-                move_folder_optional_sudo_symlink(
-                    source_dir,
-                    destination_dir,
-                    values.get("as_sudo"),
-                    values.get("with_symlink"),
-                )
-                log.info(divider)
-        else:
-            log.info(f"   Experiment {expt_id} not found in {seq_folder}")
-    log.info(divider)
-
     # Identify and load targets dict from YAML file
     yaml_file = script_dir / "targets.yaml"
     with open(yaml_file, "r") as f:
