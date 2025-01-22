@@ -8,23 +8,34 @@ This repository aims to help streamline and standardise the storage of experimen
 There are six processes in `warehouse`:
 ```mermaid
 flowchart LR
+    subgraph OS1["**Shared drive**"]
     A[<span style="color:orange;">**warehouse templates**</span> 
-    1. Generate group specific templates to record experiment details] --> B[<span style="color:orange;">**warehouse metadata**</span> 
-    2. Ensure recorded experimental data is consistent]
-    B --> C[<span style="color:orange;">**warehouse seqfolders**</span>
-    3. Generate sequence data folder for each experiment]
-    C --> D[<span style="color:orange;">**warehouse aggregate**</span> 
-    4. Aggregate sequence data into sequence data folder]
-    D --> E[<span style="color:orange;">**warehouse extract**</span> 
-    5. Extract summary sequence data for wider sharing]
+    Generate group specific templates] --> B[<span style="color:orange;">**warehouse metadata**</span> 
+    Record and ensure experimental data is consistent]
+    end
+    B --> C[<span style="color:orange;">**warehouse seqfolders**</span> 
+    Generate sequence data folder for each experiment]
+    subgraph SC["**Sequencing computer**"]
+        C --> D[<span style="color:orange;">**warehouse aggregate**</span> 
+        Aggregate sequence data into sequence data folder]
+        D --> E[<span style="color:orange;">**warehouse extract**</span> 
+        Extract summary sequence data for wider sharing]
+    end
+    subgraph OS2["**Shared drive**"]
     E --> T[<span style="color:orange;">**warehouse visualise**</span> 
-    6. View and interact all experimental data in a dashboard]
+    View and interact with data in a dashboard]
+    end
+
+
+style OS1 fill:#8a5a67, color: #fefdfd
+style OS2 fill:#8a5a67, color: #fefdfd
+style SC fill:#678a5a, color: #fefdfd
     
 ```
-It is assumed that sequence data are sorted into three folders:
-- <b>experimental:</b> contains all completed templates
+Note that steps 3 to 5 must be performed on the sequencing computer, while all others should use the shared online resource. This resource should be sorted into three folders:
+- <b>experimental:</b> contains all completed experimental templates
 - <b>sample:</b> contains information from the field for samples e.g. date collected, parasitaemia etc, in a spreadsheet or csv, together with a corresponding `.ini` file (see `example_data/sample/`) that defines the different fields
-- <b>sequence:</b> - contains sequence data. On the sequencing computer this will contain all raw data, but only a subset will be shared online.
+- <b>sequence:</b> - contains summary sequence data extracted from the complete raw sequence data on the sequencing laptop.
 
 
 ## 1. warehouse templates
