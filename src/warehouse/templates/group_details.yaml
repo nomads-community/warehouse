@@ -60,3 +60,30 @@ KCL:
     - SO
   projects:
     - ATSB
+CIGASS:
+  names:
+    - Djiby Sow 
+    - Aita Sene 
+    - Amy Gaye
+  initials:
+    - DS
+    - AS
+    - AG
+  projects:
+    - TES Benin
+    - TES Niger
+    - TES Burkina
+    - CIGASS
+IRSS:
+  names:
+    - Oumar Ouedraogo
+    - Salif Sombie
+    - Seni Nikiema
+    - Nadege Tibiri
+  initals:
+    - OO
+    - SS
+    - SN
+    - NT
+  projects:
+    - IRSS
