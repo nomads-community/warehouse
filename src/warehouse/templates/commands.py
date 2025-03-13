@@ -4,18 +4,19 @@ from pathlib import Path
 import click
 import yaml
 from openpyxl import load_workbook
-from openpyxl.worksheet.datavalidation import DataValidation
 
 from warehouse.lib.exceptions import DataFormatError
-from warehouse.lib.general import identify_files_by_search, produce_dir
+from warehouse.lib.general import identify_files_by_search, pad_list, produce_dir
 from warehouse.lib.logging import divider, identify_cli_command
 from warehouse.lib.regex import Regex_patterns
+from warehouse.lib.spreadsheets import apply_worksheet_validation_rule
 
 # Resolve file / folder locations irrespective of cwd
 script_dir = Path(__file__).parent.resolve()
 templates_dir = script_dir.parent.parent.parent / "templates"
 # Identify and load targets dict from YAML file (assuming the file exists)
-yaml_file = script_dir / "group_details.yaml"
+group_details_yaml = script_dir / "group_details.yaml"
+data_validations_yaml = script_dir / "data_validations.yaml"
 
 
 @click.command(
@@ -51,9 +52,13 @@ def templates(group_name: str, output_folder: Path, list_groups: bool):
     log.info(divider)
     log.debug(identify_cli_command())
 
-    # Identify and load targets dict from YAML file
-    with open(yaml_file, "r") as f:
+    # Load group details from YAML file
+    with open(group_details_yaml, "r") as f:
         details = yaml.safe_load(f)
+
+    # Load data validation details from YAML file
+    with open(data_validations_yaml, "r") as f:
+        validations = yaml.safe_load(f)
 
     # List group options
     if list_groups:
@@ -97,19 +102,17 @@ def templates(group_name: str, output_folder: Path, list_groups: bool):
                 # Assign the new value to the cell
                 cell.value = details[count]
 
-        # Above removes the dropdown references on the assay sheet so reinsert
-        worksheet = workbook["Assay"]
-        # Create UserName Validation
-        data_validation = DataValidation(type="list", formula1="Reference!I3:I8")
-        # Add the DataValidation to correct cell
-        worksheet.add_data_validation(data_validation)
-        data_validation.add(worksheet["C3"])
+        # Then restore the data validation logic that is somehow overwritten when replacing the above details
+        log.debug(f"{template_fn.stem}")
 
-        # Create Project validation
-        data_validation = DataValidation(type="list", formula1="Reference!L3:L8")
-        # Add the DataValidation to correct cell
-        worksheet.add_data_validation(data_validation)
-        data_validation.add(worksheet["C7"])
+        for sheetname, validation in validations.get(template_fn.stem, {}).items():
+            # Load worksheet
+            worksheet = workbook[sheetname]
+            log.debug(type(worksheet))
+            log.debug(f"   Worksheet name: {sheetname}")
+            for validationname, validation in validation.items():
+                log.debug(f"      Validation name: {validationname}")
+                apply_worksheet_validation_rule(worksheet, validation)
 
         # Define output path
         output_path = output_folder / template_fn.name
@@ -117,9 +120,3 @@ def templates(group_name: str, output_folder: Path, list_groups: bool):
         workbook.save(output_path)
 
     log.info(divider)
-
-
-def pad_list(dictionary: dict, key: str, padlength: int) -> list:
-    details = dictionary.get(key)
-    details = details + [""] * (padlength - len(details))
-    return details

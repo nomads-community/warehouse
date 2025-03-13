@@ -1,0 +1,111 @@
+# YAML file containing all of the data validations for each of the templates
+
+NOMADS_sWGA_Worksheet:      # TemplateName
+  Assay:                    # SheetName
+    UserName:               # ValidationName
+      ref_range: reference!I3:I8
+      ref_type: list
+      apply_to_cell: C3 
+    ProjectName:
+      ref_range: reference!L3:L8
+      ref_type: list
+      apply_to_cell: C7
+    swga_enzyme:
+      ref_range: reference!E3:E4
+      ref_type: list
+      apply_to_cell: C11
+    reference_type:
+      ref_range: reference!E42:E43
+      ref_type: list
+      apply_to_cell: F33
+  sWGA:
+    sample_type:
+      ref_range: reference!E7:E9
+      ref_type: list
+      apply_to_cell: F3:F98
+
+NOMADS_PCR_Worksheet:
+  Assay:
+    UserName:
+      ref_range: reference!I3:I8
+      ref_type: list
+      apply_to_cell: C3 
+    ProjectName:
+      ref_range: reference!L3:L8
+      ref_type: list
+      apply_to_cell: C7
+    assay_name:
+      ref_range: reference!E3:E8
+      ref_type: list
+      apply_to_cell: C11
+    pcr_enzyme:
+      ref_range: reference!E14:E16
+      ref_type: list
+      apply_to_cell: C15
+    reference_type:
+      ref_range: reference!E104:E105
+      ref_type: list
+      apply_to_cell: F34
+  PCR:
+    sample_type:
+      ref_range: reference!E19:E21
+      ref_type: list
+      apply_to_cell: G3:G98
+
+NOMADS_Library_Ligation_Worksheet:
+  Assay:
+    UserName:
+      ref_range: reference!I3:I8
+      ref_type: list
+      apply_to_cell: C3 
+    ProjectName:
+      ref_range: reference!L3:L8
+      ref_type: list
+      apply_to_cell: C7
+    sequencing_platform:
+      ref_range: reference!E11:E15
+      ref_type: list
+      apply_to_cell: C67
+    flowcellstatus:
+      ref_range: reference!E3:E4
+      ref_type: list
+      apply_to_cell: C69
+    flowcellchemistry:
+      ref_range: reference!E18:E19
+      ref_type: list
+      apply_to_cell: C71
+  Library:
+    sample_type:
+      ref_range: reference!E46:E48
+      ref_type: list
+      apply_to_cell: F3:F98
+
+NOMADS_Library_Rapid_Worksheet:
+  Assay:
+    UserName:
+      ref_range: reference!I3:I8
+      ref_type: list
+      apply_to_cell: C3 
+    ProjectName:
+      ref_range: reference!L3:L8
+      ref_type: list
+      apply_to_cell: C7
+    sequencing_platform:
+      ref_range: reference!E11:E14
+      ref_type: list
+      apply_to_cell: C41
+    flowcellstatus:
+      ref_range: reference!E3:E4
+      ref_type: list
+      apply_to_cell: C43
+    flowcellchemistry:
+      ref_range: reference!E18:E19
+      ref_type: list
+      apply_to_cell: C45
+  Library:
+    sample_type:
+      ref_range: reference!E37:E39
+      ref_type: list
+      apply_to_cell: F3:F98
+
+    

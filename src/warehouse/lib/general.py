@@ -531,3 +531,9 @@ def filter_nested_dict(
         for value in dict_entries.values()
         if value[new_value_field] != exclude_value
     }
+
+
+def pad_list(dictionary: dict, key: str, padlength: int) -> list:
+    details = dictionary.get(key)
+    details = details + [""] * (padlength - len(details))
+    return details
