@@ -9,7 +9,10 @@ from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import identify_files_by_search, pad_list, produce_dir
 from warehouse.lib.logging import divider, identify_cli_command
 from warehouse.lib.regex import Regex_patterns
-from warehouse.lib.spreadsheets import apply_worksheet_validation_rule
+from warehouse.lib.spreadsheets import (
+    apply_worksheet_conditional_formatting,
+    apply_worksheet_validation_rule,
+)
 
 # Resolve file / folder locations irrespective of cwd
 script_dir = Path(__file__).parent.resolve()
@@ -17,6 +20,7 @@ templates_dir = script_dir.parent.parent.parent / "templates"
 # Identify and load targets dict from YAML file (assuming the file exists)
 group_details_yaml = script_dir / "group_details.yaml"
 data_validations_yaml = script_dir / "data_validations.yaml"
+conditional_formatting_yaml = script_dir / "conditional_formatting.yaml"
 
 
 @click.command(
@@ -59,6 +63,10 @@ def templates(group_name: str, output_folder: Path, list_groups: bool):
     # Load data validation details from YAML file
     with open(data_validations_yaml, "r") as f:
         validations = yaml.safe_load(f)
+
+    # Load conditional formatting details from YAML file
+    with open(conditional_formatting_yaml, "r") as f:
+        formatting_rules = yaml.safe_load(f)
 
     # List group options
     if list_groups:
@@ -114,8 +122,19 @@ def templates(group_name: str, output_folder: Path, list_groups: bool):
                 log.debug(f"      Validation name: {validationname}")
                 apply_worksheet_validation_rule(worksheet, validation)
 
+        # Then restore the conditional formatting logic that is somehow overwritten when replacing the above details
+        for sheetname, format in formatting_rules.get(template_fn.stem, {}).items():
+            # Load worksheet
+            worksheet = workbook[sheetname]
+            log.debug(type(worksheet))
+            log.debug(f"   Worksheet name: {sheetname}")
+            for formattingnname, format in format.items():
+                log.debug(f"      Formatting name: {formattingnname}")
+                apply_worksheet_conditional_formatting(worksheet, format)
+
         # Define output path
         output_path = output_folder / template_fn.name
+        # breakpoint()
         # Save the modified workbook
         workbook.save(output_path)
 

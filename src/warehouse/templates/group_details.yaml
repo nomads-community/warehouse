@@ -19,11 +19,17 @@ NMEC:
     - TES2022
 UCB:
   names:
-    - Valery Byela
-    - Yves Kwibuka
+    - Valéry Byela
+    - Yves Kwibaka
+    - Dieudonné Nyamaifofe
+    - Esto Bahizire
+    - Bertin Casinga
   initials:
     - VB
     - YB
+    - DN
+    - EB
+    - BC
   projects: 
     - MARS
     - ARMEA

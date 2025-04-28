@@ -1,0 +1,14 @@
+# YAML file containing all of the conditional formatting rules for each of the templates
+
+NOMADS_Library_Rapid_Worksheet:      # TemplateName
+  Assay:                             # SheetName
+    DNAconcPooled_low:               # ValidationName
+      apply_to_cell: D27
+      value_to_compare: reference!B9
+      operator: lessThan
+      colour: FFFF0000
+    DNAconcPooled_high:
+      apply_to_cell: D27
+      value_to_compare: reference!B9
+      operator: greaterThan
+      colour: FF00FF00
