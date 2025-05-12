@@ -16,11 +16,6 @@ from warehouse.visualise.commands import visualise
 #
 # ================================================================
 
-# Configure logging before subcommand execution
-warehouse_dir = Path(__file__).parent.parent.parent.resolve()
-log_dir = warehouse_dir / "logs"
-config_root_logger(log_dir=log_dir, verbose=False)
-
 
 class OrderedGroup(click.Group):
     def __init__(self, name=None, commands=None, **attrs):
@@ -34,12 +29,22 @@ class OrderedGroup(click.Group):
 
 @click.group(cls=OrderedGroup)
 @click.version_option(message="%(prog)s-v%(version)s")
-def cli():
+@click.option(
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Enable verbose logging.",
+)
+@click.pass_context
+def cli(ctx, verbose):
     """
     Standardisation, extraction and visualisation of NOMADS experimental and sequencing data
 
     """
-    pass
+    # Configure logging before subcommand execution
+    warehouse_dir = Path(__file__).parent.parent.parent.resolve()
+    log_dir = warehouse_dir / "logs"
+    config_root_logger(log_dir=log_dir, verbose=verbose)
 
 
 # ================================================================

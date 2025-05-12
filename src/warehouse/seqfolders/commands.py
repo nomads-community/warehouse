@@ -76,12 +76,20 @@ def seqfolders(
 
     # Copying metadata
     log.info(f"Identifying all metadata for samples included in {expt_id}")
-    # Extract all identifiers from swga_identifier and pcr_identifier columns
+    # this is needed to extract information entered in an earlier template
+    # e.g. during pcr or swga that is not copied into the library template
+
+    # First extract all identifiers from swga_identifier and pcr_identifier columns
     identifiers = exp_metadata.rxn_df["swga_identifier"].dropna().unique().tolist()
     identifiers.extend(exp_metadata.rxn_df["pcr_identifier"].dropna().unique().tolist())
+
     # strip out the well info and create unique set of expids
-    expids = set([id[:-3] for id in identifiers if "swga" not in id.lower()])
-    expids = list(expids) + [expt_id]
+    expids = list([id[:-3] for id in identifiers if "swga" not in id.lower()])
+    # Add in the current experiment id
+    if expt_id in expids:
+        raise DataFormatError(f"{expt_id} is being used as an sWGA or PCR identifier")
+    # Create a list of unique expids that need to be extracted
+    expids = set(expids + [expt_id])
 
     matching_filepaths = identify_experiment_files(exp_folder, expids)
 
@@ -92,6 +100,7 @@ def seqfolders(
     exp_metadata_df = exp_metadata.all_df[
         exp_metadata.all_df["expt_id_seqlib"] == expt_id
     ].sort_values(by="barcode")
+
     # Export as sample_info file
     exp_metadata_df.to_csv(
         f"{expt_dirs.metadata_dir}/{expt_id}_sample_info.csv", index=False

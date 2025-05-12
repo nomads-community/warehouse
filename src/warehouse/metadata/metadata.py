@@ -642,7 +642,7 @@ class ExpMetadataMerge:
             expid = identify_exptid_from_path(filepath)
             if expid in keys_seen:
                 raise ValueError(
-                    f"Duplicate expt_id identfied: {expid} in files: {filepath.name} and {expid_dict[expid]}"
+                    f"Duplicate expt_id identified: {expid} in files: {filepath.name} and {expid_dict[expid]}"
                 )
             # Add to set for checking and to dict for printing out filename
             keys_seen.add(expid)
