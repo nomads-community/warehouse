@@ -134,7 +134,7 @@ def templates(group_name: str, output_folder: Path, list_groups: bool):
 
         # Define output path
         output_path = output_folder / template_fn.name
-        # breakpoint()
+
         # Save the modified workbook
         workbook.save(output_path)
 

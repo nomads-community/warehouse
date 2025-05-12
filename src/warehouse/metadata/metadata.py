@@ -813,7 +813,7 @@ class SeqDataSchemaFields:
 
 class SequencingMetadataParser:
     """
-    Extract all identifiable sequencing data from nomadic / savanna pipelings.
+    Extract all identifiable sequencing data from nomadic / savanna pipelines.
 
     """
 
@@ -828,21 +828,27 @@ class SequencingMetadataParser:
         ExpDataSchema = exp_data.DataSchema
 
         # Filter expdataschema to key fields needed
-        key_fields = filter_dict_by_key_or_value(
+        key_fields_dict = filter_dict_by_key_or_value(
             ExpDataSchema.dataschema_dict,
             ["EXP_ID", "SAMPLE_ID", "EXTRACTIONID", "BARCODE", "SAMPLE_TYPE"],
             search_key=True,
         )
 
         # Simplify dict to a list of keys (fieldnames in df)
-        key_fields = list(reformat_nested_dict(key_fields, "field", "label").keys())
+        key_fields = list(
+            reformat_nested_dict(key_fields_dict, "field", "label").keys()
+        )
 
         # Need to match the sequence data outputs to the exp.rxn_df to merge correctly
-        # Make a deep copy of the df
+        # Make a deep copy of the df and then remove all entries that do not relate to
+        # a sequencing experiment
         match_df = exp_data.rxns_df.copy()
+        match_df = match_df[match_df["expt_type"] == "seqlib"]
 
         # Trim to key_fields that are present
         match_df = match_df[[col for col in key_fields if col in match_df.columns]]
+        match_df = match_df.sort_values(by=["expt_id", "barcode"])
+
         # Add in field if missing
         if ExpDataSchema.SAMPLE_TYPE[0] not in match_df.columns:
             match_df[ExpDataSchema.SAMPLE_TYPE[0]] = np.nan

@@ -1,14 +1,16 @@
-import pandas as pd
-import pathlib as Path
 import json
-from itertools import chain
 import logging
+import pathlib as Path
+from itertools import chain
 
-from warehouse.lib.general import produce_dir, identify_exptid_from_path
+import pandas as pd
+
 from warehouse.lib.exceptions import DataFormatError
+from warehouse.lib.general import identify_exptid_from_path, produce_dir
 
-#Get logging process
+# Get logging process
 log = logging.getLogger("dataframes")
+
 
 def collapse_repeat_columns(df: pd.DataFrame, field_roots: list) -> pd.DataFrame:
     """
@@ -22,8 +24,8 @@ def collapse_repeat_columns(df: pd.DataFrame, field_roots: list) -> pd.DataFrame
     Returns:
         df (pd.DataFrame): The pandas DataFrame with the duplicate columns dropped.
     """
-    
-    #Copy df so there aren't any slice conflicts
+
+    # Copy df so there aren't any slice conflicts
     df = df.copy(deep=True)
 
     for root in field_roots:
@@ -96,7 +98,10 @@ def identify_export_dataframe_attributes(obj, output_dir):
             log.info(f"      '{attr_name}' saved to {csv_file}")
     log.info("   Done")
 
-def merge_additional_rxn_level_fields(main_df: pd.DataFrame, exp_seq_df: pd.DataFrame, colnames: list[str]) -> pd.DataFrame:
+
+def merge_additional_rxn_level_fields(
+    main_df: pd.DataFrame, exp_seq_df: pd.DataFrame, colnames: list[str]
+) -> pd.DataFrame:
     """
     Function to merge in additional experimental data to a df.
 
@@ -107,20 +112,41 @@ def merge_additional_rxn_level_fields(main_df: pd.DataFrame, exp_seq_df: pd.Data
     """
     if len(colnames) != 4:
         log.info("Incorrect number of entries given")
-    
+
     df = pd.merge(
         left=main_df,
         right=exp_seq_df,
         left_on=[colnames[0], colnames[1]],
         right_on=[colnames[2], colnames[3]],
-        how="inner",
+        how="outer",
+        indicator=True,
     )
+
     # Ensure duplicate columns are collapsed to a single one
     df = collapse_repeat_columns(df, ["sample_id", "expt_id", "barcode"])
+
+    exp_details_missing_df = df.query("_merge == 'left_only'").drop(columns="_merge")
+    seq_details_missing_df = df.query("_merge == 'right_only'").drop(columns="_merge")
+
+    # Warn user if data not matching between the two dataframes
+    if not exp_details_missing_df.empty:
+        exp_ids = list(exp_details_missing_df[colnames[0]].unique())
+        log.warning(f"Warning: {exp_ids} missing matching experimental detail data.")
+        log.info(f"   {exp_details_missing_df}")
+
+    if not seq_details_missing_df.empty:
+        exp_ids = list(seq_details_missing_df[colnames[0]].unique())
+        log.warning(f"Warning: {exp_ids} missing matching sequence detail data.")
+        log.info(f"   {seq_details_missing_df}")
+
+    df.drop(columns="_merge", inplace=True)
+
     return df
 
-def concat_files_add_expID(files: list[Path], EXP_ID_COL: str = 'expt_id') -> pd.DataFrame:
 
+def concat_files_add_expID(
+    files: list[Path], EXP_ID_COL: str = "expt_id"
+) -> pd.DataFrame:
     """
     Function to extract and concatenate multiple files of the same type into a df.
 
@@ -135,26 +161,29 @@ def concat_files_add_expID(files: list[Path], EXP_ID_COL: str = 'expt_id') -> pd
     # Extract data, add in experiment ID and concatenate all data
     for file in files:
         expid = identify_exptid_from_path(file)
-        if  file.suffix == ".csv":
-            data = pd.read_csv(file)  
+        if file.suffix == ".csv":
+            data = pd.read_csv(file)
             data[EXP_ID_COL] = expid
-        
+
         if file.suffix == ".json":
-            with open(file, 'r') as f:
+            with open(file, "r") as f:
                 json_dict = json.load(f)
             data = pd.DataFrame(json_dict, index=[expid]).reset_index()
-            data.rename(columns={'index': EXP_ID_COL}, inplace=True)
-        
+            data.rename(columns={"index": EXP_ID_COL}, inplace=True)
+
         if expid in expids:
             raise DataFormatError(f"{expid} duplicate experiment ID detected: ")
-        
-        #Add expid to list
+
+        # Add expid to list
         expids.append(expid)
-        
+
         df = pd.concat([df, data], ignore_index=True)
     return df
 
-def filtered_dataframe(df : pd.DataFrame, colname: str, values: list[str]) -> pd.DataFrame:
+
+def filtered_dataframe(
+    df: pd.DataFrame, colname: str, values: list[str]
+) -> pd.DataFrame:
     """
     Filters the DataFrame based on the selected experiment IDs.
 
@@ -166,9 +195,10 @@ def filtered_dataframe(df : pd.DataFrame, colname: str, values: list[str]) -> pd
     Returns:
         pd.DataFrame: The filtered DataFrame.
     """
-        
+
     df_filtered = df.query(f"{colname} in @values")
     return df_filtered
+
 
 def dataframe_not_empty(df) -> bool:
     """

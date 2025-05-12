@@ -279,6 +279,9 @@ def fig_qc_by_exptid(
 
     x = SeqDataSchema.EXP_ID[0]
 
+    # Sort the dataframe by expt_id
+    df.sort_values(by="expt_id", inplace=True)
+
     # Generate the figure
     fig = px.bar(
         df,
@@ -345,11 +348,12 @@ def fig_reads_mapped(df: pd.DataFrame, SeqDataSchema, y_linear: bool) -> px.bar:
         .reset_index()
     )
 
-    # Sort by Category into a custom order
+    # This keeps the correct custom categories order and then exptid
     df.sort_values(
-        by="category",
-        key=lambda col: col.map(SeqDataSchema.READS_MAPPED_TYPE.index),
-        inplace=True,
+        by=["category", "expt_id"],
+        key=lambda col: col.map(SeqDataSchema.READS_MAPPED_TYPE.index)
+        if col.name == "category"
+        else col,
     )
     # Replace Category name to user friendly version
     df["category_label"] = df["category"].replace(SeqDataSchema.field_labels)
