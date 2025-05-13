@@ -502,10 +502,23 @@ class ExpMetadataMerge:
 
                 # Give user feedback
                 if len(missing_records_df) > 0:
-                    log.info(
-                        f"   WARNING: {join_dict['joining'][0]} data missing (present in {join_dict['joining'][1]} dataframe)"
+                    warning = (
+                        join_dict["joining"][1]
+                        + " data missing from "
+                        + join_dict["joining"][0]
+                        + " data"
                     )
+                    log.info(f"   WARNING: {warning}")
                     log.info(missing_records_df[show_cols].to_string(index=False))
+
+                    # Output the missing data
+                    if output_folder:
+                        # to a folder called problematic
+                        problematic_dir = output_folder / "problematic"
+                        produce_dir(problematic_dir)
+                        path = problematic_dir / f"{warning}.csv"
+                        missing_records_df[show_cols].to_csv(path, index=False)
+                        print(f"   Missing records written to {path}")
                     log.info("")
 
                 # Create df with matched records
@@ -523,6 +536,15 @@ class ExpMetadataMerge:
                         log.info(
                             f"   {mismatches_df[show_cols].to_string(index=False)}"
                         )
+                        # Output the missmatched data
+                        if output_folder:
+                            # to a folder called problematic
+                            problematic_dir = output_folder / "problematic"
+                            produce_dir(problematic_dir)
+                            path = problematic_dir / f"{c} mismatches.csv"
+                            mismatches_df[show_cols].to_csv(path, index=False)
+                            print(f"   Mismatched records written to {path}")
+                        log.info("")
                         log.info("")
 
                 # To ensure that all columns have the correct suffix, you need to rejoin the columns with or wthout
