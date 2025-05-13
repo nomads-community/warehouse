@@ -224,12 +224,17 @@ def fig_amplicon_pass_coverage(
     # Define y axis
     y_col = "percent_passed" if percent else "count"
 
+    # Reverse the labels and bins lists for plotting purposes
+    reversed_bin_labels = bin_labels[::-1]
+    reversed_bin_colours = bin_colours[::-1]
+
     fig = px.bar(
         final_df,
         x=SeqDataSchema.EXP_ID[0],
         y=y_col,
         color="amplicons_pass",
-        color_discrete_sequence=bin_colours,
+        color_discrete_sequence=reversed_bin_colours,
+        category_orders={"amplicons_pass": reversed_bin_labels},
         labels={
             SeqDataSchema.EXP_ID[0]: SeqDataSchema.EXP_ID[1],
             "percent_passed": "No. samples (%)",
@@ -348,12 +353,15 @@ def fig_reads_mapped(df: pd.DataFrame, SeqDataSchema, y_linear: bool) -> px.bar:
         .reset_index()
     )
 
-    # This keeps the correct custom categories order and then exptid
+    # Define the order of the categories
+    category_order = {
+        category: idx for idx, category in enumerate(SeqDataSchema.READS_MAPPED_TYPE)
+    }
+    # Sort the df appropriately
     df.sort_values(
-        by=["category", "expt_id"],
-        key=lambda col: col.map(SeqDataSchema.READS_MAPPED_TYPE.index)
-        if col.name == "category"
-        else col,
+        by=["expt_id", "category"],
+        key=lambda col: col.map(category_order) if col.name == "category" else col,
+        inplace=True,
     )
     # Replace Category name to user friendly version
     df["category_label"] = df["category"].replace(SeqDataSchema.field_labels)
