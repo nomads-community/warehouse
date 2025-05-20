@@ -84,7 +84,8 @@ def seqfolders(
     identifiers.extend(exp_metadata.rxn_df["pcr_identifier"].dropna().unique().tolist())
 
     # strip out the well info and create unique set of expids
-    expids = list([id[:-3] for id in identifiers if "swga" not in id.lower()])
+    expids = list([id.split("_")[0] for id in identifiers if "swga" not in id.lower()])
+
     # Add in the current experiment id
     if expt_id in expids:
         raise DataFormatError(f"{expt_id} is being used as an sWGA or PCR identifier")
