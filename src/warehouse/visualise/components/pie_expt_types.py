@@ -1,8 +1,9 @@
-from dash import Dash, html, dcc
-import plotly.express as px
 import pandas as pd
-from warehouse.visualise.components import ids
+import plotly.express as px
+from dash import Dash, dcc, html
+
 from warehouse.metadata.metadata import ExpThroughputDataScheme
+from warehouse.visualise.components import ids
 
 
 def render(app: Dash, sample_data, experiment_data):
@@ -25,15 +26,16 @@ def render(app: Dash, sample_data, experiment_data):
     # Create a layout with three dcc.Graph elements
     layout = html.Div(
         className="panel",
-        children= [html.H2("Sample throughput:"),
-                   html.Div(
-                       className="row-flex",
-                       children=[dcc.Graph(figure=fig, 
-                                           id=f"{ids.TRYPTICH}_{col}")
-                                           for col, fig in zip(values_cols, triptych)
-                                           ]
-                   )
-        ]
+        children=[
+            html.H2("Sample throughput:"),
+            html.Div(
+                className="row-flex",
+                children=[
+                    dcc.Graph(figure=fig, id=f"{ids.TRYPTICH}_{col}")
+                    for col, fig in zip(values_cols, triptych)
+                ],
+            ),
+        ],
     )
 
     return layout
@@ -97,8 +99,11 @@ def summarise_exp_throughput(
         .value_counts()
         .rename("reactions")
     )
+
     sample_counts = (
-        sample_data.df[SampleDataSchema.STATUS[0]].value_counts().rename("samples")
+        sample_data.df_with_exp[SampleDataSchema.STATUS[0]]
+        .value_counts()
+        .rename("samples")
     )
     colour_series = pd.Series(colours, index=ExpThroughputDataScheme.EXP_TYPES).rename(
         "colours"

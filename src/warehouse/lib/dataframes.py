@@ -44,6 +44,28 @@ def collapse_repeat_columns(df: pd.DataFrame, field_roots: list) -> pd.DataFrame
     return df
 
 
+def identify_duplicate_colnames(*args) -> list:
+    """
+    Identifies column names found in two or more dataframes
+
+    params:
+        *args: df1, df2, df3 ...
+            list of dataframes
+
+    returns
+        list of colnames
+    """
+
+    # Add all colnames into a single list
+    colnames = list()
+    for df in args:
+        df_cols = list(df.columns)
+        colnames = colnames + df_cols
+
+    # return non-unique entries
+    return [i for i in set(colnames) if colnames.count(i) > 1]
+
+
 def count_non_none_entries_in_dfcolumn(df: pd.DataFrame, column: str) -> int:
     """
     Function counts the number of non none entries in a column of a dataframe

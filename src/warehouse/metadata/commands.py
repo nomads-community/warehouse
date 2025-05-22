@@ -5,7 +5,6 @@ import click
 
 from warehouse.lib.general import (
     Regex_patterns,
-    check_path_present_raise_error,
     identify_experiment_files,
     identify_files_by_search,
 )
@@ -13,12 +12,11 @@ from warehouse.lib.logging import divider, identify_cli_command
 from warehouse.metadata.metadata import (
     ExpMetadataMerge,
     ExpMetadataParser,
-    SampleMetadataParser,
 )
 
 
 @click.command(
-    short_help="Extract, validate and optionally export experimental data from completed NOMADS templates"
+    short_help="Extract and validate experimental data from completed NOMADS templates"
 )
 @click.option(
     "-e",
@@ -42,14 +40,7 @@ from warehouse.metadata.metadata import (
     required=False,
     help="Output individual and aggregated metadata files.",
 )
-@click.option(
-    "-m",
-    "--metadata_file",
-    type=Path,
-    required=False,
-    help="Path to file (csv or xlsx) containing sample metadata information.",
-)
-def metadata(exp_folder: Path, expt_id: str, output_folder: Path, metadata_file: Path):
+def metadata(exp_folder: Path, expt_id: str, output_folder: Path):
     """
     Extract, combine and validate all metadata
     """
@@ -74,11 +65,4 @@ def metadata(exp_folder: Path, expt_id: str, output_folder: Path, metadata_file:
         matching_filepaths = identify_files_by_search(
             exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True
         )
-        exp_data = ExpMetadataMerge(matching_filepaths, output_folder)
-
-    # Must be used with an output option
-    if metadata_file and output_folder:
-        log.info("Extracting sample metadata")
-        check_path_present_raise_error(metadata_file, isfile=True)
-        SampleMetadataParser(metadata_file, exp_data.rxns_df, output_folder)
-        log.info(divider)
+        ExpMetadataMerge(matching_filepaths, output_folder)

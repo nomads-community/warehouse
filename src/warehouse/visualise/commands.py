@@ -11,14 +11,12 @@ from warehouse.lib.general import (
 from warehouse.lib.logging import divider
 from warehouse.lib.regex import Regex_patterns
 from warehouse.metadata.metadata import (
-    CombinedData,
+    Combine_Exp_Seq_Sample_data,
     ExpMetadataMerge,
     SampleMetadataParser,
     SequencingMetadataParser,
 )
 from warehouse.visualise.layout import create_layout
-
-# from warehouse.lib.controls import load_controls
 
 CSS_STYLE = ["scripts/visualise/assets/calling-style.css"]
 
@@ -61,34 +59,39 @@ def visualise(
     # Add in cli_flags
     cli_flags = [exp_folder, seq_folder, metadata_file]
 
-    # divider=("=" * 80)
-    # print("Loading controls data")
-    # controls = load_controls()
-    # print("="*80)
-
-    log.info("Extracting experimental data")
+    log.info("Extracting raw experimental data")
     exp_fns = identify_files_by_search(
         exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True
     )
     exp_data = ExpMetadataMerge(exp_fns, output_folder)
-
-    log.info("Extracting sample metadata")
-    check_path_present_raise_error(metadata_file, isfile=True)
-    sample_data = SampleMetadataParser(metadata_file, exp_data.rxns_df, output_folder)
+    log.info("Done")
     log.info(divider)
 
-    log.info("Extracting sequence summary data")
-    sequence_data = SequencingMetadataParser(seq_folder, exp_data, output_folder)
+    log.info("Extracting raw sample metadata")
+    check_path_present_raise_error(metadata_file, isfile=True)
+    sample_data = SampleMetadataParser(metadata_file, output_folder)
+    log.info("   Incorporating experimental metadata")
+    sample_data.incorporate_experimental_data(exp_data)
+    log.info("Done")
+    log.info(divider)
+
+    log.info("Extracting raw sequence summary data")
+    seq_data = SequencingMetadataParser(seq_folder, output_folder)
+    log.info("   Incorporating experimental metadata")
+    seq_data.incorporate_experimental_data(exp_data)
+    log.info("Done")
     log.info(divider)
 
     log.info("Combining data sources")
-    combined_data = CombinedData(exp_data, sequence_data, sample_data, output_folder)
+    combined_data = Combine_Exp_Seq_Sample_data(
+        exp_data, seq_data, sample_data, output_folder
+    )
     log.info(divider)
-    log.info("Starting the warehouse dashboard")
 
+    log.info("Starting the warehouse dashboard")
     app = Dash(__name__, external_stylesheets=CSS_STYLE)
     app.title = "Warehouse"
     app.layout = create_layout(
-        app, sample_data, exp_data, sequence_data, combined_data, cli_flags
+        app, sample_data, exp_data, seq_data, combined_data, cli_flags
     )
     app.run()
