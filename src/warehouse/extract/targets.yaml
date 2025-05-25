@@ -28,7 +28,6 @@ nomadic:
     pattern: "**/summary.bam_flagstats.csv"
   copy_recursive: false
   copy_exclude:
-    - summary.depth.csv
     - summary.fastq.csv
   subfolders:
     metadata:
