@@ -29,6 +29,7 @@ nomadic:
   copy_recursive: false
   copy_exclude:
     - summary.fastq.csv
+    - barcodes/
   subfolders:
     metadata:
       name: metadata
