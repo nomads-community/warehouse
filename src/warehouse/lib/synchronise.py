@@ -5,19 +5,18 @@ import subprocess
 from pathlib import Path
 
 from warehouse.lib.general import (
-    identify_folders_by_pattern,
     is_directory_empty,
     produce_dir,
 )
 
 # Get logging process
-log = logging.getLogger("extract")
+log = logging.getLogger("synchronise")
 
 
-def extract_outputs(
+def selective_rsync(
     source_dir: Path,
     target_dir: Path,
-    exclusions: list,
+    exclusions: list = None,
     recursive: bool = False,
 ):
     """Copies contents of a folder to a new location.
@@ -25,16 +24,18 @@ def extract_outputs(
     Args:
         source_dir(Path): The path to the source folder
         target_dir(Path): The path to the target folder
+        exclusions(list): A list of file patterns to exclude
         recursive(bool): Copy top-level files or entire directory
     """
     # Starting entry
     rsync_components = ["rsync", "-zvrc"]
 
-    # Add in exclusions:
-    for exclusion in exclusions:
-        rsync_components.extend(["--exclude", exclusion])
+    # Add in exclusions if given
+    if exclusions:
+        for exclusion in exclusions:
+            rsync_components.extend(["--exclude", exclusion])
 
-    # Add in folder exclusions
+    # Add in folder exclusion if not recursive
     if not recursive:
         rsync_components.extend(["--exclude", "*/"])
 
@@ -45,7 +46,7 @@ def extract_outputs(
     rsync_feedback = [
         f"{f.name}" if isinstance(f, Path) else f for f in rsync_components
     ]
-    log.info(f"{" ".join(rsync_feedback)}")
+    log.info(f"{' '.join(rsync_feedback)}")
 
     # Fromat the rsync command properly for bash to run it
     rsync_command = [
@@ -60,7 +61,7 @@ def process_targets(
     source_base_dir: Path,
     target_base_dir: Path,
 ):
-    """Iterates through a dictionary of targets and calls extract_outputs for each.
+    """Iterates through a dictionary of targets and performs selective_rsync for each.
 
     Args:
         targets: A dictionary of target configurations. (key: target name, value: dict)
@@ -119,8 +120,8 @@ def process_targets(
         # Identify anything to exclude
         exclusions = target_config.get("copy_exclude", [])
 
-        # Call extract_outputs for each target
-        extract_outputs(source_dir, target_dir, exclusions, recursive)
+        # rsync for each target
+        selective_rsync(source_dir, target_dir, exclusions, recursive)
 
         # Handle subfolders if present
         subfolders = target_config.get("subfolders", {})
@@ -129,47 +130,14 @@ def process_targets(
             process_targets(subfolders, source_dir, target_dir)
 
 
-def NOMADS_move_results(source_dir: Path, dest_dir: Path, symlink: bool = True):
-    """
-    Moves a folder from the source path to the destination path.
-
-    Args:
-      source_dir: The path to the folder to be moved.
-      dest_dir: The path to the destination folder.
-    """
-    # Ensure correct filetypes
-    if not isinstance(source_dir, Path):
-        source_dir = Path(source_dir)
-    if not isinstance(dest_dir, Path):
-        dest_dir = Path(dest_dir)
-
-    # Check if present
-    if not source_dir.exists():
-        raise FileNotFoundError(f"Path '{source_dir}' does not exist.")
-    if not dest_dir.exists():
-        raise FileNotFoundError(f"Path '{source_dir}' does not exist.")
-    try:
-        # Remove the dest_directory
-        shutil.rmtree(str(dest_dir))
-        # Move source to dest
-        shutil.move(str(source_dir), str(dest_dir))
-        if symlink:
-            # Create a symlink
-            os.symlink(str(dest_dir), str(source_dir))
-            log.info("Folder moved successfully and symlink created.")
-        log.info("Folder moved successfully.")
-    except Exception as e:
-        log.info(f"Error moving folder: {str(e)}")
-
-
-def move_folder_optional_sudo_symlink(
+def move_folder(
     source_path: Path,
     dest_path: Path,
     as_sudo: bool = False,
     with_symlink: bool = False,
 ) -> str:
     """
-    Moves a folder using the 'sudo' command.
+    Moves a folder with optional sudo privileges and replace with symlink in origin.
 
     Args:
       source_dir: The path to the folder to be moved.
@@ -219,17 +187,17 @@ def chown_paths_to_user(path: Path):
             print(f"   Error changing permissions for '{item}': {e}")
 
 
-def identify_single_folder(folder_path: Path, pattern):
-    """
-    Identify a single target folder using a pattern and optionally test if empty
+# def identify_single_folder(folder_path: Path, pattern):
+#     """
+#     Identify a single target folder using a pattern and optionally test if empty
 
-    Args:
-      path: The path to the directory as a Path object.
-      pattern: The pattern to search for.
-    """
-    folders = identify_folders_by_pattern(folder_path, pattern)
+#     Args:
+#       path: The path to the directory as a Path object.
+#       pattern: The pattern to search for.
+#     """
+#     folders = identify_folders_by_pattern(folder_path, pattern)
 
-    if len(folders) != 1:
-        return None
+#     if len(folders) != 1:
+#         return None
 
-    return folders[0]
+#     return folders[0]

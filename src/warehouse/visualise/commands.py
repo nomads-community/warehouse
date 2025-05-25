@@ -5,7 +5,7 @@ import click
 from dash import Dash
 
 from warehouse.lib.general import (
-    check_path_present_raise_error,
+    check_path_present,
     identify_files_by_search,
 )
 from warehouse.lib.logging import divider
@@ -68,7 +68,7 @@ def visualise(
     log.info(divider)
 
     log.info("Extracting raw sample metadata")
-    check_path_present_raise_error(metadata_file, isfile=True)
+    check_path_present(metadata_file, isfile=True, raise_error=True)
     sample_data = SampleMetadataParser(metadata_file, output_folder)
     log.info("   Incorporating experimental metadata")
     sample_data.incorporate_experimental_data(exp_data)

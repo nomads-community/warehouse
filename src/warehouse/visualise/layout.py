@@ -1,21 +1,20 @@
 from dash import Dash, html
+
 from .components import (
     banner,
     pie_expt_types,
-    seq_qc_by_expt,
     selectable_scatter,
-    )
-   
-def create_layout(app: Dash, 
-                  sample_data, 
-                  experiment_data, 
-                  sequence_data, 
-                  combined_data,
-                  cli_flags) -> html.Div:
+    seq_qc_by_expt,
+)
+
+
+def create_layout(
+    app: Dash, sample_data, experiment_data, sequence_data, combined_data, cli_flags
+) -> html.Div:
     """
     Return the webpage
     """
-    
+
     return html.Div(
         className="entire",
         children=[
@@ -23,5 +22,5 @@ def create_layout(app: Dash,
             pie_expt_types.render(app, sample_data, experiment_data),
             seq_qc_by_expt.render(app, sequence_data),
             selectable_scatter.render(app, combined_data),
-        ]
+        ],
     )

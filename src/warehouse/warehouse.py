@@ -4,6 +4,7 @@ from pathlib import Path
 import click
 
 from warehouse.aggregate.commands import aggregate
+from warehouse.backup.commands import backup
 from warehouse.extract.commands import extract
 from warehouse.lib.logging import config_root_logger
 from warehouse.metadata.commands import metadata
@@ -57,6 +58,7 @@ cli.add_command(seqfolders)
 cli.add_command(aggregate)
 cli.add_command(extract)
 cli.add_command(visualise)
+cli.add_command(backup)
 
 if __name__ == "__main__":
     cli()

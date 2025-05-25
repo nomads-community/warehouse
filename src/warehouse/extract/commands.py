@@ -4,11 +4,11 @@ from pathlib import Path
 import click
 import yaml
 
-from warehouse.extract.extract import (
-    process_targets,
-)
 from warehouse.lib.general import identify_all_folders
 from warehouse.lib.logging import divider, identify_cli_command
+from warehouse.lib.synchronise import (
+    process_targets,
+)
 
 script_dir = Path(__file__).parent.resolve()
 

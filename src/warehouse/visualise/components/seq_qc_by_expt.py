@@ -5,7 +5,7 @@ from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 
 from warehouse.lib.dataframes import filtered_dataframe
-from warehouse.lib.general import reformat_nested_dict
+from warehouse.lib.dictionaries import reformat_nested_dict
 from warehouse.visualise.components import ids
 
 # List of different charts that can be shown to the user based on their selection
@@ -103,7 +103,7 @@ def qc_chart(app: Dash, sequence_data):
     # Define df and schema to use from object
     SeqDataSchema = sequence_data.DataSchema
     qc_per_expt_df = sequence_data.qc_per_expt
-    qc_per_sample_df = sequence_data.qc_per_sample
+    qc_per_sample_df = sequence_data.qc_per_sample_with_exp
     qc_reads_mapped = sequence_data.summary_bam
 
     # Update the chart
