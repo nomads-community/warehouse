@@ -1035,6 +1035,7 @@ class Combine_Exp_Seq_Sample_data:
             | SampleDataSchema.dataschema_dict
             | SeqDataSchema.dataschema_dict
         )
+
         # Ensure that all columns are in the dataschema
         fields = [value["field"] for value in all_dataschema_dict.values()]
         unknown_cols = [x for x in alldata_df.columns if x not in fields]
@@ -1044,7 +1045,7 @@ class Combine_Exp_Seq_Sample_data:
         ]
         if len(unknown_cols) > 0:
             raise DataFormatError(
-                f"WARNING: {unknown_cols} columns are not defined in the dataschemas"
+                f"WARNING: {unknown_cols} columns are not defined in the dataschemas. Ensure they are defined in the .ini files."
             )
 
         # Define df as an attribute
