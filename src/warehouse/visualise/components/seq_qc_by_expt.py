@@ -6,6 +6,7 @@ from dash.dependencies import Input, Output
 
 from warehouse.lib.dataframes import filtered_dataframe
 from warehouse.lib.dictionaries import reformat_nested_dict
+from warehouse.metadata.metadata import SequencingMetadataParser
 from warehouse.visualise.components import ids
 
 # List of different charts that can be shown to the user based on their selection
@@ -21,7 +22,15 @@ states = [
 sample_types = ["Field", "Positive", "Negative"]
 
 
-def render(app: Dash, sequence_data) -> html.Div:
+def render(app: Dash, sequence_data: SequencingMetadataParser) -> html.Div:
+    """
+    Render the sequencing quality control overview page
+    Args:
+        app (Dash): Dash app for callbacks
+        sequence_data (SequencingMetadataParser): Object with all sequencing data
+    Returns:
+        html.Div: The main layout for the sequencing QC overview page
+    """
     selections = main_selection_panel(app, sequence_data)
     chart = qc_chart(app, sequence_data)
     chart_selections = select_sample_type(app)

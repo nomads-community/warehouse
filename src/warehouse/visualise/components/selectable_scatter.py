@@ -1,17 +1,17 @@
-from dash import Dash, html, dcc, Input, Output
-import plotly.express as px
-from . import ids
 import logging
 
-#Define logging process
+import plotly.express as px
+from dash import Dash, Input, Output, dcc, html
+
+from . import ids
+
+# Define logging process
 log = logging.getLogger("selectable_scatter")
 
 
-def create_scatter(all_data: object,
-                   x_series=None, 
-                   y_series=None, 
-                   colour_series=None) -> px.scatter:
-    
+def create_scatter(
+    all_data: object, x_series=None, y_series=None, colour_series=None
+) -> px.scatter:
     # Define the dataschemadict and the field-label dict
     DataSchema = all_data.dataschema_dict
     FieldLabels = all_data.all_field_labels
@@ -62,7 +62,7 @@ def render(app: Dash, combined_data):
         return fig
 
     # Build initial graph
-    dropdowns=dropdowns_panel(app, combined_data)
+    dropdowns = dropdowns_panel(app, combined_data)
     fig = create_scatter(combined_data)
 
     return html.Div(
@@ -70,9 +70,10 @@ def render(app: Dash, combined_data):
         children=[
             html.H2("Selectable data:"),
             dropdowns,
-            dcc.Graph(figure=fig, id=ids.SELECTABLE_SCATTER)
-        ]
-        )
+            dcc.Graph(figure=fig, id=ids.SELECTABLE_SCATTER),
+        ],
+    )
+
 
 def create_dropdown_set(number: int, options: dict) -> html.Div:
     """
@@ -85,21 +86,16 @@ def create_dropdown_set(number: int, options: dict) -> html.Div:
     Returns:
         dcc.Dropdown: The created dropdown component.
     """
-    static = dcc.Dropdown(id=f"{ids.DATASOURCES}_{number}",
-                          options=options,
-                          className="wide_dropdown")
-    dynamic = dcc.Dropdown(id=f"{ids.DYNAMIC_OPTIONS}_{number}",
-                          options=options,
-                          className="wide_dropdown")
-    axes = [ "Select x axis", "Select y axis", "Select colour"]
+    static = dcc.Dropdown(
+        id=f"{ids.DATASOURCES}_{number}", options=options, className="wide_dropdown"
+    )
+    dynamic = dcc.Dropdown(
+        id=f"{ids.DYNAMIC_OPTIONS}_{number}", options=options, className="wide_dropdown"
+    )
+    axes = ["Select x axis", "Select y axis", "Select colour"]
     return html.Div(
-        className="dropdown-fill",
-        children=[
-            axes[number-1],
-            static,
-            dynamic
-            ]
-            )
+        className="dropdown-fill", children=[axes[number - 1], static, dynamic]
+    )
 
 
 def dropdowns_panel(app: Dash, all_data: object) -> html.Div:
@@ -129,15 +125,9 @@ def dropdowns_panel(app: Dash, all_data: object) -> html.Div:
             all_data.datasource_fields.get(select2, ["Select datasource first"]),
             all_data.datasource_fields.get(select3, ["Select datasource first"]),
         ]
-    
+
     dropdown1 = create_dropdown_set(1, all_data.datasources_dict)
     dropdown2 = create_dropdown_set(2, all_data.datasources_dict)
     dropdown3 = create_dropdown_set(3, all_data.datasources_dict)
 
-    return html.Div(
-        className="row-flex",
-        children=[dropdown1,
-                  dropdown2,
-                  dropdown3
-                  ]
-    )
+    return html.Div(className="row-flex", children=[dropdown1, dropdown2, dropdown3])

@@ -2,11 +2,26 @@ import pandas as pd
 import plotly.express as px
 from dash import Dash, dcc, html
 
-from warehouse.metadata.metadata import ExpThroughputDataScheme
+from warehouse.metadata.metadata import (
+    ExpMetadataParser,
+    ExpThroughputDataScheme,
+    SampleMetadataParser,
+)
 from warehouse.visualise.components import ids
 
 
-def render(app: Dash, sample_data, experiment_data):
+def render(
+    app: Dash, sample_data: SampleMetadataParser, experiment_data: ExpMetadataParser
+) -> html.Div:
+    """
+    Render the pie charts for experiment throughput.
+    Args:
+        app (Dash): The Dash app instance.
+        sample_data (SampleMetadataParser): An instance containing sample metadata.
+        experiment_data (ExpMetadataParser): An instance containing experiment metadata.
+    Returns:
+        html.Div: The layout containing the pie charts.
+    """
     # Generate summary table
     df = summarise_exp_throughput(sample_data, experiment_data)
 
@@ -42,6 +57,14 @@ def render(app: Dash, sample_data, experiment_data):
 
 
 def generate_fig(df, values_col):
+    """
+    Generate a pie chart figure based on the provided DataFrame and values column.
+    Args:
+        df (pd.DataFrame): DataFrame containing the data for the pie chart.
+        values_col (str): The column name in the DataFrame to use for pie chart values.
+    Returns:
+        plotly.graph_objects.Figure: The generated pie chart figure.
+    """
     names_col = "Experiment Type"
     colours_col = "colours"
 
