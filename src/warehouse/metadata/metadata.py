@@ -64,6 +64,13 @@ class ExpDataSchemaFields:
             # Identify the experiment type from filename:
             expt_type = ini_file.name.replace(".ini", "").replace("exp_", "")
 
+            # Pull in assay specific fields from ini file and add to dataschema
+            libdict = create_dict_from_ini(ini_file)
+            dataschema_dict.update(libdict)
+            libname = f"{expt_type}_field_labels"
+            # Then add each field as a separate attribute
+            setattr(self, libname, libdict)
+
             # Create additional entries that could be created during merging operations.
             # There are a number of fields that are common to all experimental templates e.g. EXPT_ID
             # When df are merged these will be given the expt_type suffixe e.g. sWGA
@@ -73,19 +80,22 @@ class ExpDataSchemaFields:
             # - the suffixed field name e.g. exp_id_sWGA (field)
             # - the human readable label e.g. Experiment ID (label)
             # Note that this will create all possible combinations, but not necessarily the correct ones
-            modified_dict = {}
+            modified_common_dict = {}
             for key, entry in common_fields_dict.items():
                 new_key = f"{key}_{expt_type.upper()}"
                 new_entry = {"field": entry["field"] + "_" + expt_type}
-                modified_dict[new_key] = entry | new_entry
+                modified_common_dict[new_key] = entry | new_entry
             # Add suffixed fields to the dataschema
-            dataschema_dict.update(modified_dict)
+            dataschema_dict.update(modified_common_dict)
 
-            # Pull in assay specific fields from ini file and add to dataschema and as a attribute
-            libdict = create_dict_from_ini(ini_file)
-            dataschema_dict.update(libdict)
+            # Create all possible field labels by reformating and the combining the different dicts together
             libname = f"{expt_type}_field_labels"
-            setattr(self, libname, libdict)
+            field_labels_dict = {}
+            for dict in [common_fields_dict, modified_common_dict, libdict]:
+                dict = reformat_nested_dict(dict, "field", "label")
+                log.debug(f"{len(dict)} fields identified")
+                field_labels_dict.update(dict)
+            setattr(self, libname, field_labels_dict)
 
         # Create dataschema_dict attribute
         self.dataschema_dict = dataschema_dict
@@ -1050,24 +1060,39 @@ class Combine_Exp_Seq_Sample_data:
 
         # Define df as an attribute
         self.df = alldata_df
-        # define list of refs for dropdowns
-        self.datasources_dict = {
-            "sWGA": "Experimental (sWGA)",
-            "PCR": "Experimental (PCR)",
-            "seqlib": "Experimental (seqlib)",
-            "sample": "Sample information",
-            "seqdata": "Sequence Analysis (savanna  )",
-        }
 
-        # List of variable names for each data source
-        self.datasource_fields = {
-            "sWGA": ExpDataSchema.sWGA_field_labels,
-            "PCR": ExpDataSchema.PCR_field_labels,
-            "seqlib": ExpDataSchema.seqlib_field_labels,
+        # Define list of refs for all sources of data and their dropdowns
+        datasources_dict = {}
+        datasource_fields_dict = {}
+        # Cycle through all types of experiments
+        for expt_type in exp_data.expt_types:
+            # First define the source
+            datasources_dict[expt_type] = f"Experimental ({expt_type})"
+
+            # Get the field labels for the current expt_type
+            field_labels = getattr(ExpDataSchema, f"{expt_type}_field_labels", {})
+            log.debug(f"{len(field_labels)} field labels found for {expt_type}")
+            dt = {}
+            for field in field_labels.keys():
+                # Only include those that are in the dataframe
+                if field in alldata_df.columns:
+                    dt[field] = field_labels[field]
+            log.debug(f"{len(dt)} field labels retained")
+            datasource_fields_dict[expt_type] = dt
+
+        datasources_dict = datasources_dict | {
+            "sample": "Sample information",
+            "seqdata": "Sequence Analysis (savanna)",
+        }
+        self.datasources_dict = datasources_dict
+
+        # Define list of refs for dynamic dropdowns
+        datasource_fields_dict = datasource_fields_dict | {
             "sample": SampleDataSchema.field_labels,
             "seqdata": SeqDataSchema.field_labels,
         }
-
+        self.datasource_fields = datasource_fields_dict
+        # breakpoint()
         # List of all field label combos
         self.dataschema_dict = (
             ExpDataSchema.dataschema_dict
