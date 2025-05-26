@@ -783,7 +783,7 @@ class SampleMetadataParser:
         Update df with status of each sample ie incorporate experiment data into sample df
         """
         print("Adding test status to sample metadata")
-        df = ExpClassInstance.rxns_df
+
         # Define attributes from the ExpClassInstance
         exp_type_colname = ExpClassInstance.DataSchema.EXP_TYPE[0]
         exp_sampleid_colname = ExpClassInstance.DataSchema.SAMPLE_ID[0]
@@ -791,24 +791,26 @@ class SampleMetadataParser:
         # Import all the exp_types / status outcomes
         exp_types = ExpThroughputDataScheme.EXP_TYPES
 
+        # Create a copy of the df to ensure original is not modified
+        df = self.df.copy()
         # Create new status column filled with 'not tested'
         sample_status_colname = self.DataSchema.STATUS[0]
         df[sample_status_colname] = exp_types[0]
-
-        # Define all experiment types present
-        exp_types_present = rxn_df[exp_type_colname].unique()
+        # Define the sample_id column
+        sample_id_colname = self.DataSchema.SAMPLE_ID[0]
 
         for exp_type in exp_types:  # Ensure order is followed
-            if exp_type in exp_types_present:
+            if exp_type in ExpClassInstance.expt_types:
                 # Get a set of sample_ids that have the same matching expt_type and ensure types are strings!
                 samplelist = set(
                     rxn_df[rxn_df[exp_type_colname] == exp_type][
                         exp_sampleid_colname
                     ].astype(str)
                 )
-                # Enter result into df overwriting previous entries
+
+                # Enter result into sample_df overwriting previous entry
                 df.loc[
-                    df[exp_sampleid_colname].isin(samplelist),
+                    df[sample_id_colname].isin(samplelist),
                     sample_status_colname,
                 ] = exp_type
 
@@ -1092,7 +1094,7 @@ class Combine_Exp_Seq_Sample_data:
             "seqdata": SeqDataSchema.field_labels,
         }
         self.datasource_fields = datasource_fields_dict
-        # breakpoint()
+
         # List of all field label combos
         self.dataschema_dict = (
             ExpDataSchema.dataschema_dict
