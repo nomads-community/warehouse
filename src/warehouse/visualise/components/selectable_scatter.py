@@ -32,7 +32,7 @@ def create_scatter(
     dff.dropna(axis=0, how="any", inplace=True)
     dff.mask(dff.eq("None")).dropna(axis=0, how="any", inplace=True)
 
-    log.info(
+    log.debug(
         f"Plotting x: {x_series}, y: {y_series}, colour: {colour_series}, df shape ={dff.shape}"
     )
 

@@ -153,6 +153,11 @@ class ExpMetadataParser:
         self._check_for_columns(self.expt_req_cols, self.expt_df)
         self._check_number_rows(1, self.expt_df, self.filepath)
         self._check_expt_id_fn_sheet()
+
+        expected_colnames = set(
+            getattr(ExpDataSchema, f"{self.expt_type}_field_labels").keys()
+        )
+        self._check_all_colnames_known(expected_colnames)
         log.info("      Experimental metadata passed formatting checks.")
 
         # Load rxn data
@@ -376,6 +381,19 @@ class ExpMetadataParser:
         if not filename_expt_id == self.expt_id:
             raise DataFormatError(
                 f"Exp ID from filename ({filename_expt_id}) and spreadsheet tab ({self.expt_id}) do NOT match"
+            )
+
+    def _check_all_colnames_known(self, colnames: set) -> None:
+        """
+        Check that all fields in the dataframe are present in the dataschema
+        """
+        # Identify all columns in the df
+        df_cols = set(self.expt_df.columns)
+        # Find any not in the expected colnames
+        missing_fields = df_cols - colnames
+        if len(missing_fields) > 0:
+            raise DataFormatError(
+                f"Fields {missing_fields} not found in dataschema, but present in {self.filepath.name}"
             )
 
 
@@ -1005,7 +1023,7 @@ class Combine_Exp_Seq_Sample_data:
         SeqDataSchema = sequence_data.DataSchema
         SampleDataSchema = sample_data.DataSchema
 
-        # Combine the exp and seq data
+        log.debug("   Combining experimental and sequence data to alldata_df:")
         alldata_df = pd.merge(
             exp_data.all_df,
             sequence_data.summary_bamqc,
@@ -1026,7 +1044,7 @@ class Combine_Exp_Seq_Sample_data:
             ExpDataSchema.SAMPLE_ID[0]
         ].astype("string")
 
-        # Add in the sample data
+        log.debug("   Adding in the sample data to alldata_df")
         alldata_df = pd.merge(
             alldata_df,
             sample_data.df,
@@ -1035,12 +1053,14 @@ class Combine_Exp_Seq_Sample_data:
             how="outer",
         )
 
+        log.debug("   Collapsing duplicate columns in alldata_df")
         # Collapse all  repeat columns
         dup_cols = identify_duplicate_colnames(
             exp_data.all_df, sequence_data.summary_bamqc, sample_data.df
         )
         alldata_df = collapse_repeat_columns(alldata_df, dup_cols)
 
+        log.debug("   Combining all dataschemas into a single dict")
         # Combine the dataschemas
         all_dataschema_dict = (
             ExpDataSchema.dataschema_dict
@@ -1048,10 +1068,10 @@ class Combine_Exp_Seq_Sample_data:
             | SeqDataSchema.dataschema_dict
         )
 
-        # Ensure that all columns are in the dataschema
-        fields = [value["field"] for value in all_dataschema_dict.values()]
+        log.debug("   Checking that all columns are in the dataschema")
+        fields = [value.get("field") for value in all_dataschema_dict.values()]
         unknown_cols = [x for x in alldata_df.columns if x not in fields]
-        # Sample data can have columns not identified in the .ini file so remove these
+        log.debug("   Removing sample data columns not listed in the .ini file")
         unknown_cols = [
             x for x in unknown_cols if x not in list(sample_data.df.columns)
         ]
@@ -1060,14 +1080,20 @@ class Combine_Exp_Seq_Sample_data:
                 f"WARNING: {unknown_cols} columns are not defined in the dataschemas. Ensure they are defined in the .ini files."
             )
 
-        # Define df as an attribute
+        log.debug(" Adding alldata_df as an attribute")
         self.df = alldata_df
+        log.debug("   Done")
+        log.debug(divider)
 
+        log.debug("Defining datasources_dict and datasource_fields_dict")
         # Define list of refs for all sources of data and their dropdowns
         datasources_dict = {}
         datasource_fields_dict = {}
         # Cycle through all types of experiments
         for expt_type in exp_data.expt_types:
+            log.debug(
+                f"   Adding {expt_type} to datasources_dict and datasource_fields_dict"
+            )
             # First define the source
             datasources_dict[expt_type] = f"Experimental ({expt_type})"
 
@@ -1094,6 +1120,8 @@ class Combine_Exp_Seq_Sample_data:
             "seqdata": SeqDataSchema.field_labels,
         }
         self.datasource_fields = datasource_fields_dict
+        log.debug("   Done")
+        log.debug(divider)
 
         # List of all field label combos
         self.dataschema_dict = (
