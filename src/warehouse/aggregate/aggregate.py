@@ -15,7 +15,7 @@ from warehouse.lib.general import (
 log = logging.getLogger("aggregate")
 
 
-def move_folder_optional_sudo_symlink(
+def move_folder(
     source_path: Path,
     dest_path: Path,
     as_sudo: bool = False,
@@ -143,7 +143,7 @@ def aggregate_seq_data_to_single_dir(
         with_symlink = values.get("with_symlink")
         # Give user feedback
         log.info(f"   {key_name} folders found.")
-        move_folder_optional_sudo_symlink(
+        move_folder(
             source_dir,
             destination_dir,
             as_sudo,

@@ -18,6 +18,8 @@ def selective_rsync(
     target_dir: Path,
     exclusions: list = None,
     recursive: bool = False,
+    delete: bool = False,
+    checksum: bool = False,
 ):
     """Copies contents of a folder to a new location.
 
@@ -26,18 +28,24 @@ def selective_rsync(
         target_dir(Path): The path to the target folder
         exclusions(list): A list of file patterns to exclude
         recursive(bool): Copy top-level files or entire directory
+        delete(bool): Delete files in target that are not in source
     """
-    # Starting entry
-    rsync_components = ["rsync", "-zvrc"]
+    # Base command with compress (z), verbose (v) and timestamp (t) options
+    rsync_components = ["rsync", "-zvt"]
 
-    # Add in exclusions if given
+    # delete only works if recursive is True
+    if recursive:
+        rsync_components.append("--recursive")
+        if delete:
+            rsync_components.append("--delete")
+
+    if checksum:
+        rsync_components.append("--checksum")
+
+    # Add in specific exclusions if given
     if exclusions:
         for exclusion in exclusions:
             rsync_components.extend(["--exclude", exclusion])
-
-    # Add in folder exclusion if not recursive
-    if not recursive:
-        rsync_components.extend(["--exclude", "*/"])
 
     # Complete the list:
     rsync_components.extend([source_dir, target_dir])
@@ -121,13 +129,22 @@ def process_targets(
         exclusions = target_config.get("copy_exclude", [])
 
         # rsync for each target
-        selective_rsync(source_dir, target_dir, exclusions, recursive)
+        selective_rsync(
+            source_dir=source_dir,
+            target_dir=target_dir,
+            exclusions=exclusions,
+            recursive=recursive,
+        )
 
         # Handle subfolders if present
         subfolders = target_config.get("subfolders", {})
         if subfolders:
-            # Recursively process subfolders with appropriate source and target paths
-            process_targets(subfolders, source_dir, target_dir)
+            # Process subfolders with appropriate source and target paths
+            process_targets(
+                targets=subfolders,
+                source_base_dir=source_dir,
+                target_base_dir=target_dir,
+            )
 
 
 def move_folder(

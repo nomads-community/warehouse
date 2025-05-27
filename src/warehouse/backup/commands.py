@@ -24,7 +24,15 @@ script_dir = Path(__file__).parent.resolve()
     required=True,
     help="Path to backup folder on local hard disk drive",
 )
-def backup(seq_folder: Path, backup_folder: Path):
+@click.option(
+    "-d",
+    "--delete",
+    is_flag=True,
+    default=False,
+    help="Delete files in backup folder that are not in source folder",
+    required=False,
+)
+def backup(seq_folder: Path, backup_folder: Path, delete: bool = False) -> None:
     """
     Backup all sequence data files to a local hard disk drive.
 
@@ -33,6 +41,12 @@ def backup(seq_folder: Path, backup_folder: Path):
     log = logging.getLogger("backup")
     log.info(divider)
     log.debug(identify_cli_command())
+    log.info(f"Backing up sequence data from {seq_folder} to {backup_folder}")
 
-    selective_rsync(seq_folder, backup_folder, exclusions=None, recursive=True)
+    selective_rsync(
+        source_dir=seq_folder,
+        target_dir=backup_folder,
+        recursive=True,
+        delete=delete,
+    )
     log.info(divider)
