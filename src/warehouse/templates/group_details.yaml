@@ -59,13 +59,16 @@ KEMRI_ENTO:
     - NOMADS_ento
 KCL:
   names:
-    - Miriam Combe
-    - Sheila Otieno
+    - Miriam Wanjiku
+    - Bixa Ogola
+    - Valentine Simiyu
   initials:
-    - MC
-    - SO
+    - MW
+    - BO
+    - VS
   projects:
     - ATSB
+    - ASH
 CIGASS:
   names:
     - Djiby Sow 
