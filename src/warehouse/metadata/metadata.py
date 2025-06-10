@@ -934,8 +934,7 @@ class SequencingMetadataParser:
         bamfiles = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_BAMSTATS_CSV, recursive=True
         )
-        summary_bam = concat_files_add_expID(bamfiles, SeqDataSchema.EXP_ID[0])
-        self.summary_bam = summary_bam
+        self.summary_bam = concat_files_add_expID(bamfiles, SeqDataSchema.EXP_ID[0])
 
         log.info("   Searching for bedcov file(s)")
         bedcovfiles = identify_files_by_search(
@@ -943,15 +942,17 @@ class SequencingMetadataParser:
         )
         # Remove any with nomadic in path as this output is identically named in nomadic and savanna and only want latter
         bedcovfiles = [x for x in bedcovfiles if "nomadic" not in str(x)]
-        summary_bedcov = concat_files_add_expID(bedcovfiles, SeqDataSchema.EXP_ID[0])
-        self.summary_bedcov = summary_bedcov
+        self.summary_bedcov = concat_files_add_expID(
+            bedcovfiles, SeqDataSchema.EXP_ID[0]
+        )
 
         log.info("   Searching for sample QC file(s)")
         exptqcfiles = identify_files_by_search(
             seqdata_folder, Regex_patterns.SEQDATA_QC_PER_SAMPLE_CSV, recursive=True
         )
-        qc_per_sample = concat_files_add_expID(exptqcfiles, SeqDataSchema.EXP_ID[0])
-        self.qc_per_sample = qc_per_sample
+        self.qc_per_sample = concat_files_add_expID(
+            exptqcfiles, SeqDataSchema.EXP_ID[0]
+        )
 
         log.info("   Searching for experiment QC file(s)")
         qc_per_expt_files = identify_files_by_search(
@@ -974,8 +975,7 @@ class SequencingMetadataParser:
             seqdata_folder, Regex_patterns.SEQDATA_BCFTOOLS_OUTPUT_TSV, recursive=True
         )
 
-        bcftools = concat_files_add_expID(bcftools_files, SeqDataSchema.EXP_ID[0])
-        self.bcftools = bcftools
+        self.bcftools = concat_files_add_expID(bcftools_files, SeqDataSchema.EXP_ID[0])
 
         if output_folder:
             output_folder = output_folder / "sequence"
