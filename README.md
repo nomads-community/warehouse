@@ -5,7 +5,7 @@ This repository aims to help streamline and standardise the storage of experimen
 - Recording of experimental details
 - Storage of sequence data
 
-There are six processes in `warehouse`:
+There are six processes in `warehouse`, plus a backup function (not shown below):
 ```mermaid
 flowchart LR
     subgraph OS1["**Shared drive**"]
@@ -39,7 +39,7 @@ Note that steps 3 to 5 must be performed on the sequencing computer, while all o
 
 
 ## 1. warehouse templates
-All experimental data should be recorded in standardised Excel spreadsheets (see `templates` folder). Each has user-friendly tabs for entry of data and an instruction sheet. The standardisation that warehouse promotes relies on a number of identifiers.
+All experimental data should be recorded in standardised Excel spreadsheets (see `templates` folder). Each has user-friendly tabs for entry of data and an instruction sheet. If possible use these templates in Excel as formatting can become corrupted in other programs. The standardisation that warehouse promotes relies on a number of identifiers.
 
 <details>
 <summary>Identifiers used</summary>
@@ -75,28 +75,28 @@ warehouse templates -l
 Update templates with group details:
 
 ```
-warehouse templates -o ~/NOMADS_Blank_Templates -g UCB
+warehouse templates -g UCB -o ~/NOMADS_Blank_Templates 
 ```
 
 </details>
 
 ## 2. warehouse metadata
-This command allows you to directly import, validate, munge and export all experimental data as required. We recommend regularly (e.g. after each experiment) using this function to ensure your data are valid and consistent.
+This command allows you to directly import, validate, munge and export all experimental and sequencing data as required. We recommend regularly (e.g. after each experiment) using this function to ensure your data are valid and consistent.
 
 <details>
 <summary>Example usage</summary>
 
 Extract and validate all experimental data from Excel files: 
 ```
-warehouse metadata -e example_data/experimental/`
+warehouse metadata -e example_data/experimental/
 ```
 Extract, validate and output all experimental data:
 ```
-warehouse metadata -e example_data/experimental/ -o experiments/ `
+warehouse metadata -e example_data/experimental/ -o output_folder/
 ```
-Extract, validate and output experimental data and sample metadata including sample status:
+Extract, validate and output experimental data, sequencing data and sample metadata including sample status:
 ```
-warehouse metadata -e example_data/experimental/ -o experiments/ -m example_data/sample/sample_metadata.xlsx`
+warehouse metadata -e example_data/experimental/ -m example_data/sample/sample_metadata.csv -s example_data/seqdata -o output_folder/
 ```
 </details>
 
@@ -113,7 +113,7 @@ This command will generate a standardised folder hierarchy for storing sequence 
 
 Create directory structure:
 ```
-warehouse seqfolders -e example_data/experimental/ -i SLJS034
+warehouse seqfolders -e example_data/experimental/ -i SLJS034 -o sequence_data/
 ```
 An `.ini` file can be used to define the desired folder structure, including sub-folders (see `resources/seqfolders` for an example), but  unless absolutely necessary we recommend using the default.
 </details>
@@ -132,10 +132,7 @@ Aggregate sequence data into the seqfolders structure:
 ```
 warehouse aggregate -s example_data/seqdata/ 
 ```
-Aggregate a specific experiment into the seqfolders structure:
-```
-warehouse aggregate -s example_data/seqdata/ -i SLJS034
-```
+
 If your NOMADS git directory is not in '~/git' provide this to aggregate:
 ```
 warehouse aggregate -s example_data/seqdata/ -g ~/Work/git
@@ -167,6 +164,17 @@ warehouse visualise -e example_data/experimental/ -s example_data/seqdata/ -m ex
 ```
 </details>
 
+## 7. warehouse backup
+This command can be used to backup your raw sequence data to an external USB hard disk drive. 
+
+<details>
+<summary>Example usage</summary>
+
+Backup sequence data
+```
+warehouse backup -s example_data/seqdata/ -b /media/usb_drive/seqdata/
+```
+</details>
 
 ## Installation
 <details>

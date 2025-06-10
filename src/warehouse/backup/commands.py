@@ -15,26 +15,26 @@ script_dir = Path(__file__).parent.resolve()
     "--seq_folder",
     type=Path,
     required=True,
-    help="Path to folder containing all sequencing data",
+    help="Path to folder containing all sequencing data on local machine",
 )
 @click.option(
     "-b",
     "--backup_folder",
     type=Path,
     required=True,
-    help="Path to backup folder on local hard disk drive",
+    help="Path to backup folder on external USB drive",
 )
 @click.option(
     "-d",
     "--delete",
     is_flag=True,
     default=False,
-    help="Delete files in backup folder that are not in source folder",
+    help="Delete backed up files not in the sequence folder (use with caution)",
     required=False,
 )
 def backup(seq_folder: Path, backup_folder: Path, delete: bool = False) -> None:
     """
-    Backup all sequence data files to a local hard disk drive.
+    Backup all sequence data files to a local USB drive.
 
     """
     # Set up child log

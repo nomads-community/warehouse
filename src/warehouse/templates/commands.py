@@ -27,18 +27,18 @@ conditional_formatting_yaml = script_dir / "conditional_formatting.yml"
     short_help="Update NOMADS template files with group specific usernames and projects"
 )
 @click.option(
-    "-o",
-    "--output_folder",
-    type=Path,
-    required=False,
-    help="Path to folder where the updated templates should be output to",
-)
-@click.option(
     "-g",
     "--group_name",
     type=str,
     required=False,
     help="Name of group to use",
+)
+@click.option(
+    "-o",
+    "--output_folder",
+    type=Path,
+    required=False,
+    help="Path to folder where the updated templates should be output to",
 )
 @click.option(
     "-l",

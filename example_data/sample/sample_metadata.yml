@@ -1,0 +1,33 @@
+#This file defines the fieldnames [field], datatypes [datatype] for those fields, and human-readable labels [label] for
+#for each metric that should be assessed in the metadata file
+STUDY_ID:
+  field: study_id
+  label: Study ID
+  datatype: str
+STATUS:
+  field: status
+  label: Status
+DATE:
+  field: date
+  label: Date Enrolled
+  dateformat: '%Y/%m/%d'
+INTDATE:
+  field: intervention_date
+  label: Intervention Date
+  dateformat: '%Y-%m-%d'
+PARASITAEMIA:
+  field: parasitaemia_p/ul
+  label: Parasitaemia (p/ul)
+  datatype: int
+PROVINCE:
+  field: province
+  label: Province
+  datatype: str
+MONTH:
+  field: month
+  label: Month collected
+  datatype: int
+YEAR:
+  field: year
+  label: Year collected
+  datatype: int

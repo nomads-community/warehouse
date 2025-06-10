@@ -1,4 +1,4 @@
-sample_id,date,intervention_date,parasitaemia_p/ul,province,year,month
+study_id,date,intervention_date,parasitaemia_p/ul,province,year,month
 MIS1011,2023/04/05,2021-04-05,24,Northern,2023,4
 MIS1012,2023/04/05,2021-04-05,330,Northern,2023,4
 MIS1013,2023/04/05,2021-04-05,240,Northern,2023,4

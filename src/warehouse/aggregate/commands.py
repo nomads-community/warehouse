@@ -22,14 +22,6 @@ script_dir = Path(__file__).parent.resolve()
     help="Path to folder containing sequencing outputs generated with warehouse seqfolders",
 )
 @click.option(
-    "-i",
-    "--expt_id",
-    type=str,
-    required=False,
-    default=None,
-    help="Experiment ID (e.g. SLJS034) to consolidate data into sequencing folder",
-)
-@click.option(
     "-g",
     "--git_folder",
     type=Path,
@@ -37,7 +29,7 @@ script_dir = Path(__file__).parent.resolve()
     default=Path.home() / "git",
     help="Path to git folder containing nomadic and savanna clones. Default is ~/git",
 )
-def aggregate(seq_folder: Path, expt_id: str, git_folder: Path):
+def aggregate(seq_folder: Path, git_folder: Path):
     """
     Aggregate raw sequence data outputs into the standardised seqfolders structure
     """
@@ -52,10 +44,7 @@ def aggregate(seq_folder: Path, expt_id: str, git_folder: Path):
         locations = yaml.safe_load(f)
 
     # Define list of experiment folders
-    if expt_id:
-        expt_dirs = identify_folders_by_pattern(seq_folder, expt_id)
-    else:
-        expt_dirs = identify_folders_by_pattern(seq_folder, Regex_patterns.NOMADS_EXPID)
+    expt_dirs = identify_folders_by_pattern(seq_folder, Regex_patterns.NOMADS_EXPID)
 
     summary_df = pd.DataFrame()
     # Process each folder
