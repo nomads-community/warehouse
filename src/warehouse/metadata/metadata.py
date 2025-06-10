@@ -641,7 +641,7 @@ class ExpMetadataMerge:
                         produce_dir(problematic_dir)
                         path = problematic_dir / f"{warning}.csv"
                         missing_records_df[show_cols].to_csv(path, index=False)
-                        print(f"   Missing records written to {path}")
+                        log.info(f"   Missing records written to {path}")
                     log.info("")
 
                 # Create df with matched records
@@ -666,7 +666,7 @@ class ExpMetadataMerge:
                             produce_dir(problematic_dir)
                             path = problematic_dir / f"{c} mismatches.csv"
                             mismatches_df[show_cols].to_csv(path, index=False)
-                            print(f"   Mismatched records written to {path}")
+                            log.info(f"   Mismatched records written to {path}")
                         log.info("")
                         log.info("")
 
@@ -873,7 +873,7 @@ class SampleMetadataParser:
         """
         Update df with status of each sample ie incorporate experiment data into sample df
         """
-        print("Adding test status to sample metadata")
+        log.info("Adding test status to sample metadata")
 
         # Define attributes from the ExpClassInstance
         exp_type_colname = ExpClassInstance.dataschema.EXP_TYPE[0]
@@ -1162,7 +1162,6 @@ class Combine_Exp_Seq_Sample_data:
 
         # Remove entries from the dataschema that are not relevent
         keys_to_delete = []
-        log.debug
         for key, value in self.dataschema.items():
             if value["field"] not in alldata_df.columns:
                 keys_to_delete.append(key)

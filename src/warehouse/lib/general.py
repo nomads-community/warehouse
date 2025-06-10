@@ -275,7 +275,7 @@ def identify_files_by_search(
     folder_path (Path):     path to the search folder.
     pattern (re.pattern):   Compiled RE pattern to match filename against
     recursive (bool):       Select whether search should be recursive
-    verbose (bool):         print outputs or now
+    verbose (bool):         print outputs or not
 
     Returns:
         list[Path]: List of paths to the matching file(s), or None if not found.

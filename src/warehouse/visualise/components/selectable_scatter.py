@@ -154,7 +154,9 @@ def dropdowns_panel(app: Dash, all_data: object) -> html.Div:
         # Return the selection made to populate the dropdown with appropriate dict
         sources = all_data.sources
         fields = all_data.fields
-        print(f"source1: {source1}, return: {fields.get(source1)}")
+        log.debug(f"source1: {source1}, return: {fields.get(source1)}")
+        log.debug(f"source2: {source2}, return: {fields.get(source2)}")
+        log.debug(f"source3: {source3}, return: {fields.get(source3)}")
         return [
             sources.get(cat1, source_list),
             sources.get(cat2, source_list),
