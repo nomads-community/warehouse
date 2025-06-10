@@ -43,7 +43,10 @@ from warehouse.metadata.metadata import (
     help="Output individual and aggregated metadata files.",
 )
 def metadata(
-    exp_folder: Path, seq_folder: Path, metadata_file: Path, output_folder: Path
+    exp_folder: Path = None,
+    seq_folder: Path = None,
+    metadata_file: Path = None,
+    output_folder: Path = None,
 ):
     """
     Validate, merge and optionally export experimental and sequence data
@@ -53,6 +56,10 @@ def metadata(
     log = logging.getLogger("metadata_commands")
     log.info(divider)
     log.debug(identify_cli_command())
+
+    # Ensure some variables have been passed
+    if not exp_folder and not seq_folder and not metadata_file:
+        raise ValueError("Please supply -e, -m or -s inputs")
 
     if exp_folder:
         log.info("Processing experimental data")

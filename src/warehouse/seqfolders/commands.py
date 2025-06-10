@@ -3,6 +3,10 @@ from pathlib import Path
 
 import click
 
+from warehouse.lib.dictionaries import (
+    create_datasources_dict,
+    filter_dict_by_key_or_value,
+)
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import identify_experiment_files
 from warehouse.lib.logging import divider, identify_cli_command
@@ -31,7 +35,7 @@ from warehouse.seqfolders.dirs import ExperimentDirectories
     "-o",
     "--output_folder",
     type=Path,
-    required=False,
+    required=True,
     help="Base folder to output sequencing directory structure to.",
 )
 @click.option(
@@ -56,10 +60,10 @@ def seqfolders(
     seqlib_fn = identify_experiment_files(exp_folder, expt_id)
 
     # Define the experimental data schemes
-    ExpDataschema = DataSchema(source=["sWGA", "PCR", "seqlib"])
-    exp_metadata = ExpMetadataParser(
-        file_path=seqlib_fn[0], ExpDataSchema=ExpDataschema
+    ExpDataschema = DataSchema(
+        filter_dict_by_key_or_value(create_datasources_dict(), "experimental")
     )
+    exp_metadata = ExpMetadataParser(seqlib_fn[0], ExpDataschema)
 
     # Make sure it is a seqlib expt
     if not exp_metadata.expt_type == "seqlib":
@@ -97,12 +101,10 @@ def seqfolders(
     # Create a list of unique expids that need to be extracted
     expids = set(expids + [expt_id])
 
-    matching_filepaths = identify_experiment_files(exp_folder, expids)
+    # matching_filepaths = identify_experiment_files(exp_folder, expids)
 
     # Extract all data
-    exp_metadata = ExpMetadataMerge(
-        exp_fns=matching_filepaths, ExpDataSchema=ExpDataschema
-    )
+    exp_metadata = ExpMetadataMerge(exp_folder=exp_folder, expt_ids=expids)
 
     # Filter to the exptid given by user and sort by barcode column
     exp_metadata_df = exp_metadata.all_df[

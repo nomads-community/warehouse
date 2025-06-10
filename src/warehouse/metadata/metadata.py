@@ -26,6 +26,7 @@ from warehouse.lib.dictionaries import (
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import (
     extract_exptype_from_expid,
+    identify_experiment_files,
     identify_exptid_from_path,
     identify_files_by_search,
     produce_dir,
@@ -498,6 +499,7 @@ class ExpMetadataMerge:
         self,
         exp_folder: Path,
         output_folder: Path = None,
+        expt_ids: list = None,
     ):
         # Get the relevent dataschema
         dataschema_files = create_datasources_dict()
@@ -505,9 +507,13 @@ class ExpMetadataMerge:
             filter_dict_by_key_or_value(dataschema_files, "experimental")
         )
         self.dataschema = ExpDataSchema
-        exp_fns = identify_files_by_search(
-            exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True
-        )
+        # Limit the data selected
+        if expt_ids:
+            exp_fns = identify_experiment_files(exp_folder, expt_ids)
+        else:
+            exp_fns = identify_files_by_search(
+                exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True
+            )
         # Check that there aren't duplicate experiment IDs
         self._check_duplicate_expid(exp_fns)
 
