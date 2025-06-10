@@ -46,7 +46,15 @@ def render(
             html.Div(
                 className="row-flex",
                 children=[
-                    dcc.Graph(figure=fig, id=f"{ids.TRYPTICH}_{col}")
+                    dcc.Graph(
+                        figure=fig,
+                        id=f"{ids.TRYPTICH}_{col}",
+                        style={
+                            "width": "30%",
+                            "display": "inline-block",
+                            "verticalAlign": "top",
+                        },
+                    )
                     for col, fig in zip(values_cols, triptych)
                 ],
             ),
@@ -76,7 +84,7 @@ def generate_fig(df, values_col):
 
     # Add a title
     fig.update_layout(
-        title={"text": values_col.capitalize(), "x": 0.5, "xanchor": "center"}
+        title={"text": values_col.capitalize(), "x": 0.5, "xanchor": "center"},
     )
 
     # Change annotations and wedge order
