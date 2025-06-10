@@ -4,7 +4,11 @@ from pathlib import Path
 import click
 
 from warehouse.lib.logging import divider, identify_cli_command
-from warehouse.metadata.metadata import ExpMetadataMerge, SequencingMetadataParser
+from warehouse.metadata.metadata import (
+    ExpMetadataMerge,
+    SampleMetadataParser,
+    SequencingMetadataParser,
+)
 
 
 @click.command(
@@ -25,13 +29,22 @@ from warehouse.metadata.metadata import ExpMetadataMerge, SequencingMetadataPars
     help="Path to folder containing sequencing outputs",
 )
 @click.option(
+    "-m",
+    "--metadata_file",
+    type=Path,
+    required=False,
+    help="Path to file (csv or xlsx) containing sample metadata information.",
+)
+@click.option(
     "-o",
     "--output_folder",
     type=Path,
     required=False,
     help="Output individual and aggregated metadata files.",
 )
-def metadata(exp_folder: Path, seq_folder: Path, output_folder: Path):
+def metadata(
+    exp_folder: Path, seq_folder: Path, metadata_file: Path, output_folder: Path
+):
     """
     Validate, merge and optionally export experimental and sequence data
     """
@@ -43,8 +56,15 @@ def metadata(exp_folder: Path, seq_folder: Path, output_folder: Path):
 
     if exp_folder:
         log.info("Processing experimental data")
-        ExpMetadataMerge(exp_folder, output_folder)
+        exp_data = ExpMetadataMerge(exp_folder, output_folder)
 
     if seq_folder:
         log.info("Processing sequencing data")
         SequencingMetadataParser(seq_folder, output_folder)
+
+    if metadata_file:
+        log.info("Processing metadata file")
+        sample_data = SampleMetadataParser(metadata_file, output_folder)
+        if exp_folder:
+            log.info("   Incorporating experimental metadata")
+            sample_data.incorporate_experimental_data(exp_data, output_folder)

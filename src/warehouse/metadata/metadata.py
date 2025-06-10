@@ -869,7 +869,9 @@ class SampleMetadataParser:
             output_folder = output_folder / "samples"
             identify_export_dataframe_attributes(self, output_folder)
 
-    def incorporate_experimental_data(self, ExpClassInstance):
+    def incorporate_experimental_data(
+        self, ExpClassInstance: ExpMetadataMerge, output_folder: Path
+    ):
         """
         Update df with status of each sample ie incorporate experiment data into sample df
         """
@@ -909,6 +911,10 @@ class SampleMetadataParser:
 
         # Add updated df
         self.df_with_exp = df
+
+        if output_folder:
+            output_folder = output_folder / "samples"
+            identify_export_dataframe_attributes(self, output_folder)
 
 
 class SequencingMetadataParser:
