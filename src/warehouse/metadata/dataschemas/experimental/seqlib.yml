@@ -1,0 +1,118 @@
+#This file defines the fieldnames [field] and human-readable labels [label] for seqlib data
+
+# Experiment level fields
+ENDREPAIR_TARGETMASS:
+  field:  endrepair_targetmass_ng
+  label: End Repair Target Mass (ng)
+ENDREPAIR_MAXVOL:
+  field:  endrepair_maxvol_ul
+  label: End Repair Max Volume (ul)
+ENDREPAIR_DNA:
+  field:  endrepair_dnaconc_ngul
+  label: End Repair DNA Concentration (ng/ul)
+ADAPTLIG_TARGETMASS:
+  field:  adaptlig_targetmass_ng
+  label: Adaptor Ligation Target Mass (ng)
+ADAPTLIG_MAXVOL:
+  field:  adaptlig_maxvol_ul
+  label: Adaptor Ligation Max Volume (ul)
+SEQLIB_DNACONC:
+  field:  library_dnaconc_ngul
+  label: Library DNA Concentration (ng/ul)
+SEQ_PLATFORM:
+  field:  seq_platform
+  label: Sequencing Platform
+FLOWCELL_TARGETMASS:      
+  field:  flowcell_targetmass_ng
+  label: Flowcell Target Mass (ng)
+FLOWCELL_MAXVOL:
+  field:  flowcell_maxvol_ul
+  label: Flowcell Max Volume (ul)
+FLOWCELL_ID:
+  field:  flowcell_id
+  label: Flowcell ID
+FLOWCELL_CHEMISTRY:
+  field:  flowcell_chemistry
+  label: Flowcell Chemistry
+FLOWCELL_STATUS:
+  field:  flowcell_status
+  label: Flowcell Status
+ENDREPAIR_MAXVOL:
+  field:  endrepair_maxvol_ul
+  label: End Repair Max Volume (ul)
+FLOWCELL_CHECKPORES:
+  field:  flowcell_checkpores
+  label: Flowcell Pores Available Pre-Run
+FLOWCELL_RUNLENGTH:
+  field:  flowcell_runlength_hrs
+  label: Flowcell Run Length (hrs)
+FLOWCELL_PREVUSE:
+  field:  flowcell_prevusage_hrs
+  label: Flowcell Previous Usage (hrs)
+LIB_WASHBUFF:
+  field:  library_washbuffer
+  label: Library Wash Buffer
+FLOWCELL_MASS_LOADED:
+  field:  flowcell_massloaded_ng
+  label: Flowcell Mass Loaded (ng)
+PCR_PRODUCT_TARGET_MASS:
+  field:  pcr_product_targetmass_per_sample_ng
+  label: PCR Product Target Mass per Sample (ng)
+PCR_PRODUCT_MAX_VOL:
+  field:  pcr_product_maxvol_ul
+  label: PCR Product Max Volume per Sample (ul)
+#Common
+EXP_ID:
+  field: expt_id
+  label: Experiment ID
+EXP_DATE:
+  field: expt_date
+  label: Experiment Date
+EXP_TYPE:
+  field: expt_type
+  label: Experiment Type
+EXP_SUB_TYPE:
+  field: expt_sub-type
+  label: Experiment Sub-Type
+EXP_USER:
+  field: expt_user
+  label: User
+EXP_VERSION:
+  field: expt_version
+  label: Template version
+EXP_RXNS:
+  field: expt_rxns
+  label: Experiment Reactions
+EXP_NOTES:
+  field: expt_notes
+  label: Experiment Notes
+EXP_SUMMARY:
+  field: expt_summary
+  label: Experiment Summary
+
+# Reaction level fields
+BARCODE:
+  field:  barcode
+  label: Barcode
+ENDREPAIR_VOL:
+  field:  endrepair_vol_ul
+  label: End Repair Volume (ul)
+# Common
+SAMPLE_ID:
+  field: sample_id
+  label: Sample ID
+EXTRACTION_ID:
+  field: extraction_id
+  label: Extraction ID
+SAMPLE_TYPE:
+  field: sample_type
+  label: Sample Type
+SWGA_IDENTIFIER:
+  field: swga_identifier
+  label: sWGA Identifier
+PCR_IDENTIFIER:
+  field: pcr_identifier
+  label: PCR Identifier
+SEQLIB_IDENTIFIER:
+  field: seqlib_identifier
+  label: Seqlib Identifier

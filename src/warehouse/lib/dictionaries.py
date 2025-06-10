@@ -3,8 +3,15 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+import yaml
+
+from warehouse.lib.general import check_path_present
+
 # Get logging process
 log = logging.getLogger("general")
+
+# Define where the script is running from so you can reference internal files etc
+script_dir = Path(__file__).parent.resolve()
 
 
 def create_dict_from_ini(ini_files: Path | list[Path]) -> dict:
@@ -33,6 +40,31 @@ def create_dict_from_ini(ini_files: Path | list[Path]) -> dict:
                 # Enter the key and value into dict
                 field_dict.setdefault(key.upper(), {})[section] = value
     return field_dict
+
+
+def create_dict_from_yaml(yaml_files: Path | list[Path]) -> dict:
+    """
+    Define fields from a .yml file(s) into a dictionary
+
+    Args:
+        yml_files list[Path]: Path(s) to yml file
+
+    Returns:
+        dict:   dictionary containing all details from yml file(s)
+    """
+    if isinstance(yaml_files, Path):
+        # Single entry (convert to list for consistency)
+        yaml_files = [yaml_files]
+
+    # Create an empty dictionary to store data
+    yml_dict: dict[str, dict] = {}
+    # Loop through each file and load the YAML content
+    log.debug(f"Loading YAML files: {yaml_files}")
+    for yml in yaml_files:
+        with open(yml, "r") as f:
+            tmp_dict = yaml.safe_load(f)
+            yml_dict.update(tmp_dict)
+    return yml_dict
 
 
 def get_nested_key_value(data_dict: dict, key: str, nested_key: str) -> str | dict:
@@ -90,35 +122,36 @@ def filter_nested_dict_by_attribute(nested_dict: dict, attributes: str | list) -
 
 
 def filter_dict_by_key_or_value(
-    data_dict: dict, dict_term: str | list, search_key: bool = True
+    dict_to_filter: dict, search_term: str | list, search_key: bool = True
 ) -> dict:
     """
     Filters a dictionary to defined key(s)
 
     Args:
         data_dict (dict):       Data dictionary to filter
-        dict_keys (str|list):   key(s) to search for in the dict values
+        dict_term (str|list):   Term to search for in the dict
+        search_key (bool):      Bool test to search the key field
 
     Returns:
         dict
     """
 
-    if isinstance(dict_term, str):
-        # Convert to set for consistency
-        dict_term = [dict_term]
+    if isinstance(search_term, str):
+        # Convert to a list for consistency
+        search_term = [search_term]
 
     # Filter for attribute in key or value
     if search_key:
         filtered_entries = {
             key: value
-            for key, value in data_dict.items()
-            if any(item in key for item in dict_term)
+            for key, value in dict_to_filter.items()
+            if any(item in key for item in search_term)
         }
     else:
         filtered_entries = {
             key: value
-            for key, value in data_dict.items()
-            if any(item in value for item in dict_term)
+            for key, value in dict_to_filter.items()
+            if any(item in value for item in search_term)
         }
 
     return filtered_entries
@@ -198,3 +231,149 @@ def filter_nested_dict(
         for value in dict_entries.values()
         if value[new_value_field] != exclude_value
     }
+
+
+def merge_dataschema_dicts_with_suffixes(dict_list: list, suffix_list: list) -> dict:
+    """
+    Merges a list of dataschema dictionaries together. Duplicate keys are suffixed according
+    to the dict they come from.
+
+    Args:
+        dict_list(list) : List of dictionaries to merge
+        suffix_list(list)   List of suffixes to append to duplicates
+
+    Returns:
+        dict:   Merged dictionary
+    """
+    if len(dict_list) != len(suffix_list):
+        raise ValueError("The number of dictionaries and suffixes must be the same.")
+
+    merged_data = {}
+    key_occurrence_info = {}
+
+    for i, current_dict in enumerate(dict_list):
+        # Set the current suffix
+        current_suffix = suffix_list[i]
+
+        for key, value in current_dict.items():
+            # If the key has been seen before
+            if key in key_occurrence_info:
+                # Add suffix to the key and to the nested field name
+                suffixed_value = {
+                    "field": f"{value['field']}_{current_suffix}",
+                    "label": f"{value['label']}",
+                }
+                merged_data[f"{key}_{current_suffix.upper()}"] = suffixed_value
+                key_occurrence_info[key]["occurrences"].append(i)
+            else:
+                # First time seeing this key so add to dict
+                merged_data[key] = value
+                # Add info on having seen this key before
+                key_occurrence_info[key] = {"occurrences": [i]}
+
+    # Ensure all duplicate keys from the first processed dictionary are properly suffixed
+    for key, info in key_occurrence_info.items():
+        # Identify keys that appeared in the first dict and in more than one dict
+        if len(info["occurrences"]) > 1 and 0 in info["occurrences"]:
+            # Get the entry in the first dict
+            orig_value = dict_list[0][key]
+            # Build the suffixed version
+            suffixed_value = {
+                "field": f"{orig_value['field']}_{suffix_list[0]}",
+                "label": f"{orig_value['label']}",
+            }
+            # Add in new entry
+            merged_data[f"{key}_{suffix_list[0].upper()}"] = suffixed_value
+
+    return merged_data
+
+
+def add_suffix_to_duplicate_dict_entries(
+    current_dict: dict,
+    dict_to_test: dict,
+    suffix: str,
+) -> dict:
+    """
+    Tests each key in current_dict against all keys in dict_to_test. If a match is found
+    then a suffixed entry is added to the current_dict
+
+    Args:
+        current_dict (dict): The dictionary to which new entries will be merged
+        dict_to_test (dict): The dictionary whose entries are checked for conflict with current_dict
+        suffix (str): The suffix to use for the current dict being merged
+
+    Returns:
+        dict: Returns an updated `current_dict` with suffixed entries.
+    """
+    new_dict = {}
+    # Go through each key-value pair in the dict_to_add
+    for key, value in current_dict.items():
+        if key in dict_to_test:
+            # First add the original entry back in
+            new_dict[key] = value
+            # Determine if the key is upper case and therefore whether the suffix should follow suit
+            if key.isupper():
+                # Generate a new unique upper prefixed key
+                new_key = f"{key}_{suffix.upper()}"
+            else:
+                new_key = f"{key}_{suffix}"
+
+            # Ensure the newly generated keys are not in the existing_dict
+            if new_key in current_dict:
+                log.debug(f"{new_key} already in curent dict")
+            elif new_key in dict_to_test:
+                log.debug(f"{new_key} already in existing dict")
+
+            # Modify the values to also include the prefixes if it is a dict
+            if type(value) is dict:
+                newvalue = value.copy()
+                newvalue["field"] = f"{value.get('field')}_{suffix}"
+            elif type(value) is str:
+                newvalue = f"{value}_{suffix}"
+            # Add entries to dict
+            new_dict[new_key] = newvalue
+
+            log.debug(f"Duplicate key found: {key}")
+            log.debug(f"   Added '{new_key} : {newvalue}'")
+
+        else:
+            # Not a duplicate so add
+            new_dict[key] = value
+            log.debug(f"Added new key: '{key}'.")
+    return new_dict
+
+
+def create_datasources_dict(metadata_fn_path: Path = None) -> dict:
+    """
+    Creates a dictionary mapping data source names to lists of their
+    dataschema yaml filepaths along with user defined sample metadata file.
+    Args:
+        metadata_fn_path (Path):
+            User defined sample metadata file (e.g., an `.xlsx` file). Its parent directory and stem will
+            be used to derive the path to the corresponding sample metadata YAML file.
+
+    Returns:
+        dict: Keys are the category of the data, with nested source name and absolute path"""
+    # Get the default data sources
+    dataschemas_dir = script_dir.parent / "metadata" / "dataschemas"
+    datasources_yml = dataschemas_dir / "datasources.yml"
+    datasources = create_dict_from_yaml(datasources_yml)
+
+    # Transform the dict to have paths to each target yml file
+    for category in datasources.keys():
+        # Get the sourcenames and ensure in a list
+        sources = datasources[category].get("sources")
+        # Translate sourcenames into paths
+        paths = [dataschemas_dir / category / f"{s}.yml" for s in sources]
+        datasources[category]["paths"] = paths
+
+    if metadata_fn_path:
+        metadata_yml = metadata_fn_path.parent / f"{metadata_fn_path.stem}.yml"
+        check_path_present(metadata_yml, isfile=True, raise_error=True)
+        # Add entry to dict
+        datasources["metadata"] = {"category_label": "Sample Metadata"}
+        datasources["metadata"]["sources"] = [metadata_yml.name]
+        datasources["metadata"]["source_labels"] = [metadata_yml.stem]
+        datasources["metadata"]["paths"] = [metadata_yml]
+
+    return datasources

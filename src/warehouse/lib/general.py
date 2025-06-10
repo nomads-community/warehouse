@@ -21,7 +21,7 @@ def identify_exptid_from_path(path: Path, raise_error: bool = True) -> str:
     """
 
     try:
-        # First try with the path name
+        # First try with the
         match = re.search(Regex_patterns.NOMADS_EXPID, path.name)
         if match is None:
             # Second try with the full path
@@ -37,6 +37,27 @@ def identify_exptid_from_path(path: Path, raise_error: bool = True) -> str:
         msg = f"Unable to identify an ExpID in: {path.name}"
         log.debug(msg)
         raise DataFormatError(msg)
+
+
+def extract_exptype_from_expid(expid: str, raise_error: bool = True) -> str:
+    """
+    Identify the experimental type from the expid
+
+    Args:
+        expid (str): Experiment ID
+
+    Returns:
+        expt_type (str): the extracted experiment type or None if not found
+    """
+
+    exp_type = (
+        expid[0:2].replace("PC", "PCR").replace("SL", "seqlib").replace("SW", "sWGA")
+    )
+
+    if len(exp_type) == 2:
+        raise DataFormatError(f"Unable to identify an Experiment type in: {expid}")
+
+    return exp_type
 
 
 def identify_experiment_files(folder: Path, expt_ids: list) -> list:
@@ -148,6 +169,29 @@ def check_path_present(
         return False
 
     return True
+
+
+def identify_single_folder(
+    folder_path: Path, pattern, recursive: bool = False, verbose: bool = False
+) -> Path | None:
+    """
+    Identify a single target folder using a pattern
+
+    Args:
+      path: The path to the directory as a Path object.
+      pattern: The pattern to search for.
+    """
+    folders = identify_files_by_search(
+        folder_path=folder_path,
+        pattern=pattern,
+        recursive=recursive,
+        verbose=verbose,
+    )
+
+    if len(folders) != 1:
+        return None
+
+    return folders[0]
 
 
 def identify_folders_by_pattern(folder: Path, pattern: str) -> list[Path]:

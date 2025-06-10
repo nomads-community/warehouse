@@ -3,16 +3,15 @@ from pathlib import Path
 
 import click
 
-from warehouse.lib.general import (
-    Regex_patterns,
-    identify_experiment_files,
-    identify_files_by_search,
+from warehouse.lib.dictionaries import (
+    create_datasources_dict,
+    filter_dict_by_key_or_value,
 )
+from warehouse.lib.exceptions import PathError
+from warehouse.lib.general import identify_experiment_files, identify_files_by_search
 from warehouse.lib.logging import divider, identify_cli_command
-from warehouse.metadata.metadata import (
-    ExpMetadataMerge,
-    ExpMetadataParser,
-)
+from warehouse.lib.regex import Regex_patterns
+from warehouse.metadata.metadata import DataSchema, ExpMetadataMerge, ExpMetadataParser
 
 
 @click.command(
@@ -50,19 +49,38 @@ def metadata(exp_folder: Path, expt_id: str, output_folder: Path):
     log.info(divider)
     log.debug(identify_cli_command())
 
+    log.info("Identifying dataschema definitions")
+    sources = create_datasources_dict()
+    ExpDataschema = DataSchema(
+        files=filter_dict_by_key_or_value(sources, "experimental")
+    )
+
     # Extract metadata from template file(s) if exptid defined
     if expt_id:
         # Search for file with exptid in name
         matching_filepaths = identify_experiment_files(exp_folder, expt_id)
 
+        if len(matching_filepaths) > 1:
+            raise PathError(
+                f"No files found in {exp_folder} matching the experiment ID {expt_id}"
+            )
+
         # Put outputs into subfolder experimental
         if output_folder:
             output_folder = output_folder / "experimental"
 
-        ExpMetadataParser(matching_filepaths[0], output_folder)
+        ExpMetadataParser(
+            file_path=matching_filepaths[0],
+            output_folder=output_folder,
+            ExpDataSchema=ExpDataschema,
+        )
         return
     else:
         matching_filepaths = identify_files_by_search(
             exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True
         )
-        ExpMetadataMerge(matching_filepaths, output_folder)
+        ExpMetadataMerge(
+            exp_fns=matching_filepaths,
+            output_folder=output_folder,
+            ExpDataSchema=ExpDataschema,
+        )

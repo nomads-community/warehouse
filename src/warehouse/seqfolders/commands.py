@@ -6,7 +6,7 @@ import click
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import identify_experiment_files
 from warehouse.lib.logging import divider, identify_cli_command
-from warehouse.metadata.metadata import ExpMetadataMerge, ExpMetadataParser
+from warehouse.metadata.metadata import DataSchema, ExpMetadataMerge, ExpMetadataParser
 from warehouse.seqfolders.dirs import ExperimentDirectories
 
 
@@ -52,9 +52,14 @@ def seqfolders(
     log.info(divider)
     log.debug(identify_cli_command())
 
-    # First extract the individual experiment
+    # Identify the individual experiment
     seqlib_fn = identify_experiment_files(exp_folder, expt_id)
-    exp_metadata = ExpMetadataParser(seqlib_fn[0])
+
+    # Define the experimental data schemes
+    ExpDataschema = DataSchema(source=["sWGA", "PCR", "seqlib"])
+    exp_metadata = ExpMetadataParser(
+        file_path=seqlib_fn[0], ExpDataSchema=ExpDataschema
+    )
 
     # Make sure it is a seqlib expt
     if not exp_metadata.expt_type == "seqlib":
@@ -95,7 +100,9 @@ def seqfolders(
     matching_filepaths = identify_experiment_files(exp_folder, expids)
 
     # Extract all data
-    exp_metadata = ExpMetadataMerge(matching_filepaths)
+    exp_metadata = ExpMetadataMerge(
+        exp_fns=matching_filepaths, ExpDataSchema=ExpDataschema
+    )
 
     # Filter to the exptid given by user and sort by barcode column
     exp_metadata_df = exp_metadata.all_df[

@@ -18,9 +18,9 @@ from warehouse.lib.spreadsheets import (
 script_dir = Path(__file__).parent.resolve()
 templates_dir = script_dir.parent.parent.parent / "templates"
 # Identify and load targets dict from YAML file (assuming the file exists)
-group_details_yaml = script_dir / "group_details.yaml"
-data_validations_yaml = script_dir / "data_validations.yaml"
-conditional_formatting_yaml = script_dir / "conditional_formatting.yaml"
+group_details_yaml = script_dir / "group_details.yml"
+data_validations_yaml = script_dir / "data_validations.yml"
+conditional_formatting_yaml = script_dir / "conditional_formatting.yml"
 
 
 @click.command(

@@ -1,0 +1,52 @@
+#This file defines the fieldnames [field] and human-readable labels [label] for savanna 
+# output from bcftools.filtered.annotated.csv output
+BARCODE:
+  field: sample
+  label: Barcode
+CHROMOSOME:
+  field: chrom
+  label: Chromosome
+POS:
+  field: pos
+  label: position
+REF:
+  field: ref
+  label: reference
+ALT:
+  field: alt
+  label: alternate
+QUAL:
+  field: qual
+  label: quality
+MUT_TYPE:
+  field: mut_type
+  label: mutation type
+AA_CHANGE:  
+  field: aa_change
+  label: amino acid change
+AA_POS:
+  field: aa_pos
+  label: amino acid position
+STRAND:
+  field: strand
+  label: strand
+AMP:
+  field: amplicon
+  label: amplicon
+GT:
+  field: gt
+  label: genotype
+GQ:
+  field: gq
+  label: genotype quality
+DP:
+  field: dp
+  label: read depth
+WSAF:
+  field: wsaf
+  label: within sample allele frequency
+
+#Added fields
+EXP_ID:
+  field: expt_id
+  label: Experiment ID

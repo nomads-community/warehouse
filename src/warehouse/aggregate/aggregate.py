@@ -6,8 +6,7 @@ from pathlib import Path
 
 from warehouse.lib.general import (
     identify_exptid_from_path,
-    # produce_dir,
-    identify_folders_by_pattern,
+    identify_single_folder,
     is_directory_empty,
 )
 
@@ -68,22 +67,6 @@ def chown_paths_to_user(path: Path):
             subprocess.run(["sudo", "chown", f"{user}:{user}", item], check=True)
         except OSError as e:
             log.info(f"   Error changing permissions for '{item}': {e}")
-
-
-def identify_single_folder(folder_path: Path, pattern):
-    """
-    Identify a single target folder using a pattern and optionally test if empty
-
-    Args:
-      path: The path to the directory as a Path object.
-      pattern: The pattern to search for.
-    """
-    folders = identify_folders_by_pattern(folder_path, pattern)
-
-    if len(folders) != 1:
-        return None
-
-    return folders[0]
 
 
 def aggregate_seq_data_to_single_dir(

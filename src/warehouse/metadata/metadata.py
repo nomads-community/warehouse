@@ -1,5 +1,6 @@
 import logging
 import re
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -16,14 +17,15 @@ from warehouse.lib.dataframes import (
 )
 from warehouse.lib.decorators import singleton
 from warehouse.lib.dictionaries import (
-    create_dict_from_ini,
+    create_datasources_dict,
+    create_dict_from_yaml,
     filter_dict_by_key_or_value,
-    filter_nested_dict,
-    get_nested_key_value,
+    merge_dataschema_dicts_with_suffixes,
     reformat_nested_dict,
 )
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import (
+    extract_exptype_from_expid,
     identify_exptid_from_path,
     identify_files_by_search,
     produce_dir,
@@ -38,73 +40,161 @@ log = logging.getLogger("metadata")
 
 # Define where the script is running from so you can reference internal files etc
 script_dir = Path(__file__).parent.resolve()
-default_ini_folder = Path(script_dir, "dataschemas/")
 
 
-@singleton
-class ExpDataSchemaFields:
+@dataclass
+class SchemaParser:
     """
-    Pull in all of the dataschema fields that are in separate ini files
+    Generate a dataschema from a yaml file
+
+    Attributes:
+        schema_details (list):
+            A list consisting of the name of the schema and the path to the YAML file
+
+        fields (dict):
+            A dict containing all the yaml entries in the format:
+                ATTRIBUTE_NAME : {field: FIELDNAME, label: LABEL}
+                EXPID : {field : exp_id, label: Experiment ID}
+
+        dtypes (dict):
+            A dict containing all of the defined datatypes for a field in the format:
+                FIELDNAME : DATATYPE
+                age : int
+
+        dateformats(dict):
+            A dict containing all of the fields with defined dateformat in the format:
+                FIELDNAME : DATEFORMAT
+                collection_date : %Y/%m/%d
+
+        DYNAMIC_ATTRIBUTES(tuples)
+            All entries from the fields are added as individual attributes in the format:
+                self.ATTRIBUTENAME = ( FIELDNAME, LABEL)
+                self.EXPID = (exp_id, Experiment ID)
+
     """
 
-    def __init__(self):
-        # Find all .ini files
-        ini_files = identify_files_by_search(
-            default_ini_folder, re.compile("exp_.*.ini"), False, False
-        )
-        # Separate into the two types
-        common_ini = [path for path in ini_files if "common" in path.name]
-        other_inis = [path for path in ini_files if "common" not in path.name]
+    schema_details: list
+    fields: dict = field(init=False)
+    dtypes: dict = field(init=False)
+    dateformats: dict = field(init=False)
 
-        # Pull in the common fields into the dataschema dict
-        common_fields_dict = create_dict_from_ini(common_ini)
-        dataschema_dict = common_fields_dict.copy()
+    def __post_init__(self):
+        # Extract the data from the yaml file
+        _yaml_fields = create_dict_from_yaml(self.schema_details[1])
 
-        for ini_file in other_inis:
-            # Identify the experiment type from filename:
-            expt_type = ini_file.name.replace(".ini", "").replace("exp_", "")
+        # Set attributes for each of the fields and add to dict
+        self.fields = {}
+        self.dtypes = {}
+        self.dateformats = {}
+        for key, dict in _yaml_fields.items():
+            # Get field labels and set attributes
+            field = dict.get("field")
+            label = dict.get("label")
+            setattr(self, key.upper(), (field, label))
+            self.fields[key] = {"field": field, "label": label}
+            # Get datatype and date format fields
+            if dict.get("datatype"):
+                self.dtypes[field] = dict.get("datatype")
+            if dict.get("dateformat"):
+                self.dateformats[field] = dict.get("dateformat")
 
-            # Pull in assay specific fields from ini file and add to dataschema
-            libdict = create_dict_from_ini(ini_file)
-            dataschema_dict.update(libdict)
-            libname = f"{expt_type}_field_labels"
-            # Then add each field as a separate attribute
-            setattr(self, libname, libdict)
 
-            # Create additional entries that could be created during merging operations.
-            # There are a number of fields that are common to all experimental templates e.g. EXPT_ID
-            # When df are merged these will be given the expt_type suffixe e.g. sWGA
-            # However the original df will not have these suffixes
-            # Therefore for the common fields, add in new ref keys, as well as field and labels
-            # - the reference field e.g. EXP_ID_SWGA (key)
-            # - the suffixed field name e.g. exp_id_sWGA (field)
-            # - the human readable label e.g. Experiment ID (label)
-            # Note that this will create all possible combinations, but not necessarily the correct ones
-            modified_common_dict = {}
-            for key, entry in common_fields_dict.items():
-                new_key = f"{key}_{expt_type.upper()}"
-                new_entry = {"field": entry["field"] + "_" + expt_type}
-                modified_common_dict[new_key] = entry | new_entry
-            # Add suffixed fields to the dataschema
-            dataschema_dict.update(modified_common_dict)
+@dataclass
+class DataSchema:
+    """
+    Generate one or more dataschemas from defined yaml files
 
-            # Create all possible field labels by reformating and the combining the different dicts together
-            libname = f"{expt_type}_field_labels"
-            field_labels_dict = {}
-            for dict in [common_fields_dict, modified_common_dict, libdict]:
-                dict = reformat_nested_dict(dict, "field", "label")
-                log.debug(f"{len(dict)} fields identified")
-                field_labels_dict.update(dict)
-            setattr(self, libname, field_labels_dict)
+    Attributes:
+        files (list):
+            A list of information and filepath for dataschema YAML files in the format:
+                CATEGORY: {category_label: CATEGORY_LABEL,
+                            sources: SOURCENAME,
+                            source_labels: SOURCE_LABEL,
+                            paths: PATHS}
+                experimental: {category_label: Experimental Data,
+                            sources: [pcr, seqlib],
+                            source_labels: [PCR, Sequencing],
+                            paths: [dataschemas/PCR.yml, dataschemas/seqlib.yml] }
+        categories (dict)
+            Dict of all categories present in the format:
+                CATEGORY : CATEGORY_LABEL
+                experimental: Experimental data
 
-        # Create dataschema_dict attribute
-        self.dataschema_dict = dataschema_dict
+        sources (dict)
+            Dict of all sources present in the format:
+                CATEGORY : { SOURCENAME : SOURCELABEL}
+                experimental: {PCR: PCR experiment data, seqlib: Sequencing data}
 
-        # Set attributes for each of the entries in the dataschema
-        for dict_key in self.dataschema_dict.keys():
-            field_value = get_nested_key_value(self.dataschema_dict, dict_key, "field")
-            label_value = get_nested_key_value(self.dataschema_dict, dict_key, "label")
-            setattr(self, dict_key.upper(), (field_value, label_value))
+        dataschemas (dict)
+            This dict houses all the individual SchemaParser objects as:
+                SOURCENAME: SchemaParserObj
+                PCR: SchemaParserObj_for_PCR.yml file
+
+        dataschema (dict)
+            This dict merges all of the dataschemas into a single dict and adds suffixes
+            to duplicate fields
+                ATTRIBUTE_NAME : {field: FIELDNAME, label: LABEL}
+                EXPID_PCR : {field : exp_id_pcr, label: Experiment ID}
+
+        DYNAMIC_ATTRIBUTES(tuples)
+            All entries from the dataschema dict are added as individual attributes in the format:
+                self.ATTRIBUTENAME = ( FIELDNAME, LABEL)
+                self.EXPID = (exp_id, Experiment ID)
+    """
+
+    files: dict
+    categories: dict = field(init=False)
+    sources: dict = field(init=False)
+    dataschemas: dict = field(init=False)
+
+    def __post_init__(self):
+        # Initialise attributes so they are not empty
+        self.categories = {}
+        self.sources = {}
+        self.dataschemas = {}
+
+        # Process each category of data
+        for category, cat_values in self.files.items():
+            # Add category labels
+            self.categories[category] = cat_values.get("category_label")
+
+            log.debug(f"Category = {category}")
+            # Process each source
+            for source, source_label, path in zip(
+                cat_values["sources"],
+                cat_values["source_labels"],
+                cat_values["paths"],
+            ):
+                log.debug(
+                    f"source = {source}, source_label = {source_label}, path = {path}"
+                )
+                # Generate the information on this source
+                _entry = {source: source_label}
+                # Add to the _sources dict
+                if self.sources.get(category):
+                    # Add to exisiting entry when present
+                    self.sources[category].update(_entry)
+                else:
+                    # Create a new entry if not
+                    self.sources[category] = _entry
+
+                # Generate schema from YAML file and add to dataschemas
+                self.dataschemas[source] = SchemaParser([source, path])
+
+            # Merge all source dataschemas together and add suffixes where there is a conflict
+            dict_list = [dict.fields for dict in self.dataschemas.values()]
+            suffix_list = list(self.dataschemas.keys())
+            self.dataschema = merge_dataschema_dicts_with_suffixes(
+                dict_list, suffix_list
+            )
+
+            # Create dataschema attributes
+            for key, dict in self.dataschema.items():
+                setattr(
+                    self,
+                    key.upper(),
+                    (dict.get("field"), dict.get("label")),
+                )
 
 
 class ExpMetadataParser:
@@ -116,6 +206,7 @@ class ExpMetadataParser:
     def __init__(
         self,
         file_path: Path,
+        ExpDataSchema: DataSchema,
         output_folder: Path = None,
         include_unclassified: bool = False,
     ):
@@ -123,14 +214,19 @@ class ExpMetadataParser:
         Load and sanity check the metadata
 
         """
-        # Pull in the dynamically created ExpDataSchema
-        ExpDataSchema = ExpDataSchemaFields()
-
         log.info(f"{file_path.name}")
+
+        # Identify experiment ID from filename
+        expt_id = identify_exptid_from_path(file_path)
+        # Determine expt type from expid
+        expt_type_fn = extract_exptype_from_expid(expt_id)
+
+        # Get correct dataschema for the exp type
+        self.DataSchema = ExpDataSchema.dataschemas.get(expt_type_fn)
+
         self.tabnames = ["expt_metadata", "rxn_metadata"]
         # Store filename
         self.filepath = file_path
-
         # Extract sheetnames
         sheets = pd.ExcelFile(file_path).sheet_names
         # Check both sheets / tabs are present
@@ -140,22 +236,21 @@ class ExpMetadataParser:
         # Load expt data
         ###################
         self.expt_df = self._extract_excel_data(file_path, self.tabnames[0])
-        self.expt_id = self.expt_df[ExpDataSchema.EXP_ID[0]].iloc[0]
-        self.expt_date = self.expt_df[ExpDataSchema.EXP_DATE[0]].iloc[0]
+        self.expt_id = self.expt_df[self.DataSchema.EXP_ID[0]].iloc[0]
+        self.expt_date = self.expt_df[self.DataSchema.EXP_DATE[0]].iloc[0]
         self._check_valid_date_format(self.expt_date)
-        self.expt_summary = self.expt_df[ExpDataSchema.EXP_SUMMARY[0]].iloc[0]
-        self.expt_type = self.expt_df[ExpDataSchema.EXP_TYPE[0]].iloc[0]
+        self.expt_summary = self.expt_df[self.DataSchema.EXP_SUMMARY[0]].iloc[0]
+        self.expt_type = self.expt_df[self.DataSchema.EXP_TYPE[0]].iloc[0]
         # Save the number of samples entered into the assay tab
-        num_rxn = self.expt_df[ExpDataSchema.EXP_RXNS[0]].iloc[0]
+        num_rxn = self.expt_df[self.DataSchema.EXP_RXNS[0]].iloc[0]
         # Check validity of expt data
         ###################
         self._define_expt_variables()
         self._check_for_columns(self.expt_req_cols, self.expt_df)
         self._check_number_rows(1, self.expt_df, self.filepath)
         self._check_expt_id_fn_sheet()
-
         expected_colnames = set(
-            getattr(ExpDataSchema, f"{self.expt_type}_field_labels").keys()
+            item["field"] for item in self.DataSchema.fields.values()
         )
         self._check_all_colnames_known(expected_colnames)
         log.info("      Experimental metadata passed formatting checks.")
@@ -170,7 +265,7 @@ class ExpMetadataParser:
         self._check_entries_unique(self.rxn_unique_cols, self.rxn_df)
         self._check_entries_not_blank(self.rxn_notblank_cols, self.rxn_df)
         if len(self.barcode_pattern) > 0:
-            self.barcodes = self.rxn_df[ExpDataSchema.BARCODE[0]].tolist()
+            self.barcodes = self.rxn_df[self.DataSchema.BARCODE[0]].tolist()
             if include_unclassified:
                 self.barcodes.append("unclassified")
             self._check_barcodes_valid()
@@ -180,8 +275,8 @@ class ExpMetadataParser:
         self.df = pd.merge(self.expt_df, self.rxn_df, on="expt_id", how="inner")
         # Add expt_type back into the rxn dataframe after the merge otherwise there
         # will be duplicate expt_type cols
-        self.rxn_df[ExpDataSchema.EXP_TYPE[0]] = self.rxn_df.get(
-            ExpDataSchema.EXP_TYPE[0], self.expt_type
+        self.rxn_df[self.DataSchema.EXP_TYPE[0]] = self.rxn_df.get(
+            self.DataSchema.EXP_TYPE[0], self.expt_type
         )
 
         if output_folder:
@@ -223,53 +318,52 @@ class ExpMetadataParser:
         """
         log.info(f"      Identified as {self.expt_type} type experiment")
         self.rxn_identifier_col = self.expt_type + "_identifier"
-        ExpDataSchema = ExpDataSchemaFields()
 
         if self.expt_type == "seqlib":
-            self.expt_req_cols = [ExpDataSchema.EXP_ID[0], ExpDataSchema.EXP_ID[0]]
+            self.expt_req_cols = [self.DataSchema.EXP_ID[0], self.DataSchema.EXP_ID[0]]
             self.rxn_req_cols = [
-                ExpDataSchema.BARCODE[0],
-                ExpDataSchema.SEQLIB_IDENTIFIER[0],
-                ExpDataSchema.SAMPLE_ID[0],
-                ExpDataSchema.EXTRACTION_ID[0],
+                self.DataSchema.BARCODE[0],
+                self.DataSchema.SEQLIB_IDENTIFIER[0],
+                self.DataSchema.SAMPLE_ID[0],
+                self.DataSchema.EXTRACTION_ID[0],
             ]
             self.rxn_unique_cols = [
-                ExpDataSchema.BARCODE[0],
-                ExpDataSchema.SEQLIB_IDENTIFIER[0],
+                self.DataSchema.BARCODE[0],
+                self.DataSchema.SEQLIB_IDENTIFIER[0],
             ]
             self.rxn_notblank_cols = [
-                ExpDataSchema.SAMPLE_ID[0],
-                ExpDataSchema.SEQLIB_IDENTIFIER[0],
-                ExpDataSchema.PCR_IDENTIFIER[0],
-                ExpDataSchema.SEQLIB_IDENTIFIER[0],
+                self.DataSchema.SAMPLE_ID[0],
+                self.DataSchema.SEQLIB_IDENTIFIER[0],
+                self.DataSchema.PCR_IDENTIFIER[0],
+                self.DataSchema.SEQLIB_IDENTIFIER[0],
             ]
             self.barcode_pattern = "barcode[0-9]{2}"
         elif self.expt_type == "PCR":
-            self.expt_req_cols = [ExpDataSchema.EXP_ID[0], ExpDataSchema.EXP_ID[0]]
+            self.expt_req_cols = [self.DataSchema.EXP_ID[0], self.DataSchema.EXP_ID[0]]
             self.rxn_req_cols = [
-                ExpDataSchema.PCR_IDENTIFIER[0],
-                ExpDataSchema.SAMPLE_ID[0],
-                ExpDataSchema.EXTRACTION_ID[0],
+                self.DataSchema.PCR_IDENTIFIER[0],
+                self.DataSchema.SAMPLE_ID[0],
+                self.DataSchema.EXTRACTION_ID[0],
             ]
-            self.rxn_unique_cols = [ExpDataSchema.PCR_IDENTIFIER[0]]
+            self.rxn_unique_cols = [self.DataSchema.PCR_IDENTIFIER[0]]
             self.rxn_notblank_cols = [
-                ExpDataSchema.SAMPLE_ID[0],
-                ExpDataSchema.EXTRACTION_ID[0],
-                ExpDataSchema.PCR_IDENTIFIER[0],
+                self.DataSchema.SAMPLE_ID[0],
+                self.DataSchema.EXTRACTION_ID[0],
+                self.DataSchema.PCR_IDENTIFIER[0],
             ]
             self.barcode_pattern = ""
         elif self.expt_type == "sWGA":
-            self.expt_req_cols = [ExpDataSchema.EXP_ID[0], ExpDataSchema.EXP_ID[0]]
+            self.expt_req_cols = [self.DataSchema.EXP_ID[0], self.DataSchema.EXP_ID[0]]
             self.rxn_req_cols = [
-                ExpDataSchema.SWGA_IDENTIFIER[0],
-                ExpDataSchema.SAMPLE_ID[0],
-                ExpDataSchema.EXTRACTION_ID[0],
+                self.DataSchema.SWGA_IDENTIFIER[0],
+                self.DataSchema.SAMPLE_ID[0],
+                self.DataSchema.EXTRACTION_ID[0],
             ]
-            self.rxn_unique_cols = [ExpDataSchema.SWGA_IDENTIFIER[0]]
+            self.rxn_unique_cols = [self.DataSchema.SWGA_IDENTIFIER[0]]
             self.rxn_notblank_cols = [
-                ExpDataSchema.SAMPLE_ID[0],
-                ExpDataSchema.EXTRACTION_ID[0],
-                ExpDataSchema.SWGA_IDENTIFIER[0],
+                self.DataSchema.SAMPLE_ID[0],
+                self.DataSchema.EXTRACTION_ID[0],
+                self.DataSchema.SWGA_IDENTIFIER[0],
             ]
             self.barcode_pattern = ""
         else:
@@ -314,13 +408,11 @@ class ExpMetadataParser:
 
     def _check_entries_unique(self, columns: list, df: pd.DataFrame) -> None:
         """
-        Check entires of the required columns are unique
+        Check columns have unique entries
 
         Args:
             columns(list): List of column names
             df(dataframe): dataframe to assess
-
-        TODO: this will also disallow missing?
         """
 
         for c in columns:
@@ -402,13 +494,22 @@ class ExpMetadataMerge:
     Extract metadata from multiple files, merge into a coherent dataframe, and optionally export the data
     """
 
-    def __init__(self, filepaths: list[Path], output_folder: Path = None):
-        # Pull in the dynamically created ExpDataSchema as an object
-        ExpDataSchema = ExpDataSchemaFields()
-        self.DataSchema = ExpDataSchema
-
+    def __init__(
+        self,
+        exp_folder: Path,
+        output_folder: Path = None,
+    ):
+        # Get the relevent dataschema
+        dataschema_files = create_datasources_dict()
+        ExpDataSchema = DataSchema(
+            filter_dict_by_key_or_value(dataschema_files, "experimental")
+        )
+        self.dataschema = ExpDataSchema
+        exp_fns = identify_files_by_search(
+            exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True
+        )
         # Check that there aren't duplicate experiment IDs
-        self._check_duplicate_expid(filepaths)
+        self._check_duplicate_expid(exp_fns)
 
         # Output all data into a metadata subfolder for ease of use
         if output_folder:
@@ -418,9 +519,9 @@ class ExpMetadataMerge:
         # Extract each file as an object into a dictionary
         expdata_dict = {
             identify_exptid_from_path(filepath): ExpMetadataParser(
-                filepath, output_folder=output_folder
+                filepath, output_folder=output_folder, ExpDataSchema=ExpDataSchema
             )
-            for filepath in filepaths
+            for filepath in exp_fns
         }
         log.info(divider)
 
@@ -482,7 +583,6 @@ class ExpMetadataMerge:
                 }
 
             log.info("Checking for data validity and merging dataframes for:")
-
             # Cycle through all of the joins required based on the data present. Enumerate from 1
             for count, join in enumerate(joins, start=1):
                 # Load the current join from the dict
@@ -694,52 +794,6 @@ class ExpMetadataMerge:
             expid_dict[expid] = filepath.name
 
 
-@singleton
-class SampleDataSchemaFields:
-    """
-    Pull in all of the dataschema fields
-    """
-
-    def __init__(self, csv_path: Path):
-        # Get a list of all ini paths
-        ini_files = identify_files_by_search(csv_path.parent, re.compile(".*.ini"))
-
-        if len(ini_files) > 1:
-            log.info(f"Multiple .ini files found, using first one: {ini_files[0].name}")
-        self.dataschema_dict = create_dict_from_ini(ini_files[0])
-
-        # Create simple dict of field and labels
-        self.field_labels = reformat_nested_dict(self.dataschema_dict, "field", "label")
-
-        # Iterate and set attributes
-        for dict_key in self.dataschema_dict.keys():
-            field_value = get_nested_key_value(self.dataschema_dict, dict_key, "field")
-            label_value = get_nested_key_value(self.dataschema_dict, dict_key, "label")
-            setattr(self, dict_key.upper(), (field_value, label_value))
-
-        # Identify all with datatype entries
-        self.dtypes = filter_nested_dict(
-            self.dataschema_dict,
-            new_key_field="field",
-            new_value_field="datatype",
-            exclude_value="date",
-        )
-
-        # Identify all that ARE dates
-        self.datefields = filter_nested_dict(
-            self.dataschema_dict,
-            new_key_field="field",
-            new_value_field="datatype",
-            exclude_value="date",
-            reverse=True,
-        )
-
-        # Identify all dates that have a defined format
-        self.dateformats = filter_nested_dict(
-            self.dataschema_dict, new_key_field="field", new_value_field="dateformat"
-        )
-
-
 class SampleMetadataParser:
     """
     Extract sample metadata from a single csv file, define fieldnames and labels,
@@ -752,43 +806,62 @@ class SampleMetadataParser:
         metadata_file: Path,
         output_folder: Path = None,
     ):
-        # Load dataschema for sample set and save as attribute
-        SampleDataSchema = SampleDataSchemaFields(metadata_file)
+        # Get the relevent dataschema
+        dataschema_files = create_datasources_dict(metadata_file)
+        SampleDataSchema = DataSchema(
+            filter_dict_by_key_or_value(dataschema_files, "metadata")
+        )
         self.DataSchema = SampleDataSchema
 
+        # Save dataschema as attribute
+        self.DataSchema = SampleDataSchema
         # load the data from the metadata file and ensure sampleID is a str
         # Don't use the user-defined dtypes when loading as causes errors - rather apply later
         if metadata_file.suffix.lower() == ".csv":
-            df = pd.read_csv(metadata_file, dtype={SampleDataSchema.SAMPLE_ID[0]: str})
+            df = pd.read_csv(metadata_file, dtype={SampleDataSchema.STUDY_ID[0]: str})
         elif metadata_file.suffix.lower() in (".xlsx", ".xls"):
-            df = pd.read_excel(
-                metadata_file, dtype={SampleDataSchema.SAMPLE_ID[0]: str}
-            )
+            df = pd.read_excel(metadata_file, dtype={SampleDataSchema.STUDY_ID[0]: str})
         else:
             raise DataFormatError(f"Unknown file type for {metadata_file}")
 
         # Filter out any missing sample_id's
-        df = df[df[SampleDataSchema.SAMPLE_ID[0]].notna()]
+        df = df[df[SampleDataSchema.STUDY_ID[0]].notna()]
 
-        # Try to ensure fields are correct datatypes
-        for key, value in SampleDataSchema.dtypes.items():
-            try:
-                df[key] = df[key].astype(value)
-            except ValueError as e:
-                log.info(f"Error converting column '{key}' to type '{value}': {e}")
-        # Ensure dates are correctly formatted
-        for datefield in SampleDataSchema.datefields:
-            f = SampleDataSchema.dateformats.get(datefield, "")
-            if f:
-                df[datefield] = pd.to_datetime(df[datefield], format=f)
-            else:
-                df[datefield] = pd.to_datetime(df[datefield])
+        # Update datatypes and dateformats
+        for dataschema in SampleDataSchema.dataschemas.values():
+            # Try to ensure fields are correct datatypes
+            if hasattr(dataschema, "dtypes"):
+                for key, value in dataschema.dtypes.items():
+                    try:
+                        df[key] = df[key].astype(value)
+                    except ValueError as e:
+                        log.info(
+                            f"Error converting column '{key}' to type '{value}': {e}"
+                        )
+            if hasattr(dataschema, "dateformat"):
+                # Ensure dates are correctly formatted
+                for dateformat in dataschema.datefields:
+                    f = dataschema.dateformats.get(dateformat, "")
+                    if f:
+                        df[dateformat] = pd.to_datetime(df[dateformat], format=f)
+                    else:
+                        df[dateformat] = pd.to_datetime(df[dateformat])
 
-            # Check if dates parsed correctly
-            if not pd.api.types.is_datetime64_dtype(df[datefield]):
-                raise DataFormatError(f"Date errors in field / column: {datefield}")
+                    # Check if dates parsed correctly
+                    if not pd.api.types.is_datetime64_dtype(df[dateformat]):
+                        raise DataFormatError(
+                            f"Date errors in field / column: {dateformat}"
+                        )
 
         # Define attribute
+        self.df = df.copy(deep=True)
+
+        # Remove any columns not listed in the dataschema
+        cols_to_drop = list(
+            set(df.columns)
+            - set(f["field"] for f in SampleDataSchema.dataschema.values())
+        )
+        df.drop(columns=cols_to_drop, inplace=True, errors="ignore")
         self.df = df
 
         # export data
@@ -803,19 +876,21 @@ class SampleMetadataParser:
         print("Adding test status to sample metadata")
 
         # Define attributes from the ExpClassInstance
-        exp_type_colname = ExpClassInstance.DataSchema.EXP_TYPE[0]
-        exp_sampleid_colname = ExpClassInstance.DataSchema.SAMPLE_ID[0]
+        exp_type_colname = ExpClassInstance.dataschema.EXP_TYPE[0]
+        exp_sampleid_colname = ExpClassInstance.dataschema.SAMPLE_ID[0]
         rxn_df = ExpClassInstance.rxns_df
         # Import all the exp_types / status outcomes
         exp_types = ExpThroughputDataScheme.EXP_TYPES
 
         # Create a copy of the df to ensure original is not modified
         df = self.df.copy()
+
         # Create new status column filled with 'not tested'
         sample_status_colname = self.DataSchema.STATUS[0]
         df[sample_status_colname] = exp_types[0]
+
         # Define the sample_id column
-        sample_id_colname = self.DataSchema.SAMPLE_ID[0]
+        sample_id_colname = self.DataSchema.STUDY_ID[0]
 
         for exp_type in exp_types:  # Ensure order is followed
             if exp_type in ExpClassInstance.expt_types:
@@ -832,38 +907,8 @@ class SampleMetadataParser:
                     sample_status_colname,
                 ] = exp_type
 
-        # Replace with updated df
+        # Add updated df
         self.df_with_exp = df
-
-
-@singleton
-class SeqDataSchemaFields:
-    """
-    Pull in all of the dataschema fields
-    """
-
-    def __init__(
-        self,
-    ):
-        ini_files = identify_files_by_search(
-            default_ini_folder, re.compile("seq_savanna.ini"), False, False
-        )
-
-        self.dataschema_dict = create_dict_from_ini(ini_files)
-
-        self.field_labels = reformat_nested_dict(self.dataschema_dict, "field", "label")
-        # Iterate and set attributes as a tuple with the field_name first and human label second
-        for dict_key in self.dataschema_dict.keys():
-            field_value = get_nested_key_value(self.dataschema_dict, dict_key, "field")
-            label_value = get_nested_key_value(self.dataschema_dict, dict_key, "label")
-            setattr(self, dict_key.upper(), (field_value, label_value))
-
-        # Define list of fields for mapped list
-        self.READS_MAPPED_TYPE = [
-            value["field"]
-            for value in self.dataschema_dict.values()
-            if "reads_mapped_type" in value
-        ]
 
 
 class SequencingMetadataParser:
@@ -877,8 +922,12 @@ class SequencingMetadataParser:
         seqdata_folder: Path,
         output_folder: Path = None,
     ):
-        # Load dataschema for sample set and save as an object attribute
-        SeqDataSchema = SeqDataSchemaFields()
+        # Get the relevent dataschema
+        dataschema_files = create_datasources_dict()
+        SeqDataSchema = DataSchema(
+            filter_dict_by_key_or_value(dataschema_files, "savanna")
+        )
+        # Save dataschema as an attribute
         self.DataSchema = SeqDataSchema
 
         log.info("   Searching for bamstats file(s)")
@@ -914,11 +963,19 @@ class SequencingMetadataParser:
             qc_per_expt[SeqDataSchema.N_SAMPLES_PASS_COV_THRSHLD[0]]
             / qc_per_expt[SeqDataSchema.N_SAMPLES[0]]
         ) * 100
-        qc_per_expt[SeqDataSchema.PERCENT_SAMPLES_PASSEDCONT[0]] = (
+        qc_per_expt[SeqDataSchema.PERCENT_SAMPLES_PASSEDCONTAM[0]] = (
             qc_per_expt[SeqDataSchema.N_SAMPLES_PASS_CONTAM_THRSHLD[0]]
             / qc_per_expt[SeqDataSchema.N_SAMPLES[0]]
         ) * 100
         self.qc_per_expt = qc_per_expt
+
+        log.info("   Searching for bcftools file(s)")
+        bcftools_files = identify_files_by_search(
+            seqdata_folder, Regex_patterns.SEQDATA_BCFTOOLS_OUTPUT_TSV, recursive=True
+        )
+
+        bcftools = concat_files_add_expID(bcftools_files, SeqDataSchema.EXP_ID[0])
+        self.bcftools = bcftools
 
         if output_folder:
             output_folder = output_folder / "sequence"
@@ -929,11 +986,10 @@ class SequencingMetadataParser:
         Expand sequence data metrics with the addition of sample and experimental data
         """
         # Define the expdataschema object
-        ExpDataSchema = ExpClassInstance.DataSchema
-
+        ExpDataSchema = ExpClassInstance.dataschema
         # Filter expdataschema to key fields needed
         key_fields_dict = filter_dict_by_key_or_value(
-            ExpDataSchema.dataschema_dict,
+            ExpDataSchema.dataschema,
             ["EXP_ID", "SAMPLE_ID", "EXTRACTIONID", "BARCODE", "SAMPLE_TYPE"],
             search_key=True,
         )
@@ -978,7 +1034,6 @@ class SequencingMetadataParser:
         qc_per_sample = merge_additional_rxn_level_fields(
             self.qc_per_sample, match_df, cols_to_match
         )
-
         # Add in info on sample type if not supplied from the template
         qc_per_sample[ExpDataSchema.SAMPLE_TYPE[0]] = qc_per_sample.apply(
             lambda row: row[ExpDataSchema.SAMPLE_TYPE[0]]
@@ -1016,10 +1071,14 @@ class Combine_Exp_Seq_Sample_data:
     """
 
     def __init__(
-        self, exp_data, sequence_data, sample_data, output_folder: Path = None
+        self,
+        exp_data: ExpMetadataMerge,
+        sequence_data: SequencingMetadataParser,
+        sample_data: SampleMetadataParser,
+        output_folder: Path = None,
     ):
         # Pull in all of the dataschemas from the different sources
-        ExpDataSchema = exp_data.DataSchema
+        ExpDataSchema = exp_data.dataschema
         SeqDataSchema = sequence_data.DataSchema
         SampleDataSchema = sample_data.DataSchema
 
@@ -1029,7 +1088,7 @@ class Combine_Exp_Seq_Sample_data:
             sequence_data.summary_bamqc,
             left_on=[
                 ExpDataSchema.BARCODE[0],
-                ExpDataSchema.EXP_ID_SEQLIB[0],
+                f"{ExpDataSchema.EXP_ID[0]}_seqlib",
                 ExpDataSchema.SAMPLE_ID[0],
             ],
             right_on=[
@@ -1039,6 +1098,7 @@ class Combine_Exp_Seq_Sample_data:
             ],
             how="outer",
         )
+
         # Ensure sample_id is a string
         alldata_df[ExpDataSchema.SAMPLE_ID[0]] = alldata_df[
             ExpDataSchema.SAMPLE_ID[0]
@@ -1049,92 +1109,69 @@ class Combine_Exp_Seq_Sample_data:
             alldata_df,
             sample_data.df,
             left_on=[ExpDataSchema.SAMPLE_ID[0]],
-            right_on=[SampleDataSchema.SAMPLE_ID[0]],
+            right_on=[SampleDataSchema.STUDY_ID[0]],
             how="outer",
         )
 
         log.debug("   Collapsing duplicate columns in alldata_df")
-        # Collapse all  repeat columns
+        # Collapse all repeat columns
         dup_cols = identify_duplicate_colnames(
             exp_data.all_df, sequence_data.summary_bamqc, sample_data.df
         )
         alldata_df = collapse_repeat_columns(alldata_df, dup_cols)
 
-        log.debug("   Combining all dataschemas into a single dict")
-        # Combine the dataschemas
-        all_dataschema_dict = (
-            ExpDataSchema.dataschema_dict
-            | SampleDataSchema.dataschema_dict
-            | SeqDataSchema.dataschema_dict
+        log.debug("Combining dataschemas")
+        self.dataschema = (
+            ExpDataSchema.dataschema
+            | SeqDataSchema.dataschema
+            | SampleDataSchema.dataschema
         )
 
-        log.debug("   Checking that all columns are in the dataschema")
-        fields = [value.get("field") for value in all_dataschema_dict.values()]
-        unknown_cols = [x for x in alldata_df.columns if x not in fields]
-        log.debug("   Removing sample data columns not listed in the .ini file")
+        self.categories = (
+            ExpDataSchema.categories
+            | SeqDataSchema.categories
+            | SampleDataSchema.categories
+        )
+
+        self.sources = (
+            ExpDataSchema.sources | SeqDataSchema.sources | SampleDataSchema.sources
+        )
+
+        _dataschemas = (
+            ExpDataSchema.dataschemas
+            | SeqDataSchema.dataschemas
+            | SampleDataSchema.dataschemas
+        )
+        _fields = {}
+        for key, ds in _dataschemas.items():
+            curr_ds = reformat_nested_dict(ds.fields, "field", "label")
+            _fields[key] = curr_ds
+        self.fields = _fields
+
+        log.info("   Checking that dataschema and dataframe correlate")
+        ds_fields = [d["field"] for d in self.dataschema.values()]
+        unknown_cols = [x for x in alldata_df.columns if x not in ds_fields]
+        log.debug("   Removing sample data columns not listed in the YAML file")
         unknown_cols = [
             x for x in unknown_cols if x not in list(sample_data.df.columns)
         ]
         if len(unknown_cols) > 0:
             raise DataFormatError(
-                f"WARNING: {unknown_cols} columns are not defined in the dataschemas. Ensure they are defined in the .ini files."
+                f"WARNING: {unknown_cols} are not defined in the dataschemas. Add to the relevent YAML file"
             )
+
+        # Remove entries from the dataschema that are not relevent
+        keys_to_delete = []
+        log.debug
+        for key, value in self.dataschema.items():
+            if value["field"] not in alldata_df.columns:
+                keys_to_delete.append(key)
+
+        for key in keys_to_delete:
+            del self.dataschema[key]
 
         log.debug(" Adding alldata_df as an attribute")
         self.df = alldata_df
-        log.debug("   Done")
-        log.debug(divider)
-
-        log.debug("Defining datasources_dict and datasource_fields_dict")
-        # Define list of refs for all sources of data and their dropdowns
-        datasources_dict = {}
-        datasource_fields_dict = {}
-        # Cycle through all types of experiments
-        for expt_type in exp_data.expt_types:
-            log.debug(
-                f"   Adding {expt_type} to datasources_dict and datasource_fields_dict"
-            )
-            # First define the source
-            datasources_dict[expt_type] = f"Experimental ({expt_type})"
-
-            # Get the field labels for the current expt_type
-            field_labels = getattr(ExpDataSchema, f"{expt_type}_field_labels", {})
-            log.debug(f"{len(field_labels)} field labels found for {expt_type}")
-            dt = {}
-            for field in field_labels.keys():
-                # Only include those that are in the dataframe
-                if field in alldata_df.columns:
-                    dt[field] = field_labels[field]
-            log.debug(f"{len(dt)} field labels retained")
-            datasource_fields_dict[expt_type] = dt
-
-        datasources_dict = datasources_dict | {
-            "sample": "Sample information",
-            "seqdata": "Sequence Analysis (savanna)",
-        }
-        self.datasources_dict = datasources_dict
-
-        # Define list of refs for dynamic dropdowns
-        datasource_fields_dict = datasource_fields_dict | {
-            "sample": SampleDataSchema.field_labels,
-            "seqdata": SeqDataSchema.field_labels,
-        }
-        self.datasource_fields = datasource_fields_dict
-        log.debug("   Done")
-        log.debug(divider)
-
-        # List of all field label combos
-        self.dataschema_dict = (
-            ExpDataSchema.dataschema_dict
-            | SampleDataSchema.dataschema_dict
-            | SeqDataSchema.dataschema_dict
-        )
-
-        # Collapse into a list of all field and labels for any translations
-        all_field_labels = {}
-        for dict_value in self.datasource_fields.values():
-            all_field_labels = all_field_labels | dict_value
-        self.all_field_labels = all_field_labels
 
         if output_folder:
             identify_export_dataframe_attributes(self, output_folder)

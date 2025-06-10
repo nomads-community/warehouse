@@ -1,0 +1,33 @@
+#This file defines the fieldnames [field] and human-readable labels [label] for savanna 
+# output from summary.bamstats.csv
+BARCODE:
+  field: barcode
+  label: Barcode
+N_TOTAL_READS:
+  field: n_total
+  label: Total reads (n)
+N_MAPPED:
+  field: n_mapped
+  label: Total mapped reads (n)
+N_UNMAPPED:
+  field: n_unmapped
+  label: Total unmapped reads (n)
+N_PRIMARY:
+  field: n_primary
+  label: Primary mapped reads (n)
+N_SECONDARY:
+  field: n_secondary
+  label: Secondary mapped reads (n)
+N_CHIMERA:
+  field: n_chimera
+  label: Chimera mapped reads (n) 
+#Added fields
+EXP_ID:
+  field: expt_id
+  label: Experiment ID
+SAMPLE_ID:
+  field: sample_id
+  label: Sample ID
+SAMPLE_TYPE:
+  field: sample_type
+  label: Sample type

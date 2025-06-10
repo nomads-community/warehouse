@@ -5,7 +5,6 @@ from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 
 from warehouse.lib.dataframes import filtered_dataframe
-from warehouse.lib.dictionaries import reformat_nested_dict
 from warehouse.metadata.metadata import SequencingMetadataParser
 from warehouse.visualise.components import ids
 
@@ -15,11 +14,12 @@ charts = ["Reads Mapped", "Amplicon Pass Rates", "Sample pass rate"]
 # Different criteria for sample pass rate
 states = [
     "Change to samples passed coverage threshold",
-    "Change to passed contamination threshold",
+    "Change to samples passed contamination threshold",
     "Change to samples passed QC",
 ]
 
 sample_types = ["Field", "Positive", "Negative"]
+sample_types_suffix = ["Samples", "Controls", "Controls"]
 
 
 def render(app: Dash, sequence_data: SequencingMetadataParser) -> html.Div:
@@ -100,8 +100,8 @@ def expt_selections(expt_ids) -> html.Div:
             dcc.Dropdown(
                 className="dropdown-fill",
                 id=ids.SEQ_QC_EXPT_LIST,
-                options=[{"label": id, "value": id} for id in expt_ids],
-                value=expt_ids,
+                options=[{"label": id, "value": id} for id in sorted(expt_ids)],
+                value=sorted(expt_ids),
                 multi=True,
             ),
         ],
@@ -188,7 +188,6 @@ def fig_amplicon_pass_coverage(
     """
     # Filter the df to the correct sample type
     df_f = df[df[SeqDataSchema.SAMPLE_TYPE[0]] == sample_types[sample_type]]
-
     df = df_f.copy()
 
     # Calulate the %age passing
@@ -268,10 +267,7 @@ def fig_qc_by_exptid(
     Returns:
         fig: A px.bar of the data
     """
-
     # Define metrics for figure
-    labels = reformat_nested_dict(SeqDataSchema.dataschema_dict, "field", "label")
-
     colour_map = {
         True: "green",
         False: "red",
@@ -282,7 +278,7 @@ def fig_qc_by_exptid(
         y_cols = [
             SeqDataSchema.PERCENT_PASSED_EXC_NEG_CTRL[0],
             SeqDataSchema.PERCENT_SAMPLES_PASSEDCOV[0],
-            SeqDataSchema.PERCENT_SAMPLES_PASSEDCONT[0],
+            SeqDataSchema.PERCENT_SAMPLES_PASSEDCONTAM[0],
         ]
     else:
         y_cols = [
@@ -295,6 +291,8 @@ def fig_qc_by_exptid(
 
     # Sort the dataframe by expt_id
     df.sort_values(by="expt_id", inplace=True)
+
+    labels = {f["field"]: f["label"] for f in SeqDataSchema.dataschema.values()}
 
     # Generate the figure
     fig = px.bar(
@@ -350,7 +348,14 @@ def fig_reads_mapped(df: pd.DataFrame, SeqDataSchema, y_linear: bool) -> px.bar:
     }
 
     # Define column list for melting
-    cols = SeqDataSchema.READS_MAPPED_TYPE + [SeqDataSchema.EXP_ID[0]]
+    reads_mapped_cols = [
+        SeqDataSchema.N_PRIMARY[0],
+        SeqDataSchema.N_SECONDARY[0],
+        SeqDataSchema.N_CHIMERA[0],
+        SeqDataSchema.N_UNMAPPED[0],
+    ]
+
+    cols = reads_mapped_cols + [SeqDataSchema.EXP_ID[0]]
 
     # Melt and Group Data
     df_tmp = df[cols].melt(
@@ -361,19 +366,17 @@ def fig_reads_mapped(df: pd.DataFrame, SeqDataSchema, y_linear: bool) -> px.bar:
         .sum()
         .reset_index()
     )
-
     # Define the order of the categories
-    category_order = {
-        category: idx for idx, category in enumerate(SeqDataSchema.READS_MAPPED_TYPE)
-    }
+    category_order = {category: idx for idx, category in enumerate(reads_mapped_cols)}
     # Sort the df appropriately
     df.sort_values(
         by=["expt_id", "category"],
         key=lambda col: col.map(category_order) if col.name == "category" else col,
         inplace=True,
     )
-    # Replace Category name to user friendly version
-    df["category_label"] = df["category"].replace(SeqDataSchema.field_labels)
+    # Replace read mapping categories name to user friendly version
+    replacements = {f["field"]: f["label"] for f in SeqDataSchema.dataschema.values()}
+    df["category_label"] = df["category"].replace(replacements)
 
     # Generate log in df and plot on y as needed
     df["count_log"] = np.log10(df["count"])
@@ -412,7 +415,10 @@ def select_sample_type(app) -> html.Button:
     def update_text_and_visibility(chart_type, n_clicks):
         # Update the text on the selection button
         next_type = (n_clicks + 1) % len(sample_types)
-        btn_text = f"Filter data to {sample_types[next_type]} samples"
+
+        btn_text = (
+            f"Filter data to {sample_types[next_type]} {sample_types_suffix[next_type]}"
+        )
         # And visibility
         visible = (
             {"display": "block"} if chart_type in charts[1] else {"display": "none"}

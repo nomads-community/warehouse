@@ -1,0 +1,46 @@
+#This file defines the fieldnames [field] and human-readable labels [label] for savanna 
+# output from summary.sample_qc.csv
+BARCODE:
+  field: barcode
+  label: Barcode
+ISPOS:
+  field: is_positive
+  label: Positive Control
+ISNEG:
+  field: is_negative
+  label: Negative Control
+N_AMPLICONS:
+  field: n_amplicons
+  label: Number of amplicons observed
+N_AMPLICONSPASSCOV:
+  field: n_amplicons_pass_cov
+  label: Number amplicons pass coverage threshold
+AMPLICONS_MEAN_COV:
+  field: amplicon_mean_cov
+  label: Mean coverage for all amplicons
+AMPLICONS_MED_COV:
+  field: amplicon_med_cov
+  label: Median coverage for all amplicons
+AMPLICONS_MEAN_CONTAM:
+  field: amplicon_per_contamination
+  label: Percentage of contamination per amplicon
+SAMPLEPASS_COV:
+  field: sample_pass_cov
+  label: Sample passed based on coverage
+SAMPLEPASS_CONTAM:
+  field: sample_pass_contamination
+  label: Sample pass based on acceptable contamination level
+SAMPLEPASS:
+  field: sample_pass
+  label: Sample passed QC
+
+#Added fields
+EXP_ID:
+  field: expt_id
+  label: Experiment ID
+SAMPLE_ID:
+  field: sample_id
+  label: Sample ID
+SAMPLE_TYPE:
+  field: sample_type
+  label: Sample type

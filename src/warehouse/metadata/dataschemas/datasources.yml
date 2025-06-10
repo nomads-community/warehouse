@@ -1,0 +1,10 @@
+#This file defines the sources for data that can be ingested by warehouse
+
+experimental: 
+  category_label: Experimental data
+  sources: [sWGA, PCR, seqlib]
+  source_labels: [sWGA experiment data, PCR experiment data, seqlib experiment data]
+savanna: 
+  category_label: Savanna Sequence Data
+  sources: [bamstats, bcftools, bedcov, sample_qc, experiment_qc]
+  source_labels: [Reads (bamstats), Variant Calls (bcftools), Amplicon coverage (bedcov), Sample QC, Experiment QC]

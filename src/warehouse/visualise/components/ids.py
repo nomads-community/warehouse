@@ -23,7 +23,8 @@ SEQ_QC_SAMPLE_TYPE_SELECTOR = "seq_qc_controls_samples_selector"
 SEQ_QC_PASS_THRESHOLD = "seq_qc_threshold_pass"
 
 
-# Dropdowns for data selection
-DATASOURCES = "datasource_dropdown"
-DYNAMIC_OPTIONS = "dynamic_dropdown"
-SELECTABLE_SCATTER = "selectable_scatter"
+# Dropdowns for data selection on scatter plot
+SCATPLOT_CATEGORY = "Category of datasource"
+SCATPLOT_SOURCE = "Source name"
+SCATPLOT_FIELD = "Field label"
+SCATPLOT = "Selectable ScatterPlot"

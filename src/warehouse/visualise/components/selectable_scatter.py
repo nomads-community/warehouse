@@ -3,6 +3,8 @@ import logging
 import plotly.express as px
 from dash import Dash, Input, Output, dcc, html
 
+from warehouse.lib.dictionaries import reformat_nested_dict
+
 from . import ids
 
 # Define logging process
@@ -13,8 +15,8 @@ def create_scatter(
     all_data: object, x_series=None, y_series=None, colour_series=None
 ) -> px.scatter:
     # Define the dataschemadict and the field-label dict
-    DataSchema = all_data.dataschema_dict
-    FieldLabels = all_data.all_field_labels
+    DataSchema = all_data.dataschema
+    FieldLabels = reformat_nested_dict(all_data.dataschema, "field", "label")
 
     # Define a default set of values in case none are passed
     if x_series is None:
@@ -42,22 +44,21 @@ def create_scatter(
     fig.update_yaxes(title=FieldLabels.get(y_series))
     fig.update_xaxes(title=FieldLabels.get(x_series))
     fig.update_layout(legend_title_text=FieldLabels.get(colour_series))
-
     return fig
 
 
 def render(app: Dash, combined_data):
     @app.callback(
-        Output(ids.SELECTABLE_SCATTER, "figure"),
+        Output(ids.SCATPLOT, "figure"),
         [
-            Input(ids.DYNAMIC_OPTIONS + "_1", "value"),
-            Input(ids.DYNAMIC_OPTIONS + "_2", "value"),
-            Input(ids.DYNAMIC_OPTIONS + "_3", "value"),
+            Input(ids.SCATPLOT_FIELD + "_1", "value"),
+            Input(ids.SCATPLOT_FIELD + "_2", "value"),
+            Input(ids.SCATPLOT_FIELD + "_3", "value"),
         ],
     )
-    def update_scatter(dd1, dd2, dd3) -> px.scatter:
+    def update_scatter(field_x, field_y, field_col) -> px.scatter:
         fig = create_scatter(
-            combined_data, x_series=dd1, y_series=dd2, colour_series=dd3
+            combined_data, x_series=field_x, y_series=field_y, colour_series=field_col
         )
         return fig
 
@@ -70,32 +71,57 @@ def render(app: Dash, combined_data):
         children=[
             html.H2("Selectable data:"),
             dropdowns,
-            dcc.Graph(figure=fig, id=ids.SELECTABLE_SCATTER),
+            dcc.Graph(figure=fig, id=ids.SCATPLOT),
         ],
     )
 
 
-def create_dropdown_set(number: int, options: dict) -> html.Div:
+def create_dropdown_set(
+    number: int, category_opts: dict, source_opts: dict, field_opts: dict
+) -> html.Div:
     """
-    Creates a double dropdown with options that can be dynamically updated.
+    Creates a col of dropdowns with options that can be dynamically updated.
 
     Args:
-        dropdown_number (int): The sequential number for the dropdown (starting from 1).
-        options (dict): Dictionary containing the key value pairs to show user and value for each selection
+        number (int): The sequential number for the dropdown (starting from 1).
+        source_options (dict): Dictionary containing the key value pairs to show user and value for source
+        field_options (dict): Dictionary containing the key value pairs to show user and value for field
 
     Returns:
         dcc.Dropdown: The created dropdown component.
     """
-    static = dcc.Dropdown(
-        id=f"{ids.DATASOURCES}_{number}", options=options, className="wide_dropdown"
+    category = dcc.Dropdown(
+        id=f"{ids.SCATPLOT_CATEGORY}_{number}",
+        options=category_opts,
+        className="wide_dropdown",
+        placeholder="Select a data category",
     )
-    dynamic = dcc.Dropdown(
-        id=f"{ids.DYNAMIC_OPTIONS}_{number}", options=options, className="wide_dropdown"
+    source = dcc.Dropdown(
+        id=f"{ids.SCATPLOT_SOURCE}_{number}",
+        options=source_opts,
+        className="wide_dropdown",
+        placeholder="Select a data source",
     )
-    axes = ["Select x axis", "Select y axis", "Select colour"]
-    return html.Div(
-        className="dropdown-fill", children=[axes[number - 1], static, dynamic]
+    field = dcc.Dropdown(
+        id=f"{ids.SCATPLOT_FIELD}_{number}",
+        options=field_opts,
+        className="wide_dropdown",
+        placeholder="Select a data field",
     )
+    col_headers = ["x axis selection", "y axis selection", "colour selection"]
+
+    # Build the dropdown col
+    dropdown_col = []
+    dropdown_col.append(
+        html.Label(
+            col_headers[number - 1],
+            style={"fontWeight": "bold", "textAlign": "center", "display": "block"},
+        )
+    )
+    dropdown_col.append(category)
+    dropdown_col.append(source)
+    dropdown_col.append(field)
+    return html.Div(className="dropdown-fill", children=dropdown_col)
 
 
 def dropdowns_panel(app: Dash, all_data: object) -> html.Div:
@@ -108,26 +134,44 @@ def dropdowns_panel(app: Dash, all_data: object) -> html.Div:
 
     @app.callback(
         [
-            Output(ids.DYNAMIC_OPTIONS + "_1", "options"),
-            Output(ids.DYNAMIC_OPTIONS + "_2", "options"),
-            Output(ids.DYNAMIC_OPTIONS + "_3", "options"),
+            Output(ids.SCATPLOT_SOURCE + "_1", "options"),
+            Output(ids.SCATPLOT_SOURCE + "_2", "options"),
+            Output(ids.SCATPLOT_SOURCE + "_3", "options"),
+            Output(ids.SCATPLOT_FIELD + "_1", "options"),
+            Output(ids.SCATPLOT_FIELD + "_2", "options"),
+            Output(ids.SCATPLOT_FIELD + "_3", "options"),
         ],
         [
-            Input(ids.DATASOURCES + "_1", "value"),
-            Input(ids.DATASOURCES + "_2", "value"),
-            Input(ids.DATASOURCES + "_3", "value"),
+            Input(ids.SCATPLOT_CATEGORY + "_1", "value"),
+            Input(ids.SCATPLOT_CATEGORY + "_2", "value"),
+            Input(ids.SCATPLOT_CATEGORY + "_3", "value"),
+            Input(ids.SCATPLOT_SOURCE + "_1", "value"),
+            Input(ids.SCATPLOT_SOURCE + "_2", "value"),
+            Input(ids.SCATPLOT_SOURCE + "_3", "value"),
         ],
     )
-    def update_dropdowns(select1, select2, select3):
+    def update_dropdowns(cat1, cat2, cat3, source1, source2, source3):
         # Return the selection made to populate the dropdown with appropriate dict
+        sources = all_data.sources
+        fields = all_data.fields
+        print(f"source1: {source1}, return: {fields.get(source1)}")
         return [
-            all_data.datasource_fields.get(select1, ["Select datasource first"]),
-            all_data.datasource_fields.get(select2, ["Select datasource first"]),
-            all_data.datasource_fields.get(select3, ["Select datasource first"]),
+            sources.get(cat1, source_list),
+            sources.get(cat2, source_list),
+            sources.get(cat3, source_list),
+            fields.get(source1, field_list),
+            fields.get(source2, field_list),
+            fields.get(source3, field_list),
         ]
 
-    dropdown1 = create_dropdown_set(1, all_data.datasources_dict)
-    dropdown2 = create_dropdown_set(2, all_data.datasources_dict)
-    dropdown3 = create_dropdown_set(3, all_data.datasources_dict)
+    # Define default entries for the dropdowns
 
-    return html.Div(className="row-flex", children=[dropdown1, dropdown2, dropdown3])
+    cat_list = all_data.categories
+    source_list = ["Select category first (above)"]
+    field_list = ["Select source first (above)"]
+
+    col1 = create_dropdown_set(1, cat_list, source_list, field_list)
+    col2 = create_dropdown_set(2, cat_list, source_list, field_list)
+    col3 = create_dropdown_set(3, cat_list, source_list, field_list)
+
+    return html.Div(className="row-flex", children=[col1, col2, col3])

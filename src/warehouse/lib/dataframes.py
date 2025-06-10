@@ -183,23 +183,29 @@ def concat_files_add_expID(
     # Extract data, add in experiment ID and concatenate all data
     for file in files:
         expid = identify_exptid_from_path(file)
+
         if file.suffix == ".csv":
             data = pd.read_csv(file)
             data[EXP_ID_COL] = expid
-
-        if file.suffix == ".json":
+        elif file.suffix == ".tsv":
+            data = pd.read_csv(file, sep="\t")
+            data[EXP_ID_COL] = expid
+        elif file.suffix == ".json":
             with open(file, "r") as f:
                 json_dict = json.load(f)
             data = pd.DataFrame(json_dict, index=[expid]).reset_index()
             data.rename(columns={"index": EXP_ID_COL}, inplace=True)
+        else:
+            raise DataFormatError(f"Unsupported file type: {file.suffix}")
 
         if expid in expids:
             raise DataFormatError(f"{expid} duplicate experiment ID detected: ")
 
         # Add expid to list
         expids.append(expid)
-
-        df = pd.concat([df, data], ignore_index=True)
+        # Concatenate data if not empty
+        if data.shape[0] > 0:
+            df = pd.concat([df, data], ignore_index=True)
     return df
 
 

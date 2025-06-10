@@ -47,7 +47,7 @@ def aggregate(seq_folder: Path, expt_id: str, git_folder: Path):
     log.debug(identify_cli_command())
 
     # Identify and load targets dict from YAML file
-    locations_yaml = script_dir / "locations.yaml"
+    locations_yaml = script_dir / "locations.yml"
     with open(locations_yaml, "r") as f:
         locations = yaml.safe_load(f)
 

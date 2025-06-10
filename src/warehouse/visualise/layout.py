@@ -7,12 +7,7 @@ from warehouse.metadata.metadata import (
     SequencingMetadataParser,
 )
 
-from .components import (
-    banner,
-    pie_expt_types,
-    selectable_scatter,
-    seq_qc_by_expt,
-)
+from .components import banner, pie_expt_types, selectable_scatter, seq_qc_by_expt
 
 
 def create_layout(

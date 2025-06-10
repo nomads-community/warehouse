@@ -41,7 +41,7 @@ def extract(seq_folder: Path, output_folder: Path):
     log.debug(identify_cli_command())
 
     # Identify and load targets dict from YAML file
-    yaml_file = script_dir / "targets.yaml"
+    yaml_file = script_dir / "targets.yml"
     with open(yaml_file, "r") as f:
         targets = yaml.safe_load(f)
 

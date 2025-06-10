@@ -109,7 +109,7 @@ def summarise_exp_throughput(
     colours = ["black", "yellow", "orange", "green"]
     # Define key fields
     SampleDataSchema = sample_data.DataSchema
-    ExpDataSchema = experiment_data.DataSchema
+    ExpDataSchema = experiment_data.dataschema
 
     # Create summaries of number of experiments and rxn performed
     exp_counts = (

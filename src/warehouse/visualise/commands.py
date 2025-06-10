@@ -4,12 +4,7 @@ from pathlib import Path
 import click
 from dash import Dash
 
-from warehouse.lib.general import (
-    check_path_present,
-    identify_files_by_search,
-)
 from warehouse.lib.logging import divider
-from warehouse.lib.regex import Regex_patterns
 from warehouse.metadata.metadata import (
     Combine_Exp_Seq_Sample_data,
     ExpMetadataMerge,
@@ -22,6 +17,7 @@ CSS_STYLE = ["scripts/visualise/assets/calling-style.css"]
 
 # Define logging process
 log = logging.getLogger("visualise")
+script_dir = Path(__file__).parent.parent.resolve()
 
 
 @click.command(short_help="Dashboard visualisation of NOMADS data from all experiments")
@@ -59,23 +55,19 @@ def visualise(
     # Add in cli_flags
     cli_flags = [exp_folder, seq_folder, metadata_file]
 
-    log.info("Extracting raw experimental data")
-    exp_fns = identify_files_by_search(
-        exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True
-    )
-    exp_data = ExpMetadataMerge(exp_fns, output_folder)
+    log.info("Extracting experimental data")
+    exp_data = ExpMetadataMerge(exp_folder, output_folder)
     log.info("Done")
     log.info(divider)
 
-    log.info("Extracting raw sample metadata")
-    check_path_present(metadata_file, isfile=True, raise_error=True)
+    log.info("Extracting sample metadata")
     sample_data = SampleMetadataParser(metadata_file, output_folder)
     log.info("   Incorporating experimental metadata")
     sample_data.incorporate_experimental_data(exp_data)
     log.info("Done")
     log.info(divider)
 
-    log.info("Extracting raw sequence summary data")
+    log.info("Extracting sequence summary data")
     seq_data = SequencingMetadataParser(seq_folder, output_folder)
     log.info("   Incorporating experimental metadata")
     seq_data.incorporate_experimental_data(exp_data)

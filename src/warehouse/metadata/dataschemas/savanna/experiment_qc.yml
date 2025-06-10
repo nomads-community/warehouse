@@ -1,0 +1,43 @@
+#This file defines the fieldnames [field] and human-readable labels [label] for savanna 
+# output from summary.experiment_qc.json
+N_BARCODES:
+  field: n_barcodes
+  label: No. of barcodes
+N_NEG_CTRLS:
+  field: n_negative_cntrls
+  label: No. negative controls
+N_POS_CTRLS:
+  field: n_positive_cntrls
+  label: No. positive controls
+N_SAMPLES:
+  field: n_samples
+  label: No. samples
+N_SAMPLES_PASS_COV_THRSHLD:
+  field: n_samples_pass_cov
+  label: No samples passing coverage threshold
+N_SAMPLES_PASS_CONTAM_THRSHLD:
+  field: n_samples_pass_contamination
+  label: No samples passing contamination threshold
+N_PASSED_EXC_NEG_CTRL:
+  field: n_samples_pass
+  label: No samples successfully sequenced
+PERCENT_PASSED_EXC_NEG_CTRL:
+  field: per_samples_pass
+  label: Samples successfully sequenced (percent)
+PERCENT_CONTAMINATION_MEAN:
+  field: per_contamination_mean
+  label: Mean contamination
+EXPT_PASS_QC:
+  field: expt_pass
+  label: Experiment Passed
+PERCENT_SAMPLES_PASSEDCOV:
+  field: per_samples_passedcov
+  label: 'Samples passing coverage threshold (%)'
+PERCENT_SAMPLES_PASSEDCONTAM:
+  field: per_samples_passedcontam
+  label: 'Samples passing contamination threshold (%)'
+
+#Added fields
+EXP_ID:
+  field: expt_id
+  label: Experiment ID

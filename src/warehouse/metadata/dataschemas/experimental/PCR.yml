@@ -1,0 +1,70 @@
+#This file defines the fieldnames [field] and human-readable labels [label] for PCR data
+
+# Experiment level fields
+PCR_ASSAY:
+  field: expt_assay
+  label: Assay Name
+PCR_PRIMERS:
+  field: pcr_primers
+  label: Primer Set
+PCR_PRIMER_SOURCE:
+  field: pcr_primersource
+  label: Primer source
+PCR_TARGETPANEL:
+  field: pcr_targetpanel
+  label: NOMADS Target
+PCR_ENZYME:
+  field: pcr_enzyme
+  label: Enzyme used
+PCR_TEMPLATE_VOLUME:
+  field: pcr_template_vol
+  label: Template volume used
+#Common
+EXP_ID:
+  field: expt_id
+  label: Experiment ID
+EXP_DATE:
+  field: expt_date
+  label: Experiment Date
+EXP_TYPE:
+  field: expt_type
+  label: Experiment Type
+EXP_USER:
+  field: expt_user
+  label: User
+EXP_VERSION:
+  field: expt_version
+  label: Template version
+EXP_RXNS:
+  field: expt_rxns
+  label: Experiment Reactions
+EXP_NOTES:
+  field: expt_notes
+  label: Experiment Notes
+EXP_SUMMARY:
+  field: expt_summary
+  label: Experiment Summary
+
+# Reaction level fields
+PCR_PRODUCT:
+  field: pcr_product_ngul
+  label: DNA conc of product (ng/ul)
+PCR_PRODUCT_ADDED:
+  field: pcrproductadded_vol_ul
+  label: Volume of PCR product added to reaction (ul)
+  # Common
+SAMPLE_ID:
+  field: sample_id
+  label: Sample ID
+EXTRACTION_ID:
+  field: extraction_id
+  label: Extraction ID
+SAMPLE_TYPE:
+  field: sample_type
+  label: Sample Type
+SWGA_IDENTIFIER:
+  field: swga_identifier
+  label: sWGA Identifier
+PCR_IDENTIFIER:
+  field: pcr_identifier
+  label: PCR Identifier

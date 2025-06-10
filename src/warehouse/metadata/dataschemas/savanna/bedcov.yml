@@ -1,0 +1,46 @@
+#This file defines the fieldnames [field] and human-readable labels [label] for savanna 
+# output from summary.bedcov.csv
+BARCODE:
+  field: barcode
+  label: Barcode
+CHROMOSOME:
+  field: chrom
+  label: Chromosome
+START:
+  field: start
+  label: Start point
+END:
+  field: end
+  label: End point
+LENGTH:
+  field: length_bp
+  label: Amplicon length (bp)
+NAME:
+  field: name
+  label: Amplicon Name
+MEAN_COV:
+  field: mean_cov
+  label: Amplicon Mean coverage
+TOTAL_COV:
+  field: total_cov
+  label: Total bases mapped to amplicon
+BREADTH_PER:
+  field: breadth_100X_per
+  label: Percentage of amplicon with 100x coverage
+BREADTH_BP:
+  field: breadth_100X_bp
+  label: Bases of amplicon with 100x coverage
+N_READS:
+  field: n_reads
+  label: Number of reads
+
+#Added fields
+EXP_ID:
+  field: expt_id
+  label: Experiment ID
+SAMPLE_ID:
+  field: sample_id
+  label: Sample ID
+SAMPLE_TYPE:
+  field: sample_type
+  label: Sample type
