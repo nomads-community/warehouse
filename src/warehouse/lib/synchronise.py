@@ -30,14 +30,18 @@ def selective_rsync(
         recursive(bool): Copy top-level files or entire directory
         delete(bool): Delete files in target that are not in source
     """
-    # Base command with compress (z), verbose (v) and timestamp (t) options
-    rsync_components = ["rsync", "-zvt"]
+    # Base command with compress (z), verbose (v), recursive (r)) and timestamp (t) options
+    # r is needed to select all entries in the folder even if the rsync is not to be recursive
+    # then a all folder exclusion is added
+    rsync_components = ["rsync", "-zvrt"]
 
     # delete only works if recursive is True
     if recursive:
         rsync_components.append("--recursive")
         if delete:
             rsync_components.append("--delete")
+    else:
+        rsync_components.extend(["--exclude", "*/"])
 
     if checksum:
         rsync_components.append("--checksum")
@@ -123,10 +127,10 @@ def process_targets(
         produce_dir(target_dir)
 
         # Get recursive flag from target configuration
-        recursive = target_config.get("copy_recursive", False)
+        recursive = target_config.get("recursive", False)
 
         # Identify anything to exclude
-        exclusions = target_config.get("copy_exclude", [])
+        exclusions = target_config.get("exclusions", [])
 
         # rsync for each target
         selective_rsync(

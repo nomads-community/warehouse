@@ -7,8 +7,8 @@ metadata:
   expected_path:
     type: file
     pattern: "**/*sample_info*.csv"
-  copy_recursive: false
-  copy_exclude: []
+  recursive: false
+  exclusions: []
 
 #minknow generates five sub-folders, one of which is fastq_pass and a bunch of text files inc "sequencing_summary_*.txt"
 minknow:
@@ -16,8 +16,8 @@ minknow:
   expected_path:
     type: folder
     pattern: "**/*fastq_pass"
-  copy_recursive: false
-  copy_exclude: 
+  recursive: false
+  exclusions: 
     - "sequencing_summary_*.txt"
 
  # nomadic generates three sub-folders, one of which is barcodes and text files including *summary.bam_flagstats*.csv
@@ -26,15 +26,15 @@ nomadic:
   expected_path:
     type: file
     pattern: "**/summary.bam_flagstats.csv"
-  copy_recursive: false
-  copy_exclude:
+  recursive: false
+  exclusions:
     - summary.fastq.csv
     - barcodes/
   subfolders:
     metadata:
       name: metadata
-      copy_recursive: false
-      copy_exclude: []
+      recursive: false
+      exclusions: []
 
 # savanna generates four sub-folders, one of which is summary
 savanna:
@@ -42,10 +42,10 @@ savanna:
   expected_path:
     type: folder
     pattern: "**/summary"
-  copy_recursive: false
-  copy_exclude: []
+  recursive: false
+  exclusions: []
   subfolders:
     summary:
       name: summary
-      copy_recursive: true
-      copy_exclude: []
+      recursive: true
+      exclusions: []
