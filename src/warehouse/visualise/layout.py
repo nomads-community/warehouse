@@ -27,7 +27,7 @@ def create_layout(
         children=[
             banner.render(app, cli_flags),
             pie_expt_types.render(app, sample_data, experiment_data),
-            seq_qc_by_expt.render(app, sequence_data),
+            seq_qc_by_expt.render(app, sequence_data, experiment_data),
             selectable_scatter.render(app, combined_data),
         ],
     )

@@ -5,7 +5,7 @@ from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 
 from warehouse.lib.dataframes import filtered_dataframe
-from warehouse.metadata.metadata import SequencingMetadataParser
+from warehouse.metadata.metadata import ExpMetadataMerge, SequencingMetadataParser
 from warehouse.visualise.components import ids
 
 # List of different charts that can be shown to the user based on their selection
@@ -22,7 +22,11 @@ sample_types = ["Field", "Positive", "Negative"]
 sample_types_suffix = ["Samples", "Controls", "Controls"]
 
 
-def render(app: Dash, sequence_data: SequencingMetadataParser) -> html.Div:
+def render(
+    app: Dash,
+    sequence_data: SequencingMetadataParser,
+    experiment_data: ExpMetadataMerge,
+) -> html.Div:
     """
     Render the sequencing quality control overview page
     Args:
@@ -31,8 +35,9 @@ def render(app: Dash, sequence_data: SequencingMetadataParser) -> html.Div:
     Returns:
         html.Div: The main layout for the sequencing QC overview page
     """
-    selections = main_selection_panel(app, sequence_data)
-    chart = qc_chart(app, sequence_data)
+    selections = main_selection_panel(app, sequence_data, experiment_data)
+    exp_id_order = order_seq_expt_ids_by_date(experiment_data, sequence_data)
+    chart = qc_chart(app, sequence_data, exp_id_order)
     chart_selections = select_sample_type(app)
     scale = switch_y_axis_scale(app)
     plot = switch_percent_num(app)
@@ -51,7 +56,11 @@ def render(app: Dash, sequence_data: SequencingMetadataParser) -> html.Div:
     )
 
 
-def main_selection_panel(app: Dash, sequence_data) -> html.Div:
+def main_selection_panel(
+    app: Dash,
+    sequence_data: SequencingMetadataParser,
+    experiment_data: ExpMetadataMerge,
+) -> html.Div:
     """
     Provides an html.Div container that has the universal options for the user to select
 
@@ -108,7 +117,7 @@ def expt_selections(expt_ids) -> html.Div:
     )
 
 
-def qc_chart(app: Dash, sequence_data):
+def qc_chart(app: Dash, sequence_data: ExpMetadataMerge, exp_id_order: list):
     # Define df and schema to use from object
     SeqDataSchema = sequence_data.DataSchema
     qc_per_expt_df = sequence_data.qc_per_expt
@@ -151,14 +160,26 @@ def qc_chart(app: Dash, sequence_data):
         if chart_type == charts[1]:
             df = filtered_dataframe(qc_per_sample_df, SeqDataSchema.EXP_ID[0], expt_ids)
             fig = fig_amplicon_pass_coverage(
-                df, SeqDataSchema, sample_type=sample_type, percent=pct_num
+                df,
+                SeqDataSchema,
+                sample_type=sample_type,
+                percent=pct_num,
+                exp_id_order=exp_id_order,
             )
         elif chart_type == charts[2]:
             df = filtered_dataframe(qc_per_expt_df, SeqDataSchema.EXP_ID[0], expt_ids)
-            fig = fig_qc_by_exptid(df, SeqDataSchema, state_curr, percent=pct_num)
+            fig = fig_qc_by_exptid(
+                df=df,
+                SeqDataSchema=SeqDataSchema,
+                state_current=state_curr,
+                percent=pct_num,
+                exp_id_order=exp_id_order,
+            )
         else:
             df = filtered_dataframe(qc_reads_mapped, SeqDataSchema.EXP_ID[0], expt_ids)
-            fig = fig_reads_mapped(df, SeqDataSchema, y_linear=y_linear)
+            fig = fig_reads_mapped(
+                df, SeqDataSchema, y_linear=y_linear, exp_id_order=exp_id_order
+            )
 
         if df.empty:
             return html.Div("No data selected.")
@@ -172,6 +193,7 @@ def fig_amplicon_pass_coverage(
     df: pd.DataFrame,
     SeqDataSchema,
     sample_type: str,
+    exp_id_order: list,
     percent: bool = True,
 ) -> px.bar:
     """
@@ -236,13 +258,20 @@ def fig_amplicon_pass_coverage(
     reversed_bin_labels = bin_labels[::-1]
     reversed_bin_colours = bin_colours[::-1]
 
+    # Create correct category ordering
+    expts = df[SeqDataSchema.EXP_ID[0]].unique()
+    exp_id_order = [i for i in exp_id_order if i in expts]
+
     fig = px.bar(
         final_df,
         x=SeqDataSchema.EXP_ID[0],
         y=y_col,
         color="amplicons_pass",
         color_discrete_sequence=reversed_bin_colours,
-        category_orders={"amplicons_pass": reversed_bin_labels},
+        category_orders={
+            SeqDataSchema.EXP_ID[0]: exp_id_order,
+            "amplicons_pass": reversed_bin_labels,
+        },
         labels={
             SeqDataSchema.EXP_ID[0]: SeqDataSchema.EXP_ID[1],
             "percent_passed": "No. samples (%)",
@@ -255,7 +284,11 @@ def fig_amplicon_pass_coverage(
 
 
 def fig_qc_by_exptid(
-    df: pd.DataFrame, SeqDataSchema, state_current: str, percent: bool
+    df: pd.DataFrame,
+    SeqDataSchema,
+    state_current: str,
+    percent: bool,
+    exp_id_order: list,
 ) -> px.bar:
     """
     Generates a figure of the percentage of samples succesfully sequenced in each expt
@@ -289,11 +322,11 @@ def fig_qc_by_exptid(
 
     x = SeqDataSchema.EXP_ID[0]
 
-    # Sort the dataframe by expt_id
-    df.sort_values(by="expt_id", inplace=True)
-
     labels = {f["field"]: f["label"] for f in SeqDataSchema.dataschema.values()}
 
+    # Create correct category ordering
+    expts = df[x].unique()
+    exp_id_order = [i for i in exp_id_order if i in expts]
     # Generate the figure
     fig = px.bar(
         df,
@@ -302,6 +335,7 @@ def fig_qc_by_exptid(
         labels=labels,
         color="expt_pass",
         color_discrete_map=colour_map,
+        category_orders={x: exp_id_order},
     )
 
     # Format percentage plots
@@ -327,7 +361,9 @@ def fig_qc_by_exptid(
     return fig
 
 
-def fig_reads_mapped(df: pd.DataFrame, SeqDataSchema, y_linear: bool) -> px.bar:
+def fig_reads_mapped(
+    df: pd.DataFrame, SeqDataSchema, y_linear: bool, exp_id_order: list
+) -> px.bar:
     """
     Creates a barchart of number of mapped reads by type
 
@@ -383,6 +419,10 @@ def fig_reads_mapped(df: pd.DataFrame, SeqDataSchema, y_linear: bool) -> px.bar:
     y = "count" if y_linear else "count_log"
     ytitle = "Reads" if y_linear else "Reads (log)"
 
+    # Create correct category ordering
+    expts = df[SeqDataSchema.EXP_ID[0]].unique()
+    exp_id_order = [i for i in exp_id_order if i in expts]
+
     # Create the stacked bar graph
     fig = px.bar(
         df,
@@ -391,6 +431,7 @@ def fig_reads_mapped(df: pd.DataFrame, SeqDataSchema, y_linear: bool) -> px.bar:
         color="category_label",
         color_discrete_map=colour_map,
         barmode="stack",
+        category_orders={SeqDataSchema.EXP_ID[0]: exp_id_order},
     )
 
     # Customize plot
@@ -524,3 +565,27 @@ def switch_threshold(app) -> html.Button:
         n_clicks=0,
     )
     return button
+
+
+def order_seq_expt_ids_by_date(
+    experiment_data: ExpMetadataMerge, sequence_data: SequencingMetadataParser
+) -> list:
+    """
+    Extract all seqlib experiments and rank them in order by date
+    """
+    # Extract the relevent columns
+    expt_dates = experiment_data.expts_df[
+        [
+            experiment_data.dataschema.EXP_ID[0],
+            experiment_data.dataschema.EXP_DATE[0],
+            experiment_data.dataschema.EXP_TYPE[0],
+        ]
+    ]
+    # Filter to seqlib entries
+    expt_dates = expt_dates[
+        expt_dates[experiment_data.dataschema.EXP_TYPE[0]] == "seqlib"
+    ]
+    # Sort by date
+    expt_dates = expt_dates.sort_values(by="expt_date", ascending=True)
+    # Return list of experiments:
+    return expt_dates["expt_id"].tolist()
