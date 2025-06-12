@@ -1,5 +1,12 @@
-#This file defines the fieldnames [field], datatypes [datatype] for those fields, and human-readable labels [label] for
-#for each metric that should be assessed in the metadata file
+#This file defines information about the columns in the metadata file. 
+# Note that every file REQUIRES a STUDY_ID and STATUS field
+# Fields include:
+#   ATTRIBUTE_NAME e.g. STUDY_ID that will be used as an attribute in the dataschema
+#   field: Column name of the field 
+#   label: Human-readable label to use for visualisations etc
+#   datatype:  Type of data encoded in the column e.g. str, date, int, float etc
+#   dateformat: Format of date field e.g. '%Y-%m-%d'
+
 STUDY_ID:
   field: study_id
   label: Study ID
