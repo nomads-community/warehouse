@@ -6,7 +6,10 @@ from itertools import chain
 import pandas as pd
 
 from warehouse.lib.exceptions import DataFormatError
-from warehouse.lib.general import identify_exptid_from_path, produce_dir
+from warehouse.lib.general import (
+    identify_exptid_from_path,
+    produce_dir,
+)
 
 # Get logging process
 log = logging.getLogger("dataframes")
@@ -199,7 +202,10 @@ def concat_files_add_expID(
             raise DataFormatError(f"Unsupported file type: {file.suffix}")
 
         if expid in expids:
-            raise DataFormatError(f"{expid} duplicate experiment ID detected: ")
+            duplicates = [str(f.parent) for f in files if expid in str(f)]
+            raise DataFormatError(
+                f"{expid} duplicate experiment ID detected in {duplicates}"
+            )
 
         # Add expid to list
         expids.append(expid)
