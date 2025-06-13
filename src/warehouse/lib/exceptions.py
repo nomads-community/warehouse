@@ -14,3 +14,9 @@ class PathError(Exception):
     """Failure to identify path"""
 
     pass
+
+
+class GenError(Exception):
+    """General error"""
+
+    pass

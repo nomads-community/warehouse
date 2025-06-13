@@ -28,7 +28,7 @@ from warehouse.lib.general import (
     extract_exptype_from_expid,
     identify_experiment_files,
     identify_exptid_from_path,
-    identify_files_by_search,
+    identify_path_by_search,
     produce_dir,
 )
 from warehouse.lib.logging import divider
@@ -216,6 +216,11 @@ class ExpMetadataParser:
 
         """
         log.info(f"{file_path.name}")
+        self.output_folder = output_folder
+        if self.output_folder:
+            # Store individual experiments in a subfolder
+            individual_dir = self.output_folder / "individual_expts"
+            produce_dir(individual_dir)
 
         # Identify experiment ID from filename
         expt_id = identify_exptid_from_path(file_path)
@@ -280,10 +285,7 @@ class ExpMetadataParser:
             self.DataSchema.EXP_TYPE[0], self.expt_type
         )
 
-        if output_folder:
-            # Store individual experiments in a subfolder
-            individual_dir = output_folder / "individual_expts"
-            produce_dir(individual_dir)
+        if self.output_folder:
             log.info(
                 f"      Outputting experimental data to folder: {individual_dir.name}"
             )
@@ -501,6 +503,12 @@ class ExpMetadataMerge:
         output_folder: Path = None,
         expt_ids: list = None,
     ):
+        # Output all data into a metadata subfolder for ease of use
+        self.output_folder = output_folder
+        if self.output_folder:
+            self.output_folder = self.output_folder / "experimental"
+            produce_dir(self.output_folder)
+
         # Get the relevent dataschema
         dataschema_files = create_datasources_dict()
         ExpDataSchema = DataSchema(
@@ -511,21 +519,19 @@ class ExpMetadataMerge:
         if expt_ids:
             exp_fns = identify_experiment_files(exp_folder, expt_ids)
         else:
-            exp_fns = identify_files_by_search(
-                exp_folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True
+            exp_fns = identify_path_by_search(
+                exp_folder,
+                Regex_patterns.NOMADS_EXP_TEMPLATE,
+                recursive=True,
+                files_only=True,
             )
         # Check that there aren't duplicate experiment IDs
         self._check_duplicate_expid(exp_fns)
 
-        # Output all data into a metadata subfolder for ease of use
-        if output_folder:
-            output_folder = output_folder / "experimental"
-            produce_dir(output_folder)
-
         # Extract each file as an object into a dictionary
         expdata_dict = {
             identify_exptid_from_path(filepath): ExpMetadataParser(
-                filepath, output_folder=output_folder, ExpDataSchema=ExpDataSchema
+                filepath, output_folder=self.output_folder, ExpDataSchema=ExpDataSchema
             )
             for filepath in exp_fns
         }
@@ -641,9 +647,9 @@ class ExpMetadataMerge:
                     log.info(missing_records_df[show_cols].to_string(index=False))
 
                     # Output the missing data
-                    if output_folder:
+                    if self.output_folder:
                         # to a folder called problematic
-                        problematic_dir = output_folder / "problematic"
+                        problematic_dir = self.output_folder / "problematic"
                         produce_dir(problematic_dir)
                         path = problematic_dir / f"{warning}.csv"
                         missing_records_df[show_cols].to_csv(path, index=False)
@@ -666,9 +672,9 @@ class ExpMetadataMerge:
                             f"   {mismatches_df[show_cols].to_string(index=False)}"
                         )
                         # Output the missmatched data
-                        if output_folder:
+                        if self.output_folder:
                             # to a folder called problematic
-                            problematic_dir = output_folder / "problematic"
+                            problematic_dir = self.output_folder / "problematic"
                             produce_dir(problematic_dir)
                             path = problematic_dir / f"{c} mismatches.csv"
                             mismatches_df[show_cols].to_csv(path, index=False)
@@ -766,8 +772,8 @@ class ExpMetadataMerge:
         expt_summary_df = self.expts_df[expt_cols].sort_values(["expt_date"])
 
         # Optionally export the aggregate data
-        if output_folder:
-            identify_export_dataframe_attributes(self, output_folder)
+        if self.output_folder:
+            identify_export_dataframe_attributes(self, self.output_folder)
 
         # Give user a summary of experiments performed
         log.info("Experiments performed:")
@@ -812,6 +818,11 @@ class SampleMetadataParser:
         metadata_file: Path,
         output_folder: Path = None,
     ):
+        self.output_folder = output_folder
+        if self.output_folder:
+            self.output_folder = self.output_folder / "sequence"
+            produce_dir(self.output_folder)
+
         # Get the relevent dataschema
         dataschema_files = create_datasources_dict(metadata_file)
         SampleDataSchema = DataSchema(
@@ -871,13 +882,10 @@ class SampleMetadataParser:
         self.df = df
 
         # export data
-        if output_folder:
-            output_folder = output_folder / "samples"
-            identify_export_dataframe_attributes(self, output_folder)
+        if self.output_folder:
+            identify_export_dataframe_attributes(self, self.output_folder)
 
-    def incorporate_experimental_data(
-        self, ExpClassInstance: ExpMetadataMerge, output_folder: Path
-    ):
+    def incorporate_experimental_data(self, ExpClassInstance: ExpMetadataMerge):
         """
         Update df with status of each sample ie incorporate experiment data into sample df
         """
@@ -918,9 +926,8 @@ class SampleMetadataParser:
         # Add updated df
         self.df_with_exp = df
 
-        if output_folder:
-            output_folder = output_folder / "samples"
-            identify_export_dataframe_attributes(self, output_folder)
+        if self.output_folder:
+            identify_export_dataframe_attributes(self, self.output_folder)
 
 
 class SequencingMetadataParser:
@@ -934,6 +941,11 @@ class SequencingMetadataParser:
         seqdata_folder: Path,
         output_folder: Path = None,
     ):
+        self.output_folder = output_folder
+        if self.output_folder:
+            self.output_folder = self.output_folder / "sequence"
+            produce_dir(self.output_folder)
+
         # Get the relevent dataschema
         dataschema_files = create_datasources_dict()
         SeqDataSchema = DataSchema(
@@ -943,14 +955,22 @@ class SequencingMetadataParser:
         self.DataSchema = SeqDataSchema
 
         log.info("   Searching for bamstats file(s)")
-        bamfiles = identify_files_by_search(
-            seqdata_folder, Regex_patterns.SEQDATA_BAMSTATS_CSV, recursive=True
+        bamfiles = identify_path_by_search(
+            seqdata_folder,
+            Regex_patterns.SEQDATA_BAMSTATS_CSV,
+            recursive=True,
+            files_only=True,
+            raise_error=False,
         )
         self.summary_bam = concat_files_add_expID(bamfiles, SeqDataSchema.EXP_ID[0])
 
         log.info("   Searching for bedcov file(s)")
-        bedcovfiles = identify_files_by_search(
-            seqdata_folder, Regex_patterns.SEQDATA_BEDCOV_CSV, recursive=True
+        bedcovfiles = identify_path_by_search(
+            seqdata_folder,
+            Regex_patterns.SEQDATA_BEDCOV_CSV,
+            recursive=True,
+            files_only=True,
+            raise_error=False,
         )
         # Remove any with nomadic in path as this output is identically named in nomadic and savanna and only want latter
         bedcovfiles = [x for x in bedcovfiles if "nomadic" not in str(x)]
@@ -959,39 +979,66 @@ class SequencingMetadataParser:
         )
 
         log.info("   Searching for sample QC file(s)")
-        exptqcfiles = identify_files_by_search(
-            seqdata_folder, Regex_patterns.SEQDATA_QC_PER_SAMPLE_CSV, recursive=True
+        exptqcfiles = identify_path_by_search(
+            seqdata_folder,
+            Regex_patterns.SEQDATA_QC_PER_SAMPLE_CSV,
+            recursive=True,
+            files_only=True,
+            raise_error=False,
         )
         self.qc_per_sample = concat_files_add_expID(
             exptqcfiles, SeqDataSchema.EXP_ID[0]
         )
 
         log.info("   Searching for experiment QC file(s)")
-        qc_per_expt_files = identify_files_by_search(
-            seqdata_folder, Regex_patterns.SEQDATA_QC_PER_EXPT_JSON, recursive=True
+        qc_per_expt_files = identify_path_by_search(
+            seqdata_folder,
+            Regex_patterns.SEQDATA_QC_PER_EXPT_JSON,
+            recursive=True,
+            files_only=True,
+            raise_error=False,
         )
         qc_per_expt = concat_files_add_expID(qc_per_expt_files, SeqDataSchema.EXP_ID[0])
         # Add in additional calculations not made from savanna
-        qc_per_expt[SeqDataSchema.PERCENT_SAMPLES_PASSEDCOV[0]] = (
-            qc_per_expt[SeqDataSchema.N_SAMPLES_PASS_COV_THRSHLD[0]]
-            / qc_per_expt[SeqDataSchema.N_SAMPLES[0]]
-        ) * 100
-        qc_per_expt[SeqDataSchema.PERCENT_SAMPLES_PASSEDCONTAM[0]] = (
-            qc_per_expt[SeqDataSchema.N_SAMPLES_PASS_CONTAM_THRSHLD[0]]
-            / qc_per_expt[SeqDataSchema.N_SAMPLES[0]]
-        ) * 100
+        if not qc_per_expt.empty:
+            qc_per_expt[SeqDataSchema.PERCENT_SAMPLES_PASSEDCOV[0]] = (
+                qc_per_expt[SeqDataSchema.N_SAMPLES_PASS_COV_THRSHLD[0]]
+                / qc_per_expt[SeqDataSchema.N_SAMPLES[0]]
+            ) * 100
+            qc_per_expt[SeqDataSchema.PERCENT_SAMPLES_PASSEDCONTAM[0]] = (
+                qc_per_expt[SeqDataSchema.N_SAMPLES_PASS_CONTAM_THRSHLD[0]]
+                / qc_per_expt[SeqDataSchema.N_SAMPLES[0]]
+            ) * 100
         self.qc_per_expt = qc_per_expt
 
         log.info("   Searching for bcftools file(s)")
-        bcftools_files = identify_files_by_search(
-            seqdata_folder, Regex_patterns.SEQDATA_BCFTOOLS_OUTPUT_TSV, recursive=True
+        bcftools_files = identify_path_by_search(
+            seqdata_folder,
+            Regex_patterns.SEQDATA_BCFTOOLS_OUTPUT_TSV,
+            recursive=True,
+            files_only=True,
+            raise_error=False,
         )
-
+        # Pull in data
         self.bcftools = concat_files_add_expID(bcftools_files, SeqDataSchema.EXP_ID[0])
+        if not self.bcftools.empty:
+            # filter and clean up dtypes
+            bcftools_filter_dict = create_dict_from_yaml(
+                script_dir / "filtering" / "bcftools.yml"
+            )
+            mut_types = bcftools_filter_dict.get("include_mut_type")
+            log.info(f"      Filtering for mut_types : {mut_types}")
+            self.bcftools = self.bcftools[self.bcftools["mut_type"].isin(mut_types)]
+            wsaf_threshold = bcftools_filter_dict.get("wsaf_threshold")
+            log.info(f"      Filtering on wsaf_threshold of : {wsaf_threshold}")
+            # Remove the period entries and change col to float then filter
+            self.bcftools = self.bcftools[self.bcftools["wsaf"] != "."]
+            self.bcftools["wsaf"] = self.bcftools["wsaf"].astype(float)
+            self.bcftools = self.bcftools[self.bcftools["wsaf"] >= wsaf_threshold]
+            self.bcftools["qual"] = self.bcftools["qual"].astype(float)
 
-        if output_folder:
-            output_folder = output_folder / "sequence"
-            identify_export_dataframe_attributes(self, output_folder)
+        if self.output_folder:
+            identify_export_dataframe_attributes(self, self.output_folder)
 
     def incorporate_experimental_data(self, ExpClassInstance):
         """
@@ -1075,6 +1122,28 @@ class SequencingMetadataParser:
         )
         self.summary_bamqc = summary_bamqc
 
+        if self.output_folder:
+            identify_export_dataframe_attributes(self, self.output_folder)
+
+    def add_bcftools_filtered_with_samples(self, refset: pd.DataFrame):
+        """
+        This method adds a new attribute that consists of the the bcftools output filtered to
+        just entries that appear in the sample data
+        """
+        variants_df = self.bcftools.copy(deep=True)
+
+        filtered_variants_df = pd.merge(
+            variants_df,
+            refset[["barcode", "expt_id"]],
+            left_on=["sample", "expt_id"],
+            right_on=["barcode", "expt_id"],
+            how="inner",
+        )
+        self.bcftools_samples_only = filtered_variants_df
+
+        if self.output_folder:
+            identify_export_dataframe_attributes(self, self.output_folder)
+
 
 @singleton
 class Combine_Exp_Seq_Sample_data:
@@ -1093,6 +1162,12 @@ class Combine_Exp_Seq_Sample_data:
         ExpDataSchema = exp_data.dataschema
         SeqDataSchema = sequence_data.DataSchema
         SampleDataSchema = sample_data.DataSchema
+
+        # Create reference set
+        self.refset = create_reference_set(exp_data=exp_data, sample_data=sample_data)
+
+        # Filter bcftools to sample data
+        sequence_data.add_bcftools_filtered_with_samples(refset=self.refset)
 
         log.debug("   Combining experimental and sequence data to alldata_df:")
         alldata_df = pd.merge(
@@ -1184,7 +1259,7 @@ class Combine_Exp_Seq_Sample_data:
         log.debug(" Adding alldata_df as an attribute")
         self.df = alldata_df
 
-        if output_folder:
+        if self.output_folder:
             identify_export_dataframe_attributes(self, output_folder)
 
 
@@ -1196,3 +1271,28 @@ class ExpThroughputDataScheme:
     REACTIONS = "samples"
     # Define as a tuple so it is ordered and immutable
     EXP_TYPES = ("Not tested", "sWGA", "PCR", "seqlib")
+
+
+def create_reference_set(
+    exp_data: ExpMetadataMerge, sample_data: SampleMetadataParser
+) -> pd.DataFrame:
+    """
+    Generate a reference df that has the key information (barcode, expt_id, sample_id
+    and expt_date) for connecting different data sets
+    """
+    # Define cols to keep
+    exp_cols = [
+        exp_data.dataschema.BARCODE[0],
+        exp_data.dataschema.EXP_ID[0],
+        exp_data.dataschema.SAMPLE_ID[0],
+        exp_data.dataschema.EXP_DATE[0],
+    ]
+    # Copy seqlib_df and limit to cols
+    df = exp_data.seqlib_df[exp_cols].copy(deep=True)
+
+    # Now get sampleids
+    study_ids = list(sample_data.df[sample_data.DataSchema.STUDY_ID[0]])
+    # Filter to final df
+    df = df[df[exp_data.dataschema.SAMPLE_ID[0]].isin(study_ids)]
+
+    return df

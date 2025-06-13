@@ -85,17 +85,20 @@ CIGASS:
     - CIGASS
 IRSS:
   names:
-    - Oumar Ouedraogo
     - Salif Sombie
     - Seni Nikiema
     - Nadege Tibiri
+    - Julien Yanogo
+    - Aicha Zoure
   initals:
-    - OO
     - SS
     - SN
     - NT
+    - JY
+    - AZ
   projects:
     - IRSS
+    - INDIE/GRAS
 LAUTECH:
   names:
     - Adedolapo Femi

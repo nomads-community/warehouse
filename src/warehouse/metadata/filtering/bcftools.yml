@@ -1,0 +1,7 @@
+#This file defines key criteria for filtering the bcftools data
+include_mut_type: ["missense","synonymous", "stop_gained", "*missense", "*synonymous", "*stop_gained",  ]
+  # exclude: [".", "intron", "splice_region", "splice_acceptor"]
+
+wsaf_threshold: 0.5
+
+

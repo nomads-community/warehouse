@@ -74,4 +74,4 @@ def metadata(
         sample_data = SampleMetadataParser(metadata_file, output_folder)
         if exp_folder:
             log.info("   Incorporating experimental metadata")
-            sample_data.incorporate_experimental_data(exp_data, output_folder)
+            sample_data.incorporate_experimental_data(exp_data)

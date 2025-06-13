@@ -6,7 +6,7 @@ import yaml
 from openpyxl import load_workbook
 
 from warehouse.lib.exceptions import DataFormatError
-from warehouse.lib.general import identify_files_by_search, pad_list, produce_dir
+from warehouse.lib.general import identify_path_by_search, pad_list, produce_dir
 from warehouse.lib.logging import divider, identify_cli_command
 from warehouse.lib.regex import Regex_patterns
 from warehouse.lib.spreadsheets import (
@@ -88,7 +88,9 @@ def templates(group_name: str, output_folder: Path, list_groups: bool):
         return
 
     # Identify all template files
-    template_fns = identify_files_by_search(templates_dir, Regex_patterns.EXCEL_FILE)
+    template_fns = identify_path_by_search(
+        folder_path=templates_dir, pattern=Regex_patterns.EXCEL_FILE, files_only=True
+    )
 
     # Create the output folder
     produce_dir(output_folder)

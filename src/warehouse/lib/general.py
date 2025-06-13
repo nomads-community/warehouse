@@ -2,7 +2,7 @@ import logging
 import re
 from pathlib import Path
 
-from warehouse.lib.exceptions import DataFormatError
+from warehouse.lib.exceptions import DataFormatError, GenError
 from warehouse.lib.regex import Regex_patterns
 
 # Get logging process
@@ -60,7 +60,9 @@ def extract_exptype_from_expid(expid: str, raise_error: bool = True) -> str:
     return exp_type
 
 
-def identify_experiment_files(folder: Path, expt_ids: list) -> list:
+def identify_experiment_files(
+    folder: Path, expt_ids: list, raise_error: bool = True
+) -> list:
     """
     Identify if there is an Excel file with a matching ExpID pattern in the list of filenames"
 
@@ -75,8 +77,13 @@ def identify_experiment_files(folder: Path, expt_ids: list) -> list:
         expt_ids = [expt_ids]
 
     log.info("Searching for all NOMADS template files")
-    template_files = identify_files_by_search(
-        folder, Regex_patterns.NOMADS_EXP_TEMPLATE, recursive=True
+    template_files = identify_path_by_search(
+        folder_path=folder,
+        pattern=Regex_patterns.NOMADS_EXP_TEMPLATE,
+        recursive=True,
+        verbose=True,
+        files_only=True,
+        raise_error=raise_error,
     )
     if not template_files:
         raise ValueError("No NOMADS template files found.")
@@ -172,7 +179,11 @@ def check_path_present(
 
 
 def identify_single_folder(
-    folder_path: Path, pattern, recursive: bool = False, verbose: bool = False
+    folder_path: Path,
+    pattern: re.Pattern,
+    recursive: bool = False,
+    verbose: bool = False,
+    raise_error: bool = False,
 ) -> Path | None:
     """
     Identify a single target folder using a pattern
@@ -184,11 +195,13 @@ def identify_single_folder(
     log.debug(
         f"folder_path={folder_path}, pattern={pattern}, recursive={recursive}, verbose={verbose}"
     )
-    folders = identify_files_by_search(
+    folders = identify_path_by_search(
         folder_path=folder_path,
         pattern=pattern,
         recursive=recursive,
         verbose=verbose,
+        folders_only=True,
+        raise_error=raise_error,
     )
 
     if len(folders) != 1:
@@ -265,31 +278,52 @@ def identify_all_files(folder: Path, recursive: bool = False) -> list[Path]:
     return all_files
 
 
-def identify_files_by_search(
+def identify_path_by_search(
     folder_path: Path,
     pattern: re.Pattern,
     recursive: bool = False,
     verbose: bool = True,
+    folders_only: bool = False,
+    files_only: bool = False,
+    raise_error: bool = True,
 ) -> list[Path] | None:
     """
-    Identify all files in a folder that match a search pattern"
+    Identify all paths in a folder that match a search pattern
 
     Args:
     folder_path (Path):     path to the search folder.
     pattern (re.pattern):   Compiled RE pattern to match filename against
     recursive (bool):       Select whether search should be recursive
     verbose (bool):         print outputs or not
+    folders_only (bool):    Limit search to folders
+    files_only (bool):      Limit search to files only
 
     Returns:
-        list[Path]: List of paths to the matching file(s), or None if not found.
+        list[Path]: List of paths to the matching file(s) / folder(s), or None if not found.
     """
+    if files_only and folders_only:
+        raise GenError("Can not select files_only AND folders_only")
+
+    if not files_only and not folders_only:
+        log.debug("Identify all paths whether files or folders")
+        all_paths = True
+    else:
+        all_paths = False
 
     try:
-        matches = [
-            f
-            for f in identify_all_files(folder_path, recursive)
-            if pattern.search(f.name)
-        ]
+        if folders_only or all_paths:
+            folders = identify_all_folders(folder_path, recursive)
+        else:
+            folders = []
+
+        if files_only or all_paths:
+            files = identify_all_files(folder_path, recursive)
+        else:
+            files = []
+
+        paths = files + folders
+
+        matches = [f for f in paths if pattern.search(f.name)]
 
         # Check that there are no open files
         check_no_openfiles(matches)
@@ -299,8 +333,11 @@ def identify_files_by_search(
 
         # Ensure there is at least one match
         if len(matches) == 0:
-            raise ValueError(f"No matching files found matching pattern: {pattern}")
-
+            msg = f"No matching files found matching pattern: {pattern}"
+            if raise_error:
+                raise ValueError(msg)
+            else:
+                log.info(msg)
         # Feedback to user what has been found
         if verbose:
             log.info(f"Found {len(matches)} matching file(s)")

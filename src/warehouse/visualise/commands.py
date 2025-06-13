@@ -63,7 +63,7 @@ def visualise(
     log.info("Extracting sample metadata")
     sample_data = SampleMetadataParser(metadata_file)
     log.info("   Incorporating experimental metadata")
-    sample_data.incorporate_experimental_data(exp_data, output_folder)
+    sample_data.incorporate_experimental_data(exp_data)
     log.info("Done")
     log.info(divider)
 

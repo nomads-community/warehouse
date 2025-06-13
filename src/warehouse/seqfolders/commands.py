@@ -63,7 +63,9 @@ def seqfolders(
     ExpDataschema = DataSchema(
         filter_dict_by_key_or_value(create_datasources_dict(), "experimental")
     )
-    exp_metadata = ExpMetadataParser(seqlib_fn[0], ExpDataschema)
+    exp_metadata = ExpMetadataParser(
+        file_path=seqlib_fn[0], ExpDataSchema=ExpDataschema
+    )
 
     # Make sure it is a seqlib expt
     if not exp_metadata.expt_type == "seqlib":

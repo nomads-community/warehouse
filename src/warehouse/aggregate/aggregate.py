@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -118,7 +119,11 @@ def aggregate_seq_data_to_single_dir(
             source_dir = Path(values.get("source_dir"))
         log.debug(f"source_dir: {source_dir}")
 
-        source_dir = identify_single_folder(source_dir, f".*{expt_id}.*")
+        source_dir = identify_single_folder(
+            folder_path=source_dir,
+            pattern=re.compile(f".*{expt_id}.*"),
+            recursive=False,
+        )
         if not source_dir:
             log.info(f"   {key_name} source folder not found. Skipping...")
             results.append("Source Missing")
