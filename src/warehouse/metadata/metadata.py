@@ -1259,7 +1259,7 @@ class Combine_Exp_Seq_Sample_data:
         log.debug(" Adding alldata_df as an attribute")
         self.df = alldata_df
 
-        if self.output_folder:
+        if output_folder:
             identify_export_dataframe_attributes(self, output_folder)
 
 
