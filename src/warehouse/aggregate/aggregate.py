@@ -100,6 +100,7 @@ def aggregate_seq_data_to_single_dir(
         columns.append(key_name)
         # Identify destination dir and ensure empty
         destination_dir = expt_dir / key_name
+        log.debug(f"destination_dir: {destination_dir}")
 
         if not destination_dir.exists():
             log.info(f"   {key_name} destination folder not found. Skipping...")
@@ -115,6 +116,8 @@ def aggregate_seq_data_to_single_dir(
             source_dir = git_folder / values.get("source_dir")
         else:
             source_dir = Path(values.get("source_dir"))
+        log.debug(f"source_dir: {source_dir}")
+
         source_dir = identify_single_folder(source_dir, f".*{expt_id}.*")
         if not source_dir:
             log.info(f"   {key_name} source folder not found. Skipping...")
