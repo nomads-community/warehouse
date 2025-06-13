@@ -181,6 +181,9 @@ def identify_single_folder(
       path: The path to the directory as a Path object.
       pattern: The pattern to search for.
     """
+    log.debug(
+        f"folder_path={folder_path}, pattern={pattern}, recursive={recursive}, verbose={verbose}"
+    )
     folders = identify_files_by_search(
         folder_path=folder_path,
         pattern=pattern,
