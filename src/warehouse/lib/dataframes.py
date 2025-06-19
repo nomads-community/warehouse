@@ -125,7 +125,10 @@ def identify_export_dataframe_attributes(obj, output_dir):
 
 
 def merge_additional_rxn_level_fields(
-    main_df: pd.DataFrame, exp_seq_df: pd.DataFrame, colnames: list[str]
+    main_df: pd.DataFrame,
+    exp_seq_df: pd.DataFrame,
+    colnames: list[str],
+    how: str = "left",
 ) -> pd.DataFrame:
     """
     Function to merge in additional experimental data to a df.
@@ -134,9 +137,15 @@ def merge_additional_rxn_level_fields(
         main_df (df):  df to have additional data added to
         exp_seq_df (df):   Experimental data Dataframe to extract data from
         colnames list(str): colnames for left_exp_id, left_barcode, right_exp_id, right_barcode
+        how(str): How to merge e.g. left, right, inner, etc. Default is 'left'
     """
     if len(colnames) != 4:
         log.info("Incorrect number of entries given")
+
+    if how not in ["left", "right", "inner", "outer"]:
+        raise ValueError(
+            f"Invalid merge type: {how}. Must be one of 'left', 'right', 'inner', or 'outer'."
+        )
 
     df = pd.merge(
         left=main_df,
@@ -164,6 +173,15 @@ def merge_additional_rxn_level_fields(
         log.warning(f"Warning: {exp_ids} missing matching sequence detail data.")
         log.info(f"   {seq_details_missing_df}")
 
+    # Remove unnecessary entries
+    if how == "left":
+        df = df[df["_merge"] != "right_only"]
+    elif how == "right":
+        df = df[df["_merge"] != "left_only"]
+    elif how == "inner":
+        df = df[df["_merge"] == "both"]
+
+    # Drop merge col
     df.drop(columns="_merge", inplace=True)
 
     return df

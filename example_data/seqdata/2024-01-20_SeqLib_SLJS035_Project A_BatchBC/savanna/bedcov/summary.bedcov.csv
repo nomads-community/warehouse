@@ -1,4 +1,4 @@
-Final,chrom,start,end,length_bp,name,mean_cov,total_cov,breadth_100X_per,breadth_100X_bp,n_reads
+barcode,chrom,start,end,length_bp,name,mean_cov,total_cov,breadth_100X_per,breadth_100X_bp,n_reads
 barcode01,Pf3D7_07_v3,403056,406930,3874,crt,262.927981414559,1018583,99.2256066081569,3844,332
 barcode01,Pf3D7_13_v3,1723320,1727146,3826,kelch13,3167.34396236278,12118258,99.9738630423419,3825,3891
 barcode01,Pf3D7_04_v3,747910,751373,3463,dhfr,11226.8876696506,38878712,100,3463,13567

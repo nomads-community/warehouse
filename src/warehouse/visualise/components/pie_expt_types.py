@@ -27,9 +27,9 @@ def render(
 
     # Pull in other values / variables
     values_cols = [
-        ExpThroughputDataScheme.EXPERIMENTS,
-        ExpThroughputDataScheme.REACTIONS,
         ExpThroughputDataScheme.SAMPLES,
+        ExpThroughputDataScheme.RXNS,
+        ExpThroughputDataScheme.EXPTS,
     ]
     triptych = []
 
@@ -42,7 +42,7 @@ def render(
     layout = html.Div(
         className="panel",
         children=[
-            html.H2("Sample throughput:"),
+            html.H2("Throughput:"),
             html.Div(
                 className="row-flex",
                 children=[

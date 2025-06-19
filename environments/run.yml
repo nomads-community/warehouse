@@ -15,3 +15,4 @@ dependencies:
  - dash-bootstrap-components
  - pretty_errors
  - pyyaml
+ - upsetplot

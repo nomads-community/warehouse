@@ -820,7 +820,7 @@ class SampleMetadataParser:
     ):
         self.output_folder = output_folder
         if self.output_folder:
-            self.output_folder = self.output_folder / "sequence"
+            self.output_folder = self.output_folder / "sample"
             produce_dir(self.output_folder)
 
         # Get the relevent dataschema
@@ -1021,6 +1021,7 @@ class SequencingMetadataParser:
         )
         # Pull in data
         self.bcftools = concat_files_add_expID(bcftools_files, SeqDataSchema.EXP_ID[0])
+
         if not self.bcftools.empty:
             # filter and clean up dtypes
             bcftools_filter_dict = create_dict_from_yaml(
@@ -1086,7 +1087,9 @@ class SequencingMetadataParser:
         self.summary_bam_with_exp = summary_bam
 
         summary_bedcov = merge_additional_rxn_level_fields(
-            self.summary_bedcov, match_df, cols_to_match
+            main_df=self.summary_bedcov,
+            exp_seq_df=match_df,
+            colnames=cols_to_match,
         )
         self.summary_bedcov_with_exp = summary_bedcov
 
@@ -1125,7 +1128,7 @@ class SequencingMetadataParser:
         if self.output_folder:
             identify_export_dataframe_attributes(self, self.output_folder)
 
-    def add_bcftools_filtered_with_samples(self, refset: pd.DataFrame):
+    def add_bcftools_filtered_with_samples(self, sample_set: pd.DataFrame):
         """
         This method adds a new attribute that consists of the the bcftools output filtered to
         just entries that appear in the sample data
@@ -1134,7 +1137,7 @@ class SequencingMetadataParser:
 
         filtered_variants_df = pd.merge(
             variants_df,
-            refset[["barcode", "expt_id"]],
+            sample_set[["barcode", "expt_id"]],
             left_on=["sample", "expt_id"],
             right_on=["barcode", "expt_id"],
             how="inner",
@@ -1164,10 +1167,12 @@ class Combine_Exp_Seq_Sample_data:
         SampleDataSchema = sample_data.DataSchema
 
         # Create reference set
-        self.refset = create_reference_set(exp_data=exp_data, sample_data=sample_data)
+        self.sample_set = create_reference_set(
+            exp_data=exp_data, sample_data=sample_data
+        )
 
         # Filter bcftools to sample data
-        sequence_data.add_bcftools_filtered_with_samples(refset=self.refset)
+        sequence_data.add_bcftools_filtered_with_samples(sample_set=self.sample_set)
 
         log.debug("   Combining experimental and sequence data to alldata_df:")
         alldata_df = pd.merge(
@@ -1265,10 +1270,9 @@ class Combine_Exp_Seq_Sample_data:
 
 class ExpThroughputDataScheme:
     #### Definitions for making the summary throughput calculations #####
-    # TODO: Add these into the above classes dataschemas?
-    SAMPLES = "experiments"
-    EXPERIMENTS = "reactions"
-    REACTIONS = "samples"
+    EXPTS = "experiments"
+    RXNS = "reactions"
+    SAMPLES = "samples"
     # Define as a tuple so it is ordered and immutable
     EXP_TYPES = ("Not tested", "sWGA", "PCR", "seqlib")
 

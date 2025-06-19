@@ -1,0 +1,27 @@
+# YAML file containing amplicon translations to genes
+ama1-d2-18-ck: ama1
+
+crt1: crt
+crt-k76: crt
+
+csp-rtss-repeat: csp
+
+dhfr-p51-p164: dhfr
+
+dhps-p436-p613: dhps
+
+hrp2-exon2-complete: hrp2
+
+hrp3-exon2-complete: hrp3
+
+k13: kelch13
+kelch13-cterm: kelch13
+
+mdr1-p86-p184: mdr1
+mdr1-p1034-p1246: mdr1
+
+pmi: pm1
+pmI: pm1
+
+pmiii: pm3
+pmIII: pm3

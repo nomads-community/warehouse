@@ -1,0 +1,36 @@
+# YAML file containing amplicon drug resistance markers in the format:
+#
+# gene:
+  # candidate: []
+  # validated: []
+  # combinations:
+    # colour: []
+
+crt:
+  validated: ["K76T"]
+
+
+# List taken from https://www.who.int/news-room/questions-and-answers/item/artemisinin-resistance
+kelch13:
+  candidate: ["P441L", "G449A", "C469F", "A481V", "R515K", "P527H", "N537I", "N537D", "G538V", "V568G"]
+  validated: ["F446I", "N458Y", "C469Y", "M476I", "Y493H", "R539T", "I543T", "P553L", "R561H", "P574L", "C580Y", "R622I", "A675V"]
+
+dhfr: 
+  validated: ["N51I", "C59R", "S108N", "I164L"]
+  combinations:
+      # Triple mutant
+      orange: ["N51I", "C59R", "S108N"]
+      # Quadruple mutant
+      purple: ["N51I", "C59R", "S108N", "I164L"]
+
+dhps:
+  validated: [ "A437G", "K540E", "A581G"]
+  combinations:
+    # double mutant
+    orange:  ["A437G", "K540E"]
+    # triple mutant
+    purple: [ "A437G", "K540E", "A581G"]
+
+mdr1:
+  validated: ["N86Y"]
+
