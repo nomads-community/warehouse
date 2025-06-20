@@ -5,6 +5,7 @@ import click
 
 from warehouse.lib.logging import divider, identify_cli_command
 from warehouse.metadata.metadata import (
+    Combine_Exp_Seq_Sample_data,
     ExpMetadataMerge,
     SampleMetadataParser,
     SequencingMetadataParser,
@@ -30,7 +31,7 @@ from warehouse.metadata.metadata import (
 )
 @click.option(
     "-m",
-    "--metadata_file",
+    "--sample_metadata_file",
     type=Path,
     required=False,
     help="Path to file (csv or xlsx) containing sample metadata information.",
@@ -45,7 +46,7 @@ from warehouse.metadata.metadata import (
 def metadata(
     exp_folder: Path = None,
     seq_folder: Path = None,
-    metadata_file: Path = None,
+    sample_metadata_file: Path = None,
     output_folder: Path = None,
 ):
     """
@@ -58,7 +59,7 @@ def metadata(
     log.debug(identify_cli_command())
 
     # Ensure some variables have been passed
-    if not exp_folder and not seq_folder and not metadata_file:
+    if not any([exp_folder, seq_folder, sample_metadata_file]):
         raise ValueError("Please supply -e, -m or -s inputs")
 
     if exp_folder:
@@ -67,11 +68,16 @@ def metadata(
 
     if seq_folder:
         log.info("Processing sequencing data")
-        SequencingMetadataParser(seq_folder, output_folder)
-
-    if metadata_file:
-        log.info("Processing metadata file")
-        sample_data = SampleMetadataParser(metadata_file, output_folder)
+        seq_data = SequencingMetadataParser(seq_folder, output_folder)
         if exp_folder:
-            log.info("   Incorporating experimental metadata")
-            sample_data.incorporate_experimental_data(exp_data)
+            seq_data.incorporate_experimental_data_to_sequence_class(exp_data)
+
+    if sample_metadata_file:
+        log.info("Processing sample metadata file")
+        sample_data = SampleMetadataParser(sample_metadata_file, output_folder)
+        if exp_folder:
+            sample_data.incorporate_experimental_data_to_sampleclass(exp_data)
+
+    if all([exp_folder, seq_folder, sample_metadata_file]):
+        log.info("   Merging all data")
+        Combine_Exp_Seq_Sample_data(exp_data, seq_data, sample_data, output_folder)

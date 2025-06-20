@@ -40,7 +40,7 @@ def render(
     """
 
     @app.callback(
-        Output(ids.UPSET_PLOT_IMG, "src"),
+        [Output(ids.UPSET_PLOT_IMG, "src"), Output(ids.UPSET_PLOT_MSG, "children")],
         Input(ids.UPSET_DROPDOWN, "value"),
     )
     def update_upset(gene: str = "kelch13") -> str:
@@ -49,88 +49,34 @@ def render(
             ids_passed_QC=amp_uids_pass_QC,
             target_gene=gene,
             drugres_dict=drugres_dict,
-            id_col=amp_uid,
+            id_col=amp_uid_col,
         )
         upset_img = base64_encode_plot(upset_plot)
-        return "data:image/png;base64,{}".format(upset_img)
+        upset = "data:image/png;base64,{}".format(upset_img)
+        msg = percentage_sequenced_msg(amp_uids_pass_QC, gene, rxn_uids_samples)
+
+        return [upset, msg]
 
     # Load drug resistance details from YAML file
     drugres_path = script_dir.parent / "drug_resistance_mutations.yml"
     with open(drugres_path, "r") as f:
         drugres_dict = yaml.safe_load(f)
 
-    # Define uid
-    rxn_uid = "rxn_uid"  # expt_id_barcode e.g. SLJS034_barcode01
-    amp_uid = "amplicon_uid"  # expt_id_barcode_gene e.g. SLJS034_barcode01_crt
-
-    #####################
-    # Determine the amplicons passing QC thresholds
-    #####################
-    # bcftools only contains non-ref alleles. Therefore need to know all amplicons per rxn
-    # that have passed QC to identify those that came up as reference. Unfortunately QC
-    # outputs are at the sample level in sequence_data.qc_per_sample_with_exp. Therefore
-    # will start with all possible amplicons per sample_id rxn and then determine using
-    # coverage cutoffs from sequence_data.summary_bedcov_with_exp
-    # and contamination cutoff from sequence_data.qc_per_sample_with_exp
-
-    # Pull in translation from amplicon to gene name
-    gene_names_path = script_dir.parent / "gene_names.yml"
-    with open(gene_names_path, "r") as f:
-        gene_names = yaml.safe_load(f)
-
-    # Get a list of all sample IDs that have been sequenced
-    sample_ref_df = combined_data.sample_set.copy(deep=True)
-    sample_ref_df[rxn_uid] = sample_ref_df["expt_id"] + "_" + sample_ref_df["barcode"]
-    rxn_uids_samples = sample_ref_df[rxn_uid].unique()
-    log.debug(f"{sample_ref_df.shape[0]} sample_ref_df entries")
-
-    # Limit qc_ids to those passing contamination threshold:
-    qc_df = sequence_data.qc_per_sample_with_exp.copy(deep=True)
-    log.debug(f"{qc_df.shape[0]} qc_per_sample_with_exp entries")
-    qc_df = qc_df[qc_df["sample_pass_contamination"]]
-    log.debug(f"   {qc_df.shape[0]} pass contamination")
-    # Add a new col with a unique rxn_uid
-    qc_df[rxn_uid] = qc_df["expt_id"] + "_" + qc_df["barcode"]
-    # Extract rxns passing contamination
-    rxn_uids_pass_contam = set(qc_df[rxn_uid])
-
-    # Get amplicons passing coverage threshold:
-    bed_df = sequence_data.summary_bedcov_with_exp.copy(deep=True)
-    log.debug(f"{bed_df.shape[0]} summary_bedcov_with_exp entries")
-    # Translate the amplicon to the gene name
-    bed_df["gene"] = bed_df["name"].replace(gene_names)
-    # Add new cols with uid
-    bed_df[rxn_uid] = bed_df["expt_id"] + "_" + bed_df["barcode"]
-    bed_df[amp_uid] = bed_df["expt_id"] + "_" + bed_df["barcode"] + "_" + bed_df["gene"]
-    # Filter those not passing contamination and coverage
-    bed_df = bed_df[bed_df["mean_cov"] >= 50]
-    log.debug(f"   {bed_df.shape[0]} have mean_cov >= 50")
-    bed_df = bed_df[bed_df[rxn_uid].isin(rxn_uids_pass_contam)]
-    log.debug(f"   {bed_df.shape[0]} are in the rxn_uids_pass_contam")
-    bed_df = bed_df[bed_df[rxn_uid].isin(rxn_uids_samples)]
-    log.debug(f"   {bed_df.shape[0]} are samples")
-    amp_uids_pass_QC = set(bed_df[amp_uid])
-
-    #####################
-    # Prep the bcftools data
-    #####################
-    bcf_df = sequence_data.bcftools_samples_only.copy(deep=True)
-    # Translate the amplicon to the gene name
-    bcf_df["gene"] = bcf_df["amplicon"].replace(gene_names)
-    # Select ONLY nonsynonymous (missense) mutations
-    bcf_df = bcf_df[bcf_df["mut_type"].str.contains("missense", na=False)]
-    # Make a unique reference for results from each gene reaction
-    bcf_df[amp_uid] = bcf_df["expt_id"] + "_" + bcf_df["sample"] + "_" + bcf_df["gene"]
-    # Filter to those passing QC
-    bcf_df = bcf_df[bcf_df[amp_uid].isin(amp_uids_pass_QC)]
-
+    # Load data and defaults
+    bcf_df = sequence_data.bcftools_samples_QC_pass.copy(deep=True)
+    amp_uids_pass_QC = sequence_data.amp_uids_pass_QC
+    target_gene = "kelch13"
+    amp_uid_col = "amplicon_uid"
+    rxn_uid_col = "rxn_uid"
+    rxn_uids_samples = combined_data.sample_set[rxn_uid_col].unique()
+    # breakpoint()
     # Generate the plot
     upset_plot = upsetplot_img(
         variants_df=bcf_df,
         ids_passed_QC=amp_uids_pass_QC,
-        target_gene="kelch13",
+        target_gene=target_gene,
         drugres_dict=drugres_dict,
-        id_col=amp_uid,
+        id_col=amp_uid_col,
     )
     upset_img = base64_encode_plot(upset_plot)
 
@@ -142,19 +88,29 @@ def render(
     dropdown = dcc.Dropdown(
         id=ids.UPSET_DROPDOWN,
         options=dropdown_options,
-        className="wide_dropdown",
+        className="dropdown-fill",
         placeholder="Select a gene",
     )
 
+    msg = percentage_sequenced_msg(amp_uids_pass_QC, target_gene, rxn_uids_samples)
+    info = "INFO: Individual mutations are shown in rows, with candidate (light grey / orange) and validated (dark grey / red) mutations highlighted. Combinations are shown vertically with known combinations highlighted in colour. Wild-type (WT) is shown in green. "
     # Create the upset plot layout
     layout = html.Div(
         className="panel",
         children=[
             html.H2("Variant Analysis:"),
-            dropdown,
-            html.Img(
-                id=ids.UPSET_PLOT_IMG, src="data:image/png;base64,{}".format(upset_img)
+            html.Div(
+                className="selection_and_info",
+                children=[
+                    dropdown,
+                    html.P(info, className="info_text"),
+                ],
             ),
+            html.Img(
+                id=ids.UPSET_PLOT_IMG,
+                src="data:image/png;base64,{}".format(upset_img),
+            ),
+            html.P(id=ids.UPSET_PLOT_MSG, children=msg),
         ],
     )
 
@@ -304,3 +260,21 @@ def base64_encode_plot(matplot: plt.figure) -> base64:
     plt.close(matplot)
 
     return encoded_image
+
+
+def percentage_sequenced_msg(
+    amp_uids_pass_QC: list, target_gene: str, rxn_uids_samples: list
+) -> str:
+    """
+    Graphically show the percentage of samples that have been sequenced
+    Args:
+        sequence_data (SequencingMetadataParser): An instance containing sequence data.
+        combined_data (Combine_Exp_Seq_Sample_data): Combined metadata for experiments, sequences, and samples.
+    Returns:
+        dcc.Graph
+    """
+    num_seq = len([g for g in amp_uids_pass_QC if target_gene in g])
+    num_attempted = len(rxn_uids_samples)
+    msg = f"{num_seq} / {num_attempted} ({(num_seq / num_attempted) * 100:.1f}%) samples successfully sequenced for {target_gene}. "
+
+    return msg

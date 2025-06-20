@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pretty_errors
+import yaml
 
 from warehouse.lib.dataframes import (
     collapse_repeat_columns,
@@ -885,11 +886,13 @@ class SampleMetadataParser:
         if self.output_folder:
             identify_export_dataframe_attributes(self, self.output_folder)
 
-    def incorporate_experimental_data(self, ExpClassInstance: ExpMetadataMerge):
+    def incorporate_experimental_data_to_sampleclass(
+        self, ExpClassInstance: ExpMetadataMerge
+    ):
         """
         Update df with status of each sample ie incorporate experiment data into sample df
         """
-        log.info("Adding test status to sample metadata")
+        log.info("Adding experimental data to sample metadata class")
 
         # Define attributes from the ExpClassInstance
         exp_type_colname = ExpClassInstance.dataschema.EXP_TYPE[0]
@@ -928,6 +931,9 @@ class SampleMetadataParser:
 
         if self.output_folder:
             identify_export_dataframe_attributes(self, self.output_folder)
+
+        log.info("Done")
+        log.info(divider)
 
 
 class SequencingMetadataParser:
@@ -1041,10 +1047,14 @@ class SequencingMetadataParser:
         if self.output_folder:
             identify_export_dataframe_attributes(self, self.output_folder)
 
-    def incorporate_experimental_data(self, ExpClassInstance):
+        log.info("Done")
+        log.info(divider)
+
+    def incorporate_experimental_data_to_sequence_class(self, ExpClassInstance):
         """
         Expand sequence data metrics with the addition of sample and experimental data
         """
+        log.info("Adding experimental data to sequence metadata class")
         # Define the expdataschema object
         ExpDataSchema = ExpClassInstance.dataschema
         # Filter expdataschema to key fields needed
@@ -1128,22 +1138,86 @@ class SequencingMetadataParser:
         if self.output_folder:
             identify_export_dataframe_attributes(self, self.output_folder)
 
-    def add_bcftools_filtered_with_samples(self, sample_set: pd.DataFrame):
+        log.info("Done")
+        log.info(divider)
+
+    def add_bcftools_filtered_to_samples_passing_QC(self, sample_set: pd.DataFrame):
         """
         This method adds a new attribute that consists of the the bcftools output filtered to
-        just entries that appear in the sample data
-        """
-        variants_df = self.bcftools.copy(deep=True)
+        just entries that appear in the sample data and that have passed QC thresholds.
 
-        filtered_variants_df = pd.merge(
-            variants_df,
+        bcftools only contains non-ref alleles, therefore need to know all amplicons per rxn
+        that have passed QC to identify those that came up as reference. QC outputs are at
+        the sample level in sequence_data.qc_per_sample_with_exp. Therefore start with
+        all possible amplicons per sample_id rxn and then determine using coverage cutoffs from sequence_data.summary_bedcov_with_exp
+        # and contamination cutoff from sequence_data.qc_per_sample_with_exp
+        """
+
+        # Define uid colnames
+        rxn_uid_col = "rxn_uid"
+        amp_uid_col = "amplicon_uid"
+
+        # Pull in translation from amplicon to gene name
+        gene_names_path = script_dir / "filtering" / "gene_names.yml"
+        with open(gene_names_path, "r") as f:
+            gene_names = yaml.safe_load(f)
+
+        # Get a list of all sample IDs that have been sequenced
+        sample_ref_df = sample_set.copy(deep=True)
+        rxn_uids_samples = sample_ref_df[rxn_uid_col].unique()
+        log.debug(f"{sample_ref_df.shape[0]} sample_ref_df entries")
+
+        # Limit qc_ids to those passing contamination threshold:
+        qc_df = self.qc_per_sample.copy(deep=True)
+        log.debug(f"{qc_df.shape[0]} qc_per_sample entries")
+        qc_df = qc_df[qc_df["sample_pass_contamination"]]
+        log.debug(f"   {qc_df.shape[0]} pass contamination")
+        # Add a new col with a unique rxn_uid
+        qc_df[rxn_uid_col] = qc_df["expt_id"] + "_" + qc_df["barcode"]
+        # Extract rxns passing contamination
+        rxn_uids_pass_contam = set(qc_df[rxn_uid_col])
+
+        # Get amplicons passing coverage threshold:
+        bed_df = self.summary_bedcov.copy(deep=True)
+        log.debug(f"{bed_df.shape[0]} summary_bedcov_with_exp entries")
+        # Translate the amplicon to the gene name
+        bed_df["gene"] = bed_df["name"].replace(gene_names)
+        # Add new cols with uid
+        bed_df[rxn_uid_col] = bed_df["expt_id"] + "_" + bed_df["barcode"]
+        bed_df[amp_uid_col] = (
+            bed_df["expt_id"] + "_" + bed_df["barcode"] + "_" + bed_df["gene"]
+        )
+        # Filter those not passing contamination and coverage
+        bed_df = bed_df[bed_df["mean_cov"] >= 50]
+        log.debug(f"   {bed_df.shape[0]} have mean_cov >= 50")
+        bed_df = bed_df[bed_df[rxn_uid_col].isin(rxn_uids_pass_contam)]
+        log.debug(f"   {bed_df.shape[0]} are in the rxn_uids_pass_contam")
+        bed_df = bed_df[bed_df[rxn_uid_col].isin(rxn_uids_samples)]
+        log.debug(f"   {bed_df.shape[0]} are samples")
+        self.amp_uids_pass_QC = set(bed_df[amp_uid_col])
+
+        #####################
+        # Prep the bcftools data
+        #####################
+        bcf_df = self.bcftools.copy(deep=True)
+        # Translate the amplicon to the gene name
+        bcf_df["gene"] = bcf_df["amplicon"].replace(gene_names)
+        # Select ONLY nonsynonymous (missense) mutations
+        bcf_df = bcf_df[bcf_df["mut_type"].str.contains("missense", na=False)]
+        # Make a unique reference for results from each gene reaction
+        bcf_df[amp_uid_col] = (
+            bcf_df["expt_id"] + "_" + bcf_df["sample"] + "_" + bcf_df["gene"]
+        )
+        # Filter to those passing QC
+        bcf_df = bcf_df[bcf_df[amp_uid_col].isin(self.amp_uids_pass_QC)]
+
+        self.bcftools_samples_QC_pass = pd.merge(
+            bcf_df,
             sample_set[["barcode", "expt_id"]],
             left_on=["sample", "expt_id"],
             right_on=["barcode", "expt_id"],
             how="inner",
         )
-        self.bcftools_samples_only = filtered_variants_df
-
         if self.output_folder:
             identify_export_dataframe_attributes(self, self.output_folder)
 
@@ -1167,12 +1241,12 @@ class Combine_Exp_Seq_Sample_data:
         SampleDataSchema = sample_data.DataSchema
 
         # Create reference set
-        self.sample_set = create_reference_set(
-            exp_data=exp_data, sample_data=sample_data
-        )
+        self.sample_set = create_sample_set(exp_data=exp_data, sample_data=sample_data)
 
         # Filter bcftools to sample data
-        sequence_data.add_bcftools_filtered_with_samples(sample_set=self.sample_set)
+        sequence_data.add_bcftools_filtered_to_samples_passing_QC(
+            sample_set=self.sample_set
+        )
 
         log.debug("   Combining experimental and sequence data to alldata_df:")
         alldata_df = pd.merge(
@@ -1267,6 +1341,9 @@ class Combine_Exp_Seq_Sample_data:
         if output_folder:
             identify_export_dataframe_attributes(self, output_folder)
 
+        log.info("Done")
+        log.info(divider)
+
 
 class ExpThroughputDataScheme:
     #### Definitions for making the summary throughput calculations #####
@@ -1277,12 +1354,13 @@ class ExpThroughputDataScheme:
     EXP_TYPES = ("Not tested", "sWGA", "PCR", "seqlib")
 
 
-def create_reference_set(
+def create_sample_set(
     exp_data: ExpMetadataMerge, sample_data: SampleMetadataParser
 ) -> pd.DataFrame:
     """
-    Generate a reference df that has the key information (barcode, expt_id, sample_id
-    and expt_date) for connecting different data sets
+    Generate a df that has the key information (barcode, expt_id, sample_id
+    and expt_date) for sample ids from the sample metadata file. This df is then
+    used to connect different data sets
     """
     # Define cols to keep
     exp_cols = [
@@ -1296,7 +1374,10 @@ def create_reference_set(
 
     # Now get sampleids
     study_ids = list(sample_data.df[sample_data.DataSchema.STUDY_ID[0]])
-    # Filter to final df
+    # Filter df
     df = df[df[exp_data.dataschema.SAMPLE_ID[0]].isin(study_ids)]
+
+    # Add in rxn_uid:
+    df["rxn_uid"] = df["expt_id"] + "_" + df["barcode"]
 
     return df

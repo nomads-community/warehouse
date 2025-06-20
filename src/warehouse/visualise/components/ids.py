@@ -26,6 +26,7 @@ SEQ_QC_PASS_THRESHOLD = "seq_qc_threshold_pass"
 ##################
 UPSET_DROPDOWN = "upset_dropdown_selection"
 UPSET_PLOT_IMG = "upset_plot_figure"
+UPSET_PLOT_MSG = "upset_plot_message"
 
 ##################
 # selectable_scatter.py plot
