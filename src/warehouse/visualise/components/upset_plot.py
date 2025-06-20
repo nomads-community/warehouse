@@ -44,7 +44,7 @@ def render(
         Input(ids.UPSET_DROPDOWN, "value"),
     )
     def update_upset(gene: str = "kelch13") -> str:
-        upset_plot = upsetplot_img(
+        upset_plot = upsetplot_fig(
             variants_df=bcf_df,
             ids_passed_QC=amp_uids_pass_QC,
             target_gene=gene,
@@ -57,10 +57,7 @@ def render(
 
         return [upset, msg]
 
-    # Load drug resistance details from YAML file
-    drugres_path = script_dir.parent / "drug_resistance_mutations.yml"
-    with open(drugres_path, "r") as f:
-        drugres_dict = yaml.safe_load(f)
+    drugres_dict = create_drug_resistance_dict()
 
     # Load data and defaults
     bcf_df = sequence_data.bcftools_samples_QC_pass.copy(deep=True)
@@ -69,9 +66,9 @@ def render(
     amp_uid_col = "amplicon_uid"
     rxn_uid_col = "rxn_uid"
     rxn_uids_samples = combined_data.sample_set[rxn_uid_col].unique()
-    # breakpoint()
+
     # Generate the plot
-    upset_plot = upsetplot_img(
+    upset_plot = upsetplot_fig(
         variants_df=bcf_df,
         ids_passed_QC=amp_uids_pass_QC,
         target_gene=target_gene,
@@ -93,7 +90,7 @@ def render(
     )
 
     msg = percentage_sequenced_msg(amp_uids_pass_QC, target_gene, rxn_uids_samples)
-    info = "INFO: Individual mutations are shown in rows, with candidate (light grey / orange) and validated (dark grey / red) mutations highlighted. Combinations are shown vertically with known combinations highlighted in colour. Wild-type (WT) is shown in green. "
+    info = "INFO: Individual mutations are shown in rows, with candidate (light grey / orange) and validated (dark grey / red) mutations highlighted. Combinations are shown vertically with known combinations highlighted in colour. Wild-type (WT) is shown in "
     # Create the upset plot layout
     layout = html.Div(
         className="panel",
@@ -117,7 +114,7 @@ def render(
     return layout
 
 
-def upsetplot_img(
+def upsetplot_fig(
     variants_df: pd.DataFrame,
     ids_passed_QC: list,
     target_gene: str,
@@ -160,8 +157,10 @@ def upsetplot_img(
 
         # Identify and add in all samples that do NOT have a mutation as a new category
         wt_cat = "WT"
-        ids_nonref = variants_df[id_col].unique()
+        breakpoint()
+        ids_nonref = list(variants_df[id_col].unique())
         ids_ref = [g for g in ids_passed_QC if target_gene in g and g not in ids_nonref]
+
         log.debug(
             f"Identified {len(ids_nonref)} non-ref entries, and generated {len(ids_ref)} WT for {target_gene}"
         )
@@ -278,3 +277,12 @@ def percentage_sequenced_msg(
     msg = f"{num_seq} / {num_attempted} ({(num_seq / num_attempted) * 100:.1f}%) samples successfully sequenced for {target_gene}. "
 
     return msg
+
+
+def create_drug_resistance_dict() -> dict:
+    # Load drug resistance details from YAML file
+    drugres_path = script_dir.parent / "drug_resistance_mutations.yml"
+    with open(drugres_path, "r") as f:
+        drugres_dict = yaml.safe_load(f)
+
+    return drugres_dict

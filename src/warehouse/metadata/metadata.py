@@ -13,7 +13,7 @@ from warehouse.lib.dataframes import (
     collapse_repeat_columns,
     concat_files_add_expID,
     identify_duplicate_colnames,
-    identify_export_dataframe_attributes,
+    identify_export_class_attributes,
     merge_additional_rxn_level_fields,
 )
 from warehouse.lib.decorators import singleton
@@ -774,7 +774,7 @@ class ExpMetadataMerge:
 
         # Optionally export the aggregate data
         if self.output_folder:
-            identify_export_dataframe_attributes(self, self.output_folder)
+            identify_export_class_attributes(self, self.output_folder)
 
         # Give user a summary of experiments performed
         log.info("Experiments performed:")
@@ -884,7 +884,7 @@ class SampleMetadataParser:
 
         # export data
         if self.output_folder:
-            identify_export_dataframe_attributes(self, self.output_folder)
+            identify_export_class_attributes(self, self.output_folder)
 
     def incorporate_experimental_data_to_sampleclass(
         self, ExpClassInstance: ExpMetadataMerge
@@ -930,7 +930,7 @@ class SampleMetadataParser:
         self.df_with_exp = df
 
         if self.output_folder:
-            identify_export_dataframe_attributes(self, self.output_folder)
+            identify_export_class_attributes(self, self.output_folder)
 
         log.info("Done")
         log.info(divider)
@@ -1045,7 +1045,7 @@ class SequencingMetadataParser:
             self.bcftools["qual"] = self.bcftools["qual"].astype(float)
 
         if self.output_folder:
-            identify_export_dataframe_attributes(self, self.output_folder)
+            identify_export_class_attributes(self, self.output_folder)
 
         log.info("Done")
         log.info(divider)
@@ -1136,7 +1136,7 @@ class SequencingMetadataParser:
         self.summary_bamqc = summary_bamqc
 
         if self.output_folder:
-            identify_export_dataframe_attributes(self, self.output_folder)
+            identify_export_class_attributes(self, self.output_folder)
 
         log.info("Done")
         log.info(divider)
@@ -1194,6 +1194,7 @@ class SequencingMetadataParser:
         log.debug(f"   {bed_df.shape[0]} are in the rxn_uids_pass_contam")
         bed_df = bed_df[bed_df[rxn_uid_col].isin(rxn_uids_samples)]
         log.debug(f"   {bed_df.shape[0]} are samples")
+        # Define all amplicon uids that pass QC
         self.amp_uids_pass_QC = set(bed_df[amp_uid_col])
 
         #####################
@@ -1219,7 +1220,7 @@ class SequencingMetadataParser:
             how="inner",
         )
         if self.output_folder:
-            identify_export_dataframe_attributes(self, self.output_folder)
+            identify_export_class_attributes(self, self.output_folder)
 
 
 @singleton
@@ -1339,7 +1340,7 @@ class Combine_Exp_Seq_Sample_data:
         self.df = alldata_df
 
         if output_folder:
-            identify_export_dataframe_attributes(self, output_folder)
+            identify_export_class_attributes(self, output_folder)
 
         log.info("Done")
         log.info(divider)

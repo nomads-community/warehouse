@@ -105,7 +105,7 @@ def export_df_to_csv(df: pd.DataFrame, folder: Path, filename: str) -> None:
     df.to_csv(path, index=False)
 
 
-def identify_export_dataframe_attributes(obj, output_dir):
+def identify_export_class_attributes(obj, output_dir):
     """
     Outputs all attributes of an object that are DataFrames as individual CSV files.
 
@@ -113,14 +113,20 @@ def identify_export_dataframe_attributes(obj, output_dir):
         obj: The object whose attributes to inspect.
         output_dir: The directory where the CSV files will be saved.
     """
-    log.info("   Exporting dataframe attributes:")
-    for attr_name in dir(obj):
+    log.info("   Exporting attributes:")
+    for attr_name in [a for a in dir(obj) if not a.startswith("__")]:
         attr = getattr(obj, attr_name)
+        csv_file = f"{output_dir}/{attr_name}.csv"
+
+        if isinstance(attr, set):
+            attr = pd.DataFrame(sorted(list(attr)), columns=[f"{attr_name}_elements"])
+            attr.to_csv(csv_file, index=False)
+            log.info(f"      set: '{attr_name}' saved to {csv_file}")
         if isinstance(attr, pd.DataFrame):
             produce_dir(output_dir)
-            csv_file = f"{output_dir}/{attr_name}.csv"
             attr.to_csv(csv_file, index=False)
-            log.info(f"      '{attr_name}' saved to {csv_file}")
+            log.info(f"     dataframe: '{attr_name}' saved to {csv_file}")
+
     log.info("   Done")
 
 
