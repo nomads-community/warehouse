@@ -157,7 +157,6 @@ def upsetplot_fig(
 
         # Identify and add in all samples that do NOT have a mutation as a new category
         wt_cat = "WT"
-        breakpoint()
         ids_nonref = list(variants_df[id_col].unique())
         ids_ref = [g for g in ids_passed_QC if target_gene in g and g not in ids_nonref]
 
