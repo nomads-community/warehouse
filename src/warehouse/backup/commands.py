@@ -24,15 +24,15 @@ script_dir = Path(__file__).parent.resolve()
     required=True,
     help="Path to backup folder on external USB drive",
 )
-@click.option(
-    "-d",
-    "--delete",
-    is_flag=True,
-    default=False,
-    help="Delete backed up files not in the sequence folder (use with caution)",
-    required=False,
-)
-def backup(seq_folder: Path, backup_folder: Path, delete: bool = False) -> None:
+# @click.option(
+#     "-d",
+#     "--delete",
+#     is_flag=True,
+#     default=False,
+#     help="Delete backed up files not in the sequence folder (use with caution)",
+#     required=False,
+# )
+def backup(seq_folder: Path, backup_folder: Path) -> None:
     """
     Backup all sequence data files to a local USB drive.
 
@@ -47,6 +47,6 @@ def backup(seq_folder: Path, backup_folder: Path, delete: bool = False) -> None:
         source_dir=seq_folder,
         target_dir=backup_folder,
         recursive=True,
-        delete=delete,
+        delete=False,
     )
     log.info(divider)
