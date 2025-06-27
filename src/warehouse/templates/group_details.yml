@@ -43,20 +43,22 @@ UNAM:
 KEMRI_ENTO:
   names:
     - Cyprian Adala
-    - Diana Omoke
     - Cynthia Awuor
     - Sylvia Milanoi
-    - Brian Polo
     - Brian Morgan
+    - Miguel Gerson
+    - Brenda Onyango
   initials:
     - CA
-    - DO
     - CA
     - SM
-    - BP
     - BM
+    - MG
+    - BO
   projects:
-    - NOMADS_ento
+    - EAVES
+    - ATSB
+    - NMCP
 KCL:
   names:
     - Miriam Wanjiku
