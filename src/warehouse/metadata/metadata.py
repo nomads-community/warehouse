@@ -1052,7 +1052,7 @@ class SequencingMetadataParser:
 
     def incorporate_experimental_data_to_sequence_class(self, ExpClassInstance):
         """
-        Expand sequence data metrics with the addition of sample and experimental data
+        Expand sequence data metrics with the addition of experimental data
         """
         log.info("Adding experimental data to sequence metadata class")
         # Define the expdataschema object
@@ -1162,10 +1162,10 @@ class SequencingMetadataParser:
         with open(gene_names_path, "r") as f:
             gene_names = yaml.safe_load(f)
 
-        # Get a list of all sample IDs that have been sequenced
-        sample_ref_df = sample_set.copy(deep=True)
-        rxn_uids_samples = sample_ref_df[rxn_uid_col].unique()
-        log.debug(f"{sample_ref_df.shape[0]} sample_ref_df entries")
+        # Get a list of all rxn IDs that have gone into a sequencing run
+        sample_set_df = sample_set.copy(deep=True)
+        rxn_uids_samples = sample_set_df[rxn_uid_col].unique()
+        log.debug(f"{sample_set_df.shape[0]} sample_set_df entries")
 
         # Limit qc_ids to those passing contamination threshold:
         qc_df = self.qc_per_sample.copy(deep=True)
@@ -1174,7 +1174,7 @@ class SequencingMetadataParser:
         log.debug(f"   {qc_df.shape[0]} pass contamination")
         # Add a new col with a unique rxn_uid
         qc_df[rxn_uid_col] = qc_df["expt_id"] + "_" + qc_df["barcode"]
-        # Extract rxns passing contamination
+        # Extract rxn ids passing contamination
         rxn_uids_pass_contam = set(qc_df[rxn_uid_col])
 
         # Get amplicons passing coverage threshold:
@@ -1194,8 +1194,20 @@ class SequencingMetadataParser:
         log.debug(f"   {bed_df.shape[0]} are in the rxn_uids_pass_contam")
         bed_df = bed_df[bed_df[rxn_uid_col].isin(rxn_uids_samples)]
         log.debug(f"   {bed_df.shape[0]} are samples")
+
+        # Add in sample_id for easier downstream processing
+        bed_df = pd.merge(
+            bed_df,
+            sample_set[[rxn_uid_col, "sample_id"]],
+            left_on=[rxn_uid_col],
+            right_on=[rxn_uid_col],
+            how="left",
+        )
         # Define all amplicon uids that pass QC
-        self.amp_uids_pass_QC = set(bed_df[amp_uid_col])
+        self.amp_uids_pass_QC = bed_df[
+            ["expt_id", "barcode", "gene", "name", amp_uid_col, "sample_id"]
+        ]
+        amp_uids_pass_QC = set(bed_df[amp_uid_col])
 
         #####################
         # Prep the bcftools data
@@ -1210,15 +1222,16 @@ class SequencingMetadataParser:
             bcf_df["expt_id"] + "_" + bcf_df["sample"] + "_" + bcf_df["gene"]
         )
         # Filter to those passing QC
-        bcf_df = bcf_df[bcf_df[amp_uid_col].isin(self.amp_uids_pass_QC)]
+        bcf_df = bcf_df[bcf_df[amp_uid_col].isin(amp_uids_pass_QC)]
 
         self.bcftools_samples_QC_pass = pd.merge(
             bcf_df,
-            sample_set[["barcode", "expt_id"]],
+            sample_set[["barcode", "expt_id", "sample_id"]],
             left_on=["sample", "expt_id"],
             right_on=["barcode", "expt_id"],
             how="inner",
         )
+
         if self.output_folder:
             identify_export_class_attributes(self, self.output_folder)
 

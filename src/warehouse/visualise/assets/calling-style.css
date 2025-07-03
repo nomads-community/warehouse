@@ -42,14 +42,13 @@ body {
 .selection_and_info {
     display: flex;
     flex-direction: row;
-    gap:20px;
+    gap:60px;
     /* justify-content: space-between */
 }
 
 .info_text {
     font-size: 12px;
     color: #555;
-    max-width: 400px;
 }
 
 .row-flex {

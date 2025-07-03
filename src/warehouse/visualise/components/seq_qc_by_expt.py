@@ -75,7 +75,9 @@ def main_selection_panel(
     # Pull out the data schema for labels etc
     SeqDataSchema = sequence_data.DataSchema
     # Generate a list of unique expt_ids
-    expt_ids = sequence_data.qc_per_expt[SeqDataSchema.EXP_ID[0]].unique().tolist()
+    expt_ids = sorted(
+        sequence_data.qc_per_expt[SeqDataSchema.EXP_ID[0]].unique().tolist()
+    )
 
     @app.callback(
         Output(ids.SEQ_QC_EXPT_LIST, "value"),

@@ -41,47 +41,57 @@ def render(
 
     @app.callback(
         [Output(ids.UPSET_PLOT_IMG, "src"), Output(ids.UPSET_PLOT_MSG, "children")],
-        Input(ids.UPSET_DROPDOWN, "value"),
+        [
+            Input(ids.UPSET_DROPDOWN, "value"),
+            Input(ids.SEQ_QC_EXPT_LIST, "value"),
+        ],
     )
-    def update_upset(gene: str = "kelch13") -> str:
+    def update_upset(gene: str, expt_ids: list[str]) -> str:
+        # Entered gene is None, so use the default kelch13
+        if gene is None:
+            gene = target_gene
+
+        # Limit to selected expt_ids
+        temp = amp_uids_pass_QC_df[amp_uids_pass_QC_df["expt_id"].isin(expt_ids)]
+        if temp.empty:
+            # If no expt_ids selected, return empty plot and message
+            log.warning("No valid sequence data identified, returning empty plot.")
+            return ["", f"No sequencing data available for {gene}"]
+
+        # Generate the upset plot
         upset_plot = upsetplot_fig(
             variants_df=bcf_df,
-            ids_passed_QC=amp_uids_pass_QC,
-            target_gene=gene,
-            drugres_dict=drugres_dict,
-            id_col=amp_uid_col,
+            ids_passed_QC=temp,
+            gene=gene,
+            muts_dict=muts_dict,
         )
         upset_img = base64_encode_plot(upset_plot)
         upset = "data:image/png;base64,{}".format(upset_img)
-        msg = percentage_sequenced_msg(amp_uids_pass_QC, gene, rxn_uids_samples)
-
+        msg = percentage_sequenced_msg(
+            amp_uids_pass_QC_df, gene, combined_data.sample_set
+        )
         return [upset, msg]
 
-    drugres_dict = create_drug_resistance_dict()
+    muts_dict = create_mutations_dict()
 
-    # Load data and defaults
+    # Load data
     bcf_df = sequence_data.bcftools_samples_QC_pass.copy(deep=True)
-    amp_uids_pass_QC = sequence_data.amp_uids_pass_QC
-    target_gene = "kelch13"
-    amp_uid_col = "amplicon_uid"
-    rxn_uid_col = "rxn_uid"
-    rxn_uids_samples = combined_data.sample_set[rxn_uid_col].unique()
+    amp_uids_pass_QC_df = sequence_data.amp_uids_pass_QC.copy(deep=True)
+    # Identify first gene in the list
+    target_gene = list(muts_dict.keys())[0]
 
     # Generate the plot
     upset_plot = upsetplot_fig(
         variants_df=bcf_df,
-        ids_passed_QC=amp_uids_pass_QC,
-        target_gene=target_gene,
-        drugres_dict=drugres_dict,
-        id_col=amp_uid_col,
+        ids_passed_QC=amp_uids_pass_QC_df,
+        gene=target_gene,
+        muts_dict=muts_dict,
     )
     upset_img = base64_encode_plot(upset_plot)
 
-    # Create the dropdown bar
-    # Get a list of all genes that appear
-    dr_muts = ["crt", "dhps", "dhfr", "kelch13", "mdr1"]
-    # sorted(sequence_data.summary_bedcov["name"].unique())
-    dropdown_options = [{"label": gene, "value": gene} for gene in dr_muts]
+    # Get a list of all genes and create dropdown
+    genes = muts_dict.keys()
+    dropdown_options = [{"label": gene, "value": gene} for gene in genes]
     dropdown = dcc.Dropdown(
         id=ids.UPSET_DROPDOWN,
         options=dropdown_options,
@@ -89,8 +99,11 @@ def render(
         placeholder="Select a gene",
     )
 
-    msg = percentage_sequenced_msg(amp_uids_pass_QC, target_gene, rxn_uids_samples)
-    info = "INFO: Individual mutations are shown in rows, with candidate (light grey / orange) and validated (dark grey / red) mutations highlighted. Combinations are shown vertically with known combinations highlighted in colour. Wild-type (WT) is shown in "
+    msg = percentage_sequenced_msg(
+        amp_uids_pass_QC_df, target_gene, combined_data.sample_set
+    )
+    info = "INFO: Individual mutations are shown in rows, with candidate (light grey / orange) and validated (dark grey / red) mutations highlighted. Combinations are shown vertically with known combinations highlighted in colour. Wild-type (WT) is shown in green."
+
     # Create the upset plot layout
     layout = html.Div(
         className="panel",
@@ -116,132 +129,149 @@ def render(
 
 def upsetplot_fig(
     variants_df: pd.DataFrame,
-    ids_passed_QC: list,
-    target_gene: str,
-    drugres_dict: dict,
-    id_col=str,
+    ids_passed_QC: pd.DataFrame,
+    gene: str,
+    muts_dict: dict,
 ) -> plt.figure:
     """
     Generate an upset plot in a matplot figure based on the provided DataFrame and values column.
     Args:
-        variants_df (pd.DataFrame): DataFrame containing all non-ref muatations from bcftools
-        ids_passed_QC (list): All ids (gene / amplicon level) that have passed QC
+        variants_df (pd.DataFrame): DataFrame containing all non-ref mutations
+        ids_passed_QC (pd.DataFrame): All ids (gene / amplicon level) that have passed QC
         target_gene (str): Name of the gene to generate the plot for
-        drugres_dict (dict): Dictionary of drug resistance mutations and combinations
-        id_col (str): Colname for unique identifier in variants_df (gene / amplicon level)
+        muts_dict (dict): Dictionary of mutations and combinations
     Returns:
         plt.figure: The generated upset plot as a matplotlib fig.
     """
-
+    id
     # Remove annoying futurewarning
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
         log.debug(
-            f"Looking up {target_gene} in drugres_dict with id_col={id_col} and ids_passed_QC={len(ids_passed_QC)}"
+            f"Looking up {gene} in drugres_dict with ids_passed_QC={len(ids_passed_QC)}"
         )
-        # Extract the drug resistance details
-        target = drugres_dict.get(target_gene)
+        # Extract the mutation details
+        target = muts_dict.get(gene)
         candidate = list(target.get("candidate", []))
         validated = list(target.get("validated", []))
         combinations = target.get("combinations", {})
         log.debug(
             f"{target} mutations= {candidate} (candidate), {validated} (validated)\n {combinations} (combinations)"
         )
-
-        # Filter df to relevent gene and samples passing QC
-        variants_df = variants_df[variants_df["gene"] == target_gene]
+        # Filter variants to relevant gene
+        variants_df = variants_df[variants_df["gene"] == gene]
 
         # Pivot data to wide where each row is a sample and cols are mutations
-        mutation_matrix = pd.crosstab(variants_df[id_col], variants_df["aa_change"])
+        mutation_matrix = pd.crosstab(
+            variants_df["sample_id"], variants_df["aa_change"]
+        )
         mutation_matrix = mutation_matrix.astype(bool)
 
-        # Identify and add in all samples that do NOT have a mutation as a new category
-        wt_cat = "WT"
-        ids_nonref = list(variants_df[id_col].unique())
-        ids_ref = [g for g in ids_passed_QC if target_gene in g and g not in ids_nonref]
-
+        # Identify all entries that do NOT have a mutation
+        ids_nonref = list(variants_df["sample_id"].unique())
+        ids_ref = ids_passed_QC[
+            (ids_passed_QC["gene"].isin([gene]))
+            & ~(ids_passed_QC["sample_id"].isin(ids_nonref))
+        ]
         log.debug(
-            f"Identified {len(ids_nonref)} non-ref entries, and generated {len(ids_ref)} WT for {target_gene}"
+            f"Identified {len(ids_nonref)} non-ref entries, and generated {len(ids_ref)} WT entries for {gene}"
         )
-        new_rows_df = pd.DataFrame(
-            False, index=ids_ref, columns=mutation_matrix.columns
-        )
+
         # Add in wt values if there are
-        if ids_ref:
+        wt_cat = "WT"
+        if not ids_ref.empty:
+            new_rows_df = pd.DataFrame(
+                False, index=ids_ref["sample_id"], columns=mutation_matrix.columns
+            )
             mutation_matrix[wt_cat] = False
             new_rows_df[wt_cat] = True
             mutation_matrix = pd.concat([mutation_matrix, new_rows_df])
 
-        # Turn into a multi-level index with counts
-        upset_data = up.from_indicators(mutation_matrix)
-
-        # Ensure that if there is only one category e.g. WT or every sample mutated at one locus
-        if mutation_matrix.shape[1] == 1:
+        # Deal with empty matrix
+        if mutation_matrix.empty:
             fig = plt.figure(figsize=(0.5, 3))
             ax = fig.add_subplot(111)
             ax.text(
                 0.5,
                 0.5,
-                f"All samples are {list(mutation_matrix.columns)[0]} for {target_gene} so unable to plot",
+                "No data available.",
                 horizontalalignment="center",
                 verticalalignment="center",
                 transform=ax.transAxes,
             )
             ax.axis("off")
-        else:
-            # Create the upset object
-            up_obj = up.UpSet(
-                upset_data,
-                subset_size="count",
-                sort_by="cardinality",
-                show_percentages="{:.0%}",
-                show_counts=True,
+            return fig
+        # Deal with a single category i.e. WT or every sample mutated at one locus
+        elif mutation_matrix.shape[1] == 1:
+            fig = plt.figure(figsize=(0.5, 3))
+            ax = fig.add_subplot(111)
+            ax.text(
+                0.5,
+                0.5,
+                f"All samples are {list(mutation_matrix.columns)[0]} for {gene} so unable to plot",
+                horizontalalignment="center",
+                verticalalignment="center",
+                transform=ax.transAxes,
             )
-            ###################
-            # Add colours
-            ###################
-            for colour, members in combinations.items():
-                # Ensure all members present before adding colour
-                members_set = set(members)
-                present_set = set(mutation_matrix.columns)
-                if members_set.issubset(present_set):
-                    up_obj.style_subsets(present=members, facecolor=colour)
-            # and wild-type
-            if ids_ref:
-                up_obj.style_subsets(present=wt_cat, facecolor="green")
+            ax.axis("off")
+            return fig
 
-            # Highlight candidate markers
-            for c in candidate:
-                if c in mutation_matrix.columns:
-                    up_obj.style_categories(
-                        c, shading_facecolor="lightgrey", shading_linewidth=1
-                    )
-                    up_obj.style_categories(
-                        c,
-                        bar_facecolor="tab:orange",
-                        bar_hatch="xx",
-                        bar_edgecolor="black",
-                    )
-            # Highlight validated markers
-            for v in validated:
-                if v in mutation_matrix.columns:
-                    up_obj.style_categories(
-                        v, shading_facecolor="darkgrey", shading_linewidth=1
-                    )
-                    up_obj.style_categories(
-                        v,
-                        bar_facecolor="tab:red",
-                        bar_hatch="xx",
-                        bar_edgecolor="black",
-                    )
+        # Turn into a multi-level index with counts
+        upset_data = up.from_indicators(mutation_matrix)
 
-            # Create the figure explicitly and plot onto it
-            fig = plt.figure(figsize=(6, 8))
-            up_plot = up_obj.plot(fig=fig)
+        # Create the upset object
+        up_obj = up.UpSet(
+            upset_data,
+            subset_size="count",
+            sort_by="cardinality",
+            show_percentages="{:.0%}",
+            show_counts=True,
+        )
+        ###################
+        # Add colours
+        ###################
+        for colour, members in combinations.items():
+            # Ensure all members present before adding colour
+            members_set = set(members)
+            present_set = set(mutation_matrix.columns)
+            if members_set.issubset(present_set):
+                up_obj.style_subsets(present=members, facecolor=colour)
+        # and wild-type
+        if not ids_ref.empty:
+            up_obj.style_subsets(present=wt_cat, facecolor="green")
 
-            # Formatting
-            up_plot["intersections"].set_ylabel("Count")  # Intersections y-axis
-            up_plot["totals"].set_xlabel("Count")  # Sets x-axis
+        # Highlight candidate markers
+        for c in candidate:
+            if c in mutation_matrix.columns:
+                up_obj.style_categories(
+                    c, shading_facecolor="lightgrey", shading_linewidth=1
+                )
+                up_obj.style_categories(
+                    c,
+                    bar_facecolor="tab:orange",
+                    bar_hatch="xx",
+                    bar_edgecolor="black",
+                )
+        # Highlight validated markers
+        for v in validated:
+            if v in mutation_matrix.columns:
+                up_obj.style_categories(
+                    v, shading_facecolor="darkgrey", shading_linewidth=1
+                )
+                up_obj.style_categories(
+                    v,
+                    bar_facecolor="tab:red",
+                    bar_hatch="xx",
+                    bar_edgecolor="black",
+                )
+
+        # Create the figure explicitly and plot onto it
+        fig = plt.figure(figsize=(6, 8))
+        up_plot = up_obj.plot(fig=fig)
+
+        # Formatting
+        up_plot["intersections"].set_ylabel("Count")  # Intersections y-axis
+        up_plot["totals"].set_xlabel("Count")  # Sets x-axis
 
         return fig
 
@@ -261,27 +291,43 @@ def base64_encode_plot(matplot: plt.figure) -> base64:
 
 
 def percentage_sequenced_msg(
-    amp_uids_pass_QC: list, target_gene: str, rxn_uids_samples: list
+    amp_uids_pass_QC_df: pd.DataFrame,
+    gene: str,
+    amp_uids_attempted_df: pd.DataFrame,
 ) -> str:
     """
-    Graphically show the percentage of samples that have been sequenced
+    Determine the percentage of samples that have been sequenced
     Args:
-        sequence_data (SequencingMetadataParser): An instance containing sequence data.
-        combined_data (Combine_Exp_Seq_Sample_data): Combined metadata for experiments, sequences, and samples.
+        amp_uids_pass_QC_df (pd.Dataframe): Amplicon df that passed QC
+        gene(str): Name of gene to filter to
+        amp_uids_attempted_df (pd.Dataframe): Amplicon df of all sequenced
     Returns:
-        dcc.Graph
+        str: Summary message for user feedback
     """
-    num_seq = len([g for g in amp_uids_pass_QC if target_gene in g])
-    num_attempted = len(rxn_uids_samples)
-    msg = f"{num_seq} / {num_attempted} ({(num_seq / num_attempted) * 100:.1f}%) samples successfully sequenced for {target_gene}. "
+    # Calculate all amplicons that have passed QC for the target gene and count
+    passed = amp_uids_pass_QC_df[amp_uids_pass_QC_df["gene"] == gene]
+    num_seq = passed["sample_id"].nunique()
+
+    # Count number attempted. Note that this assumes different panels were NOT used
+    # on different samples, which will almost always be true
+    num_attempted = amp_uids_attempted_df["sample_id"].nunique()
+    if num_attempted == 0:
+        msg = f"No samples attempted sequencing for {gene}. "
+    else:
+        # Calculate percentage
+        if num_seq == 0:
+            msg = f"No samples successfully sequenced for {gene}. "
+        else:
+            # Calculate percentage
+            msg = f"{num_seq} / {num_attempted} ({(num_seq / num_attempted) * 100:.1f}%) samples successfully sequenced for {gene}. "
 
     return msg
 
 
-def create_drug_resistance_dict() -> dict:
+def create_mutations_dict() -> dict:
     # Load drug resistance details from YAML file
-    drugres_path = script_dir.parent / "drug_resistance_mutations.yml"
-    with open(drugres_path, "r") as f:
-        drugres_dict = yaml.safe_load(f)
+    filepath = script_dir.parent / "drug_resistance_mutations.yml"
+    with open(filepath, "r") as f:
+        mut_dict = yaml.safe_load(f)
 
-    return drugres_dict
+    return mut_dict

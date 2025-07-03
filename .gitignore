@@ -8,7 +8,7 @@ __pycache__
 *.egg
 
 # Juypter notebook related
-*.ipynb
+# *.ipynb
 *.ipynb_checkpoints
 
 # macOS
@@ -22,6 +22,5 @@ __pycache__
 
 # Misc.
 experiments
-notebooks
 logs
 results

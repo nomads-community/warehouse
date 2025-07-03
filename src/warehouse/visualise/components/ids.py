@@ -24,6 +24,8 @@ SEQ_QC_PASS_THRESHOLD = "seq_qc_threshold_pass"
 ##################
 # upset_plot.py
 ##################
+UPSET_EXPT_IDS_BOX = "upset_expt_ids"
+UPSET_EXPT_IDS_SELECT_ALL = "upset_select_all_exptids"
 UPSET_DROPDOWN = "upset_dropdown_selection"
 UPSET_PLOT_IMG = "upset_plot_figure"
 UPSET_PLOT_MSG = "upset_plot_message"
