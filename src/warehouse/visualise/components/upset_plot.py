@@ -132,7 +132,7 @@ def upsetplot_fig(
     ids_passed_QC: pd.DataFrame,
     gene: str,
     muts_dict: dict,
-) -> plt.figure:
+) -> plt.Figure:
     """
     Generate an upset plot in a matplot figure based on the provided DataFrame and values column.
     Args:
@@ -140,10 +140,12 @@ def upsetplot_fig(
         ids_passed_QC (pd.DataFrame): All ids (gene / amplicon level) that have passed QC
         target_gene (str): Name of the gene to generate the plot for
         muts_dict (dict): Dictionary of mutations and combinations
+        ax (plt.Axes): Optional. The matplotlib Axes object to plot on.
+                    If None, a new figure and axes will be created.
     Returns:
-        plt.figure: The generated upset plot as a matplotlib fig.
+        plt.Figure: The generated upset plot as a matplotlib fig.
     """
-    id
+
     # Remove annoying futurewarning
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
@@ -187,28 +189,21 @@ def upsetplot_fig(
             new_rows_df[wt_cat] = True
             mutation_matrix = pd.concat([mutation_matrix, new_rows_df])
 
-        # Deal with empty matrix
-        if mutation_matrix.empty:
+        # Deal with empty or single category (all WT or all mutated) matrix
+        if mutation_matrix.empty or mutation_matrix.shape[1] == 1:
+            if mutation_matrix.empty:
+                text_msg = "No data available."
+            else:
+                text_msg = f"All samples are {list(mutation_matrix.columns)[0]} for {gene} so unable to plot"
+
+            log.warning(text_msg)
+
             fig = plt.figure(figsize=(0.5, 3))
             ax = fig.add_subplot(111)
             ax.text(
                 0.5,
                 0.5,
-                "No data available.",
-                horizontalalignment="center",
-                verticalalignment="center",
-                transform=ax.transAxes,
-            )
-            ax.axis("off")
-            return fig
-        # Deal with a single category i.e. WT or every sample mutated at one locus
-        elif mutation_matrix.shape[1] == 1:
-            fig = plt.figure(figsize=(0.5, 3))
-            ax = fig.add_subplot(111)
-            ax.text(
-                0.5,
-                0.5,
-                f"All samples are {list(mutation_matrix.columns)[0]} for {gene} so unable to plot",
+                text_msg,
                 horizontalalignment="center",
                 verticalalignment="center",
                 transform=ax.transAxes,
@@ -264,15 +259,13 @@ def upsetplot_fig(
                     bar_hatch="xx",
                     bar_edgecolor="black",
                 )
-
-        # Create the figure explicitly and plot onto it
+        # Add plot to figure
         fig = plt.figure(figsize=(6, 8))
         up_plot = up_obj.plot(fig=fig)
 
         # Formatting
         up_plot["intersections"].set_ylabel("Count")  # Intersections y-axis
         up_plot["totals"].set_xlabel("Count")  # Sets x-axis
-
         return fig
 
 
