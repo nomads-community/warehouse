@@ -153,6 +153,12 @@ def merge_additional_rxn_level_fields(
             f"Invalid merge type: {how}. Must be one of 'left', 'right', 'inner', or 'outer'."
         )
 
+    if main_df.empty:
+        raise DataFormatError("The main_df is empty")
+
+    if exp_seq_df.empty:
+        raise DataFormatError("The exp_seq_df is empty")
+
     df = pd.merge(
         left=main_df,
         right=exp_seq_df,

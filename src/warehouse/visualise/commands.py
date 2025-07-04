@@ -62,14 +62,12 @@ def visualise(
 
     log.info("Extracting sample metadata")
     sample_data = SampleMetadataParser(metadata_file, output_folder)
-    log.info("   Incorporating experimental metadata")
     sample_data.incorporate_experimental_data_to_sampleclass(exp_data)
     log.info("Done")
     log.info(divider)
 
     log.info("Extracting sequence summary data")
     seq_data = SequencingMetadataParser(seq_folder, output_folder)
-    log.info("   Incorporating experimental metadata")
     seq_data.incorporate_experimental_data_to_sequence_class(exp_data)
     log.info("Done")
     log.info(divider)
