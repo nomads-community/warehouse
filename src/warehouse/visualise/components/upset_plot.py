@@ -140,8 +140,6 @@ def upsetplot_fig(
         ids_passed_QC (pd.DataFrame): All ids (gene / amplicon level) that have passed QC
         target_gene (str): Name of the gene to generate the plot for
         muts_dict (dict): Dictionary of mutations and combinations
-        ax (plt.Axes): Optional. The matplotlib Axes object to plot on.
-                    If None, a new figure and axes will be created.
     Returns:
         plt.Figure: The generated upset plot as a matplotlib fig.
     """
