@@ -193,8 +193,7 @@ def upsetplot_fig(
                 text_msg = "No data available."
             else:
                 text_msg = f"All samples are {list(mutation_matrix.columns)[0]} for {gene} so unable to plot"
-
-            log.warning(text_msg)
+            log.debug(text_msg)
 
             fig = plt.figure(figsize=(0.5, 3))
             ax = fig.add_subplot(111)
