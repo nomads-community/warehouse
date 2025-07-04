@@ -257,11 +257,13 @@ def upsetplot_fig(
                     bar_hatch="xx",
                     bar_edgecolor="black",
                 )
+
         # Add plot to figure
         fig = plt.figure(figsize=(6, 8))
         up_plot = up_obj.plot(fig=fig)
 
         # Formatting
+        up_plot["intersections"].set_title(f"{gene}", fontsize=16, pad=20)
         up_plot["intersections"].set_ylabel("Count")  # Intersections y-axis
         up_plot["totals"].set_xlabel("Count")  # Sets x-axis
         return fig
