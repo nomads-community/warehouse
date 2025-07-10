@@ -25,3 +25,4 @@ experiments
 logs
 results
 data
+warehouse_config.yml

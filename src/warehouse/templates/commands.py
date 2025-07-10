@@ -5,6 +5,7 @@ import click
 import yaml
 from openpyxl import load_workbook
 
+from warehouse.configure.configure import get_configuration_value
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import identify_path_by_search, pad_list, produce_dir
 from warehouse.lib.logging import divider, identify_cli_command
@@ -30,15 +31,7 @@ conditional_formatting_yaml = script_dir / "conditional_formatting.yml"
     "-g",
     "--group_name",
     type=str,
-    required=False,
     help="Name of group to use",
-)
-@click.option(
-    "-o",
-    "--output_folder",
-    type=Path,
-    required=False,
-    help="Path to folder where the updated templates should be output to",
 )
 @click.option(
     "-l",
@@ -46,15 +39,26 @@ conditional_formatting_yaml = script_dir / "conditional_formatting.yml"
     is_flag=True,
     help="List all groups available",
 )
+@click.option(
+    "-o",
+    "--output_folder",
+    type=Path,
+    help="Path to folder where the updated templates should be output to",
+)
 def templates(group_name: str, output_folder: Path, list_groups: bool):
     """
     Update NOMADS templates with user and project names
     """
 
     # Set up child log
-    log = logging.getLogger("templates_commands")
+    log = logging.getLogger(script_dir.stem + "_commands")
     log.info(divider)
     log.debug(identify_cli_command())
+
+    # Read in from configuration if not supplied
+    if not (group_name or output_folder or list_groups):
+        group_name = get_configuration_value("group_name")
+        output_folder = get_configuration_value("templates")
 
     # Load group details from YAML file
     with open(group_details_yaml, "r") as f:
@@ -82,7 +86,7 @@ def templates(group_name: str, output_folder: Path, list_groups: bool):
             f"-g '{group_name}' not found. Options are {list(details.keys())}."
         )
 
-    if output_folder is None:
+    if not output_folder:
         log.info("You have not defined an output folder (-o) option")
         log.info(divider)
         return
@@ -135,7 +139,7 @@ def templates(group_name: str, output_folder: Path, list_groups: bool):
                 apply_worksheet_conditional_formatting(worksheet, format)
 
         # Define output path
-        output_path = output_folder / template_fn.name
+        output_path = Path(output_folder) / template_fn.name
 
         # Save the modified workbook
         workbook.save(output_path)

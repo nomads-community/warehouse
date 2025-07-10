@@ -12,7 +12,9 @@ from warehouse.lib.general import (
 )
 
 # Get logging process
-log = logging.getLogger("aggregate")
+
+script_dir = Path(__file__).parent.resolve()
+log = logging.getLogger(script_dir.stem)
 
 
 def move_folder(

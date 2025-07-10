@@ -4,6 +4,7 @@ from pathlib import Path
 import click
 from dash import Dash
 
+from warehouse.configure.configure import get_configuration_value
 from warehouse.lib.logging import divider
 from warehouse.metadata.metadata import (
     Combine_Exp_Seq_Sample_data,
@@ -16,8 +17,7 @@ from warehouse.visualise.layout import create_layout
 CSS_STYLE = ["scripts/visualise/assets/calling-style.css"]
 
 # Define logging process
-log = logging.getLogger("visualise")
-script_dir = Path(__file__).parent.parent.resolve()
+log = logging.getLogger(Path(__file__).stem)
 
 
 @click.command(short_help="Dashboard visualisation of NOMADS data from all experiments")
@@ -25,21 +25,18 @@ script_dir = Path(__file__).parent.parent.resolve()
     "-e",
     "--exp_folder",
     type=Path,
-    required=True,
     help="Path to folder containing completed experimental Excel template files.",
 )
 @click.option(
     "-s",
     "--seq_folder",
     type=Path,
-    required=True,
     help="Path to folder containing outputs from Nomadic / Savannah.",
 )
 @click.option(
     "-m",
     "--metadata_file",
     type=Path,
-    required=True,
     help="Path to file (csv or xlsx) containing sample metadata information.",
 )
 @click.option(
@@ -52,6 +49,14 @@ script_dir = Path(__file__).parent.parent.resolve()
 def visualise(
     exp_folder: Path, metadata_file: Path, seq_folder: Path, output_folder: Path = None
 ):
+    # Read in from configuration if not supplied
+    if not exp_folder:
+        exp_folder = get_configuration_value("experimental")
+    if not seq_folder:
+        seq_folder = get_configuration_value("sequence")
+    if not metadata_file:
+        metadata_file = get_configuration_value("metadata")
+
     # Add in cli_flags
     cli_flags = [exp_folder, seq_folder, metadata_file]
 

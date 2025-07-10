@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import plotly.express as px
 from dash import Dash, Input, Output, dcc, html
@@ -8,7 +9,7 @@ from warehouse.lib.dictionaries import reformat_nested_dict
 from . import ids
 
 # Define logging process
-log = logging.getLogger("selectable_scatter")
+log = logging.getLogger(Path(__file__).stem)
 
 
 def create_scatter(

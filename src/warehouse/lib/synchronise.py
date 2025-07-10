@@ -10,7 +10,7 @@ from warehouse.lib.general import (
 )
 
 # Get logging process
-log = logging.getLogger("synchronise")
+log = logging.getLogger(Path(__file__).stem)
 
 
 def selective_rsync(

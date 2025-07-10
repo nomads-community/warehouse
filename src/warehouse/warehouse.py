@@ -5,6 +5,7 @@ import click
 
 from warehouse.aggregate.commands import aggregate
 from warehouse.backup.commands import backup
+from warehouse.configure.commands import configure
 from warehouse.extract.commands import extract
 from warehouse.lib.logging import config_root_logger
 from warehouse.metadata.commands import metadata
@@ -52,6 +53,7 @@ def cli(ctx, verbose):
 # Individual sub-commands
 # ================================================================
 
+cli.add_command(configure)
 cli.add_command(templates)
 cli.add_command(metadata)
 cli.add_command(seqfolders)

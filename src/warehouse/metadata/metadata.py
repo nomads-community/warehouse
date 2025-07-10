@@ -38,7 +38,7 @@ from warehouse.lib.regex import Regex_patterns
 pretty_errors.configure(stack_depth=1, display_locals=1)
 
 # Define logging process
-log = logging.getLogger("metadata")
+log = logging.getLogger(Path(__file__).stem)
 
 # Define where the script is running from so you can reference internal files etc
 script_dir = Path(__file__).parent.resolve()

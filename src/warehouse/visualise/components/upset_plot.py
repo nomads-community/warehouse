@@ -20,7 +20,7 @@ from warehouse.metadata.metadata import (
 from warehouse.visualise.components import ids
 
 # Get logging process
-log = logging.getLogger("upset_panel")
+log = logging.getLogger(Path(__file__).stem)
 
 script_dir = Path(__file__).parent.resolve()
 

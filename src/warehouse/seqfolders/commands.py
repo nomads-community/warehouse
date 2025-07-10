@@ -3,6 +3,7 @@ from pathlib import Path
 
 import click
 
+from warehouse.configure.configure import get_configuration_value
 from warehouse.lib.dictionaries import (
     create_datasources_dict,
     filter_dict_by_key_or_value,
@@ -13,16 +14,11 @@ from warehouse.lib.logging import divider, identify_cli_command
 from warehouse.metadata.metadata import DataSchema, ExpMetadataMerge, ExpMetadataParser
 from warehouse.seqfolders.dirs import ExperimentDirectories
 
+script_dir = Path(__file__).parent.resolve()
+
 
 @click.command(
     short_help="Generate NOMADS directory structure for a sequencing run from NOMADS metadata"
-)
-@click.option(
-    "-e",
-    "--exp_folder",
-    type=Path,
-    required=True,
-    help="Path to folder containing completed experimental Excel template files.",
 )
 @click.option(
     "-i",
@@ -32,17 +28,21 @@ from warehouse.seqfolders.dirs import ExperimentDirectories
     help="Experiment ID. For example SLJS034.",
 )
 @click.option(
+    "-e",
+    "--exp_folder",
+    type=Path,
+    help="Path to folder containing completed experimental Excel template files.",
+)
+@click.option(
     "-o",
     "--output_folder",
     type=Path,
-    required=True,
     help="Base folder to output sequencing directory structure to.",
 )
 @click.option(
     "-d",
     "--dir_structure",
     type=Path,
-    required=False,
     help="Directory structure settings from .ini file.",
 )
 def seqfolders(
@@ -52,9 +52,13 @@ def seqfolders(
     Create NOMADS sequencing folder structure including relevent data
     """
     # Set up child log
-    log = logging.getLogger("seqfolders_commands")
+    log = logging.getLogger(script_dir.stem + "_commands")
     log.info(divider)
     log.debug(identify_cli_command())
+    # Read in from configuration if not supplied
+    if not exp_folder:
+        exp_folder = get_configuration_value("experimental")
+        output_folder = get_configuration_value("raw_sequence_folder")
 
     # Identify the individual experiment
     seqlib_fn = identify_experiment_files(exp_folder, expt_id)
@@ -102,8 +106,6 @@ def seqfolders(
         raise DataFormatError(f"{expt_id} is being used as an sWGA or PCR identifier")
     # Create a list of unique expids that need to be extracted
     expids = set(expids + [expt_id])
-
-    # matching_filepaths = identify_experiment_files(exp_folder, expids)
 
     # Extract all data
     exp_metadata = ExpMetadataMerge(exp_folder=exp_folder, expt_ids=expids)

@@ -1,11 +1,13 @@
 import logging
-import click
-from datetime import datetime 
+from datetime import datetime
 from pathlib import Path
+
+import click
 
 from warehouse.lib.general import produce_dir
 
 divider = "*" * 80
+
 
 def config_root_logger(log_dir: Path, verbose=False) -> None:
     """
@@ -30,7 +32,7 @@ def config_root_logger(log_dir: Path, verbose=False) -> None:
     console_formatter = logging.Formatter(STREAM_FORMAT)
     console_handler.setFormatter(console_formatter)
     logging.getLogger().addHandler(console_handler)  # adds to root
-    
+
     # Add file handler
     log_dir = produce_dir(log_dir)
     log_path = f"{log_dir}/{datetime.today().strftime('%Y-%m-%d')}.log"
@@ -38,25 +40,25 @@ def config_root_logger(log_dir: Path, verbose=False) -> None:
     file_formatter = logging.Formatter(FILE_FORMAT, DATE_FORMAT)
     file_handler.setFormatter(file_formatter)
     logging.getLogger().addHandler(file_handler)  # adds to root
-    
+
 
 def format_cli_flags(args, params) -> str:
-  """
-  Formats Click context arguments and parameters for human-readable logging.
+    """
+    Formats Click context arguments and parameters for human-readable logging.
 
-  Args:
-      args (list): List of positional arguments.
-      params (dict): Dictionary of keyword arguments.
+    Args:
+        args (list): List of positional arguments.
+        params (dict): Dictionary of keyword arguments.
 
-  Returns:
-      str: Formatted string representing the flags.
-  """
-  flag_strs = []
-  for arg in args:
-    flag_strs.append(arg)
-  for key, value in params.items():
-    flag_strs.append(f"--{key}" + (f" {value}" if value else ""))
-  return " ".join(flag_strs)
+    Returns:
+        str: Formatted string representing the flags.
+    """
+    flag_strs = []
+    for arg in args:
+        flag_strs.append(arg)
+    for key, value in params.items():
+        flag_strs.append(f"--{key}" + (f" {value}" if value else ""))
+    return " ".join(flag_strs)
 
 
 def identify_cli_command() -> str:
@@ -69,4 +71,3 @@ def identify_cli_command() -> str:
     ctx = click.get_current_context()
     flags = format_cli_flags(ctx.args, ctx.params)
     return f"{ctx.command.name} {flags})"
-    

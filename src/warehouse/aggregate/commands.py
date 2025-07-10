@@ -6,6 +6,7 @@ import pandas as pd
 import yaml
 
 from warehouse.aggregate.aggregate import aggregate_seq_data_to_single_dir
+from warehouse.configure.configure import get_configuration_value
 from warehouse.lib.general import identify_folders_by_pattern
 from warehouse.lib.logging import divider, identify_cli_command
 from warehouse.lib.regex import Regex_patterns
@@ -18,25 +19,27 @@ script_dir = Path(__file__).parent.resolve()
     "-s",
     "--seq_folder",
     type=Path,
-    required=True,
     help="Path to folder containing sequencing outputs generated with warehouse seqfolders",
 )
 @click.option(
     "-g",
     "--git_folder",
     type=Path,
-    required=False,
-    default=Path.home() / "git",
-    help="Path to git folder containing nomadic and savanna clones. Default is ~/git",
+    help="Path to git folder containing all NOMADS repositories",
 )
 def aggregate(seq_folder: Path, git_folder: Path):
     """
     Aggregate raw sequence data outputs into the standardised seqfolders structure
     """
     # Set up child log
-    log = logging.getLogger("aggregate_commands")
+    log = logging.getLogger(script_dir.stem + "_commands")
     log.info(divider)
     log.debug(identify_cli_command())
+
+    # Read in from configuration if not supplied
+    if not (seq_folder or git_folder):
+        seq_folder = get_configuration_value("raw_sequence_folder")
+        git_folder = get_configuration_value("git_folder")
 
     # Identify and load targets dict from YAML file
     locations_yaml = script_dir / "locations.yml"

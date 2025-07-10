@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 from openpyxl.formatting.rule import CellIsRule
 from openpyxl.styles import PatternFill
@@ -6,7 +7,7 @@ from openpyxl.utils import range_boundaries
 from openpyxl.worksheet.datavalidation import DataValidation
 
 # Get logging process
-log = logging.getLogger("spreadsheets")
+log = logging.getLogger(Path(__file__).stem)
 
 
 def apply_worksheet_validation_rule(worksheet, validation_dict: dict) -> None:

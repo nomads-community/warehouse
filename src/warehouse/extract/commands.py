@@ -4,6 +4,7 @@ from pathlib import Path
 import click
 import yaml
 
+from warehouse.configure.configure import get_configuration_value
 from warehouse.lib.general import identify_all_folders
 from warehouse.lib.logging import divider, identify_cli_command
 from warehouse.lib.synchronise import (
@@ -20,14 +21,12 @@ script_dir = Path(__file__).parent.resolve()
     "-s",
     "--seq_folder",
     type=Path,
-    required=True,
     help="Path to folder containing sequencing outputs generated with warehouse seqfolders",
 )
 @click.option(
     "-o",
     "--output_folder",
     type=Path,
-    required=True,
     help="Path to synchronisation folder where summary sequencing outputs should be copied to",
 )
 def extract(seq_folder: Path, output_folder: Path):
@@ -36,9 +35,13 @@ def extract(seq_folder: Path, output_folder: Path):
 
     """
     # Set up child log
-    log = logging.getLogger("extract_commands")
+    log = logging.getLogger(script_dir.stem + "_commands")
     log.info(divider)
     log.debug(identify_cli_command())
+
+    if not (seq_folder or output_folder):
+        seq_folder = get_configuration_value("raw_sequence_folder")
+        output_folder = get_configuration_value("sequence")
 
     # Identify and load targets dict from YAML file
     yaml_file = script_dir / "targets.yml"

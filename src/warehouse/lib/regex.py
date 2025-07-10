@@ -8,6 +8,7 @@ class Regex_patterns:
 
     # OTHER TYPES
     EXCEL_FILE = re.compile(r".*.xls(x|m)")
+    EXCEL_CSV_FILE = re.compile(r".*.(xlsx|csv)")
 
     # Files that are open
     EXCEL_OPEN_FILES = re.compile(r"^[/.|~]")
