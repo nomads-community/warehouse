@@ -9,6 +9,16 @@ from warehouse.lib.regex import Regex_patterns
 log = logging.getLogger("general")
 
 
+def identify_all_folders_with_expid(folder_path: Path) -> list[Path]:
+    exp_id_paths = identify_path_by_search(
+        folder_path=folder_path,
+        pattern=Regex_patterns.NOMADS_EXPID,
+        raise_error=False,
+        verbose=False,
+    )
+    return exp_id_paths
+
+
 def identify_exptid_from_path(path: Path, raise_error: bool = True) -> str:
     """
     Extract the experimental ID from a file or folder
@@ -60,7 +70,7 @@ def extract_exptype_from_expid(expid: str, raise_error: bool = True) -> str:
     return exp_type
 
 
-def identify_experiment_files(
+def identify_experiment_files_by_expt_id(
     folder: Path, expt_ids: list, raise_error: bool = True
 ) -> list:
     """

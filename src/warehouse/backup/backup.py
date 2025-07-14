@@ -18,23 +18,16 @@ script_dir = Path(__file__).parent.resolve()
     required=True,
     help="Path to backup folder on external USB drive",
 )
-@click.option(
-    "-s",
-    "--seq_folder",
-    type=Path,
-    help="Path to folder containing all sequencing data on local machine",
-)
-def backup(seq_folder: Path, backup_folder: Path) -> None:
+def backup(backup_folder: Path) -> None:
     """
     Backup all sequence data files to a local USB drive.
 
     """
     # Read in from configuration if not supplied
-    if not seq_folder:
-        seq_folder = get_configuration_value("sequence")
+    seq_folder = get_configuration_value("sequence_folder")
 
     # Set up child log
-    log = logging.getLogger(script_dir.stem + "_commands")
+    log = logging.getLogger(script_dir.stem)
     log.info(divider)
     log.debug(identify_cli_command())
     log.info(f"Backing up sequence data from {seq_folder} to {backup_folder}")

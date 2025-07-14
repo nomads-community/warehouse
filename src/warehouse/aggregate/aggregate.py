@@ -5,16 +5,60 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pandas as pd
+import yaml
+
 from warehouse.lib.general import (
     identify_exptid_from_path,
+    identify_folders_by_pattern,
     identify_single_folder,
     is_directory_empty,
 )
+from warehouse.lib.logging import divider, identify_cli_command
+from warehouse.lib.regex import Regex_patterns
 
 # Get logging process
 
 script_dir = Path(__file__).parent.resolve()
 log = logging.getLogger(script_dir.stem)
+
+
+def aggregate(seq_folder: Path, git_folder: Path):
+    """
+    Aggregate raw sequence data outputs into the standardised seqfolders structure
+    """
+    # Set up child log
+    log = logging.getLogger(script_dir.stem)
+    log.debug(identify_cli_command())
+
+    # Identify and load targets dict from YAML file
+    locations_yaml = script_dir / "locations.yml"
+    with open(locations_yaml, "r") as f:
+        locations = yaml.safe_load(f)
+
+    # Define list of experiment folders
+    expt_dirs = identify_folders_by_pattern(seq_folder, Regex_patterns.NOMADS_EXPID)
+
+    summary_df = pd.DataFrame()
+    # Process each folder
+    for count, expt_dir in enumerate(expt_dirs):
+        results, columns = aggregate_seq_data_to_single_dir(
+            locations, expt_dir, git_folder
+        )
+        if count == 0:
+            summary_df = pd.DataFrame(columns=columns)
+        summary_df.loc[len(summary_df)] = results
+        log.info(divider)
+
+    if len(summary_df) > 0:
+        log.info(
+            "The following experiments were processed (present indicates a not empty folder):"
+        )
+        # TODO: Add in tabluate for nicer output?
+        log.info(summary_df.to_string(index=False))
+    else:
+        log.info("No experiments were identified for aggregation.")
+    log.info(divider)
 
 
 def move_folder(
@@ -119,6 +163,9 @@ def aggregate_seq_data_to_single_dir(
             source_dir = git_folder / values.get("source_dir")
         else:
             source_dir = Path(values.get("source_dir"))
+        # Ensure it is a not a symlink
+        if source_dir.is_symlink():
+            continue
         log.debug(f"source_dir: {source_dir}")
 
         source_dir = identify_single_folder(

@@ -2,7 +2,7 @@ from dash import Dash, html
 
 from warehouse.metadata.metadata import (
     Combine_Exp_Seq_Sample_data,
-    ExpMetadataParser,
+    ExpDataParser,
     SampleMetadataParser,
     SequencingMetadataParser,
 )
@@ -19,7 +19,7 @@ from .components import (
 def create_layout(
     app: Dash,
     sample_data: SampleMetadataParser,
-    experiment_data: ExpMetadataParser,
+    experiment_data: ExpDataParser,
     sequence_data: SequencingMetadataParser,
     combined_data: Combine_Exp_Seq_Sample_data,
     cli_flags,

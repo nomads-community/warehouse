@@ -1,11 +1,12 @@
 import logging
+import sys
 from pathlib import Path
 
 import click
 import yaml
 
 from warehouse.configure.configure import select_int_from_list
-from warehouse.lib.exceptions import PathError
+from warehouse.lib.exceptions import GenError, PathError
 from warehouse.lib.general import check_path_present, identify_path_by_search
 from warehouse.lib.logging import divider, identify_cli_command
 from warehouse.lib.regex import Regex_patterns
@@ -13,68 +14,101 @@ from warehouse.lib.regex import Regex_patterns
 script_dir = Path(__file__).parent.resolve()
 
 
-@click.command(
-    short_help="Configure warehouse with default files, locations and other variables"
-)
+@click.command(short_help="Configure default files and variables")
 @click.option(
     "-d",
-    "--google_drive_data_folder",
+    "--shared_data_folder",
     type=Path,
-    required=True,
     help="Shared data folder synchronised to Google Drive",
 )
 @click.option(
     "-n",
     "--name_group",
     type=str,
-    required=True,
     help="Name of group e.g. UCB",
 )
 @click.option(
-    "-r",
-    "--raw_sequence_folder",
+    "-s",
+    "--sequence_folder",
     type=Path,
-    required=True,
     help="Path to folder containing all raw sequencing data stored on local sequencing machine",
 )
 @click.option(
     "-g",
     "--git_folder",
     type=Path,
-    required=False,
     default=Path.home() / "git",
     help="Path to git folder containing nomadic and savanna clones. Default is ~/git",
 )
+@click.option(
+    "-l",
+    "--list_groups",
+    is_flag=True,
+    default=False,
+    help="List all groups available to select from",
+)
 def configure(
     name_group: str,
-    raw_sequence_folder: Path,
-    google_drive_data_folder: Path,
+    sequence_folder: Path,
+    shared_data_folder: Path,
     git_folder: Path,
+    list_groups: bool,
 ) -> None:
     """
     Setup warehouse with default file locations that are stored in a yml file for running other commands
 
     """
     # Set up child log
-    log = logging.getLogger(script_dir.stem)
+    log = logging.getLogger(script_dir.stem + "_commands")
     log.info(divider)
     log.debug(identify_cli_command())
 
-    config_file = script_dir / "warehouse_config.yml"
+    # Load group details from YAML file
+    group_details_yaml = script_dir.parent / "templates" / "group_details.yml"
+    with open(group_details_yaml, "r") as f:
+        groups = yaml.safe_load(f)
+    # List group options
+    if list_groups:
+        groups = ", ".join(list(groups.keys()))
+        log.info(f"Available groups are: {groups}")
+        log.info(divider)
+        return
 
+    # Check correct args passed
+    if not shared_data_folder:
+        log.info("Please enter your shared data folder path with the -d flag")
+        log.info(divider)
+        return
+    if not name_group:
+        log.info("Please enter your -n group name (use -l to list groups)")
+        log.info(divider)
+        return
+
+    config_file = script_dir / "warehouse_config.yml"
     config_data = {}
+
+    # Check if sequence folder supplied
+    if sequence_folder and not sys.platform == "win32":
+        # Add sequence folder
+        check_path_present(sequence_folder)
+        config_data["full_config"] = True
+        config_data["sequence_folder"] = str(sequence_folder.resolve())
+    else:
+        config_data["full_config"] = False
+
     # Identify and add the shared drive folders
     for target in ["experimental", "sequence"]:
-        path = google_drive_data_folder / target
-        check_path_present(path)
-        config_data[target] = str(path.resolve())
+        path = shared_data_folder / target
+        check_path_present(path, raise_error=True)
+        config_data[f"shared_{target}_dir"] = str(path.resolve())
     # Add the templates folder
-    template_path = google_drive_data_folder / "experimental" / "templates"
-    config_data["templates"] = str(template_path.resolve())
+    template_path = shared_data_folder / "experimental" / "templates"
+    config_data["shared_templates_dir"] = str(template_path.resolve())
 
     # Find possible sample metadata files
-    log.info("Searching for possible metadata files")
-    sample_folder_path = google_drive_data_folder / "sample"
+    log.info("Searching for possible sample metadata files")
+    sample_folder_path = shared_data_folder / "sample"
+    check_path_present(sample_folder_path, raise_error=True)
     metadata_potentials = identify_path_by_search(
         folder_path=sample_folder_path,
         pattern=Regex_patterns.EXCEL_CSV_FILE,
@@ -95,28 +129,30 @@ def configure(
         metadata_file = metadata_paths[i]
     else:
         metadata_file = metadata_paths[0]
-    config_data["metadata"] = str(metadata_file.resolve())
+    config_data["shared_sample_file"] = str(metadata_file.resolve())
 
-    config_data["git_folder"] = str(git_folder.resolve())
+    # Add in git folder
+    config_data["git_dir"] = str(git_folder.resolve())
 
     # Check the group name is valid:
-    group_details_yaml = script_dir.parent / "templates" / "group_details.yml"
-    with open(group_details_yaml, "r") as f:
-        groups = yaml.safe_load(f)
     if name_group not in groups.keys():
-        raise PathError(
-            f"{name_group} not found in known groups: {list(groups.keys())}"
-        )
+        raise GenError(f"{name_group} not found in known groups: {list(groups.keys())}")
     config_data["group_name"] = name_group
 
-    # raw sequence data folder
-    check_path_present(raw_sequence_folder)
-    config_data["raw_sequence_folder"] = str(raw_sequence_folder.resolve())
+    # Define the output folder
+    output_folder = (
+        script_dir.parent.parent.parent
+        / "notebooks"
+        / "data"
+        / name_group
+        / metadata_file.stem
+    )
+    config_data["output_folder"] = str(output_folder.resolve())
 
+    # Give user feedback
     log.info("Identified the following entries:")
     for key, value in config_data.items():
         log.info(f"   {key}: {value}")
-
     # Write the configuration to the YAML file
     try:
         with open(config_file, "w") as f:

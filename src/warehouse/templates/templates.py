@@ -1,11 +1,9 @@
 import logging
 from pathlib import Path
 
-import click
 import yaml
 from openpyxl import load_workbook
 
-from warehouse.configure.configure import get_configuration_value
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import identify_path_by_search, pad_list, produce_dir
 from warehouse.lib.logging import divider, identify_cli_command
@@ -18,66 +16,31 @@ from warehouse.lib.spreadsheets import (
 # Resolve file / folder locations irrespective of cwd
 script_dir = Path(__file__).parent.resolve()
 templates_dir = script_dir.parent.parent.parent / "templates"
-# Identify and load targets dict from YAML file (assuming the file exists)
-group_details_yaml = script_dir / "group_details.yml"
-data_validations_yaml = script_dir / "data_validations.yml"
-conditional_formatting_yaml = script_dir / "conditional_formatting.yml"
 
 
-@click.command(
-    short_help="Update NOMADS template files with group specific usernames and projects"
-)
-@click.option(
-    "-g",
-    "--group_name",
-    type=str,
-    help="Name of group to use",
-)
-@click.option(
-    "-l",
-    "--list_groups",
-    is_flag=True,
-    help="List all groups available",
-)
-@click.option(
-    "-o",
-    "--output_folder",
-    type=Path,
-    help="Path to folder where the updated templates should be output to",
-)
-def templates(group_name: str, output_folder: Path, list_groups: bool):
+def templates(group_name: str, output_folder: Path):
     """
     Update NOMADS templates with user and project names
     """
 
     # Set up child log
-    log = logging.getLogger(script_dir.stem + "_commands")
-    log.info(divider)
+    log = logging.getLogger(script_dir.stem)
     log.debug(identify_cli_command())
 
-    # Read in from configuration if not supplied
-    if not (group_name or output_folder or list_groups):
-        group_name = get_configuration_value("group_name")
-        output_folder = get_configuration_value("templates")
-
     # Load group details from YAML file
+    group_details_yaml = script_dir / "group_details.yml"
     with open(group_details_yaml, "r") as f:
         details = yaml.safe_load(f)
 
     # Load data validation details from YAML file
+    data_validations_yaml = script_dir / "data_validations.yml"
     with open(data_validations_yaml, "r") as f:
         validations = yaml.safe_load(f)
 
     # Load conditional formatting details from YAML file
+    conditional_formatting_yaml = script_dir / "conditional_formatting.yml"
     with open(conditional_formatting_yaml, "r") as f:
         formatting_rules = yaml.safe_load(f)
-
-    # List group options
-    if list_groups:
-        groups = ", ".join(list(details.keys()))
-        log.info(f"Available groups are: {groups}")
-        log.info(divider)
-        return
 
     # Extract group names
     grp_details = details.get(group_name)
@@ -95,6 +58,8 @@ def templates(group_name: str, output_folder: Path, list_groups: bool):
     template_fns = identify_path_by_search(
         folder_path=templates_dir, pattern=Regex_patterns.EXCEL_FILE, files_only=True
     )
+    # Limit to those relevent to the group:
+    template_fns = [t for t in template_fns if t.stem in grp_details.get("templates")]
 
     # Create the output folder
     produce_dir(output_folder)
@@ -140,8 +105,6 @@ def templates(group_name: str, output_folder: Path, list_groups: bool):
 
         # Define output path
         output_path = Path(output_folder) / template_fn.name
-
+        log.info(f"{template_fn.name} output to {output_folder}")
         # Save the modified workbook
         workbook.save(output_path)
-
-    log.info(divider)

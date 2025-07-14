@@ -3,7 +3,7 @@ import plotly.express as px
 from dash import Dash, dcc, html
 
 from warehouse.metadata.metadata import (
-    ExpMetadataParser,
+    ExpDataParser,
     ExpThroughputDataScheme,
     SampleMetadataParser,
 )
@@ -11,7 +11,7 @@ from warehouse.visualise.components import ids
 
 
 def render(
-    app: Dash, sample_data: SampleMetadataParser, experiment_data: ExpMetadataParser
+    app: Dash, sample_data: SampleMetadataParser, experiment_data: ExpDataParser
 ) -> html.Div:
     """
     Render the pie charts for experiment throughput.

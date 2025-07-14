@@ -1,4 +1,4 @@
-#This file defines information about the columns in the metadata file. 
+#This file defines information about the columns in the sample metadata file. 
 # Note that every file REQUIRES a STUDY_ID and STATUS field
 # Fields include:
 #   ATTRIBUTE_NAME e.g. STUDY_ID that will be used as an attribute in the dataschema

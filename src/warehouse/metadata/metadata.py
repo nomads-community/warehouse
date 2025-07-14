@@ -27,12 +27,12 @@ from warehouse.lib.dictionaries import (
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import (
     extract_exptype_from_expid,
-    identify_experiment_files,
+    identify_experiment_files_by_expt_id,
     identify_exptid_from_path,
     identify_path_by_search,
     produce_dir,
 )
-from warehouse.lib.logging import divider
+from warehouse.lib.logging import divider, identify_cli_command
 from warehouse.lib.regex import Regex_patterns
 
 pretty_errors.configure(stack_depth=1, display_locals=1)
@@ -42,6 +42,40 @@ log = logging.getLogger(Path(__file__).stem)
 
 # Define where the script is running from so you can reference internal files etc
 script_dir = Path(__file__).parent.resolve()
+
+
+def metadata(
+    exp_folder: Path,
+    seq_folder: Path,
+    sample_metadata_file: Path,
+    output_folder: Path = None,
+    verbose: bool = False,
+):
+    """
+    Validate, merge and export experimental, metadata and sequence data
+    """
+
+    # Set up child log and enter cli cmd
+    log = logging.getLogger(script_dir.stem)
+    log.debug(identify_cli_command())
+
+    log.info("Processing experimental data")
+    exp_data = ExpDataMerge(Path(exp_folder), output_folder, verbose=verbose)
+
+    log.info("Processing sequencing data")
+    seq_data = SequencingMetadataParser(Path(seq_folder), output_folder)
+    seq_data.incorporate_experimental_data_to_sequence_class(exp_data)
+
+    log.info("Processing sample metadata file")
+    sample_data = SampleMetadataParser(Path(sample_metadata_file), output_folder)
+    sample_data.incorporate_experimental_data_to_sampleclass(exp_data)
+
+    log.info("Merging all data")
+    combined_data = Combine_Exp_Seq_Sample_data(
+        exp_data, seq_data, sample_data, output_folder
+    )
+
+    return exp_data, seq_data, sample_data, combined_data
 
 
 @dataclass
@@ -199,9 +233,9 @@ class DataSchema:
                 )
 
 
-class ExpMetadataParser:
+class ExpDataParser:
     """
-    Parse and validate the experimental and individual rxn metadata from an individual Excel spreadsheet.
+    Parse and validate the experimental data from an individual Excel spreadsheet.
 
     """
 
@@ -213,10 +247,10 @@ class ExpMetadataParser:
         include_unclassified: bool = False,
     ):
         """
-        Load and sanity check the metadata
+        Load and sanity check the experimental data
 
         """
-        log.info(f"{file_path.name}")
+        log.info(f"   {file_path.name}")
         self.output_folder = output_folder
         if self.output_folder:
             # Store individual experiments in a subfolder
@@ -260,7 +294,7 @@ class ExpMetadataParser:
             item["field"] for item in self.DataSchema.fields.values()
         )
         self._check_all_colnames_known(expected_colnames)
-        log.info("      Experimental metadata passed formatting checks.")
+        log.debug("      Experimental Data passed formatting checks.")
 
         # Load rxn data
         ###################
@@ -276,9 +310,9 @@ class ExpMetadataParser:
             if include_unclassified:
                 self.barcodes.append("unclassified")
             self._check_barcodes_valid()
-        log.info("      Rxn metadata passed formatting checks.")
+        log.debug("      Rxn Data passed formatting checks.")
 
-        log.info(f"      Merging experimental and rxn data for {self.expt_id}...")
+        log.debug(f"      Merging experimental and rxn data for {self.expt_id}...")
         self.df = pd.merge(self.expt_df, self.rxn_df, on="expt_id", how="inner")
         # Add expt_type back into the rxn dataframe after the merge otherwise there
         # will be duplicate expt_type cols
@@ -287,7 +321,7 @@ class ExpMetadataParser:
         )
 
         if self.output_folder:
-            log.info(
+            log.debug(
                 f"      Outputting experimental data to folder: {individual_dir.name}"
             )
             output_dict = {"expt": self.expt_df, "rxn": self.rxn_df}
@@ -295,7 +329,7 @@ class ExpMetadataParser:
                 filename = self.expt_id + "_" + output + "_metadata.csv"
                 path = individual_dir / filename
                 output_dict[output].to_csv(path, index=False)
-        log.info("Done")
+        log.debug("Done")
 
     def _extract_excel_data(self, filename: Path, tabname: str) -> pd.DataFrame:
         """
@@ -320,7 +354,7 @@ class ExpMetadataParser:
         Define all required fields, counts etc for the exp type.
 
         """
-        log.info(f"      Identified as {self.expt_type} type experiment")
+        log.debug(f"      Identified as {self.expt_type} type experiment")
         self.rxn_identifier_col = self.expt_type + "_identifier"
 
         if self.expt_type == "seqlib":
@@ -493,9 +527,9 @@ class ExpMetadataParser:
             )
 
 
-class ExpMetadataMerge:
+class ExpDataMerge:
     """
-    Extract metadata from multiple files, merge into a coherent dataframe, and optionally export the data
+    Extract experiment data from multiple files, merge into a coherent dataframe, and optionally export the data
     """
 
     def __init__(
@@ -503,12 +537,18 @@ class ExpMetadataMerge:
         exp_folder: Path,
         output_folder: Path = None,
         expt_ids: list = None,
+        verbose: bool = False,
     ):
-        # Output all data into a metadata subfolder for ease of use
+        # Define default output subfolder for experimental data
         self.output_folder = output_folder
         if self.output_folder:
             self.output_folder = self.output_folder / "experimental"
             produce_dir(self.output_folder)
+
+        # Define output folder for ind experiments
+        verbose_output = None
+        if verbose:
+            verbose_output = self.output_folder
 
         # Get the relevent dataschema
         dataschema_files = create_datasources_dict()
@@ -518,24 +558,28 @@ class ExpMetadataMerge:
         self.dataschema = ExpDataSchema
         # Limit the data selected
         if expt_ids:
-            exp_fns = identify_experiment_files(exp_folder, expt_ids)
+            exp_fns = identify_experiment_files_by_expt_id(exp_folder, expt_ids)
         else:
             exp_fns = identify_path_by_search(
                 exp_folder,
                 Regex_patterns.NOMADS_EXP_TEMPLATE,
                 recursive=True,
                 files_only=True,
+                verbose=False,
             )
         # Check that there aren't duplicate experiment IDs
         self._check_duplicate_expid(exp_fns)
 
         # Extract each file as an object into a dictionary
         expdata_dict = {
-            identify_exptid_from_path(filepath): ExpMetadataParser(
-                filepath, output_folder=self.output_folder, ExpDataSchema=ExpDataSchema
+            identify_exptid_from_path(filepath): ExpDataParser(
+                filepath,
+                output_folder=verbose_output,
+                ExpDataSchema=ExpDataSchema,
             )
             for filepath in exp_fns
         }
+        self.expdata_dict = expdata_dict
         log.info(divider)
 
         # Concatenate all the exp level data into a df
@@ -887,7 +931,7 @@ class SampleMetadataParser:
             identify_export_class_attributes(self, self.output_folder)
 
     def incorporate_experimental_data_to_sampleclass(
-        self, ExpClassInstance: ExpMetadataMerge
+        self, ExpClassInstance: ExpDataMerge
     ):
         """
         Update df with status of each sample ie incorporate experiment data into sample df
@@ -1244,7 +1288,7 @@ class Combine_Exp_Seq_Sample_data:
 
     def __init__(
         self,
-        exp_data: ExpMetadataMerge,
+        exp_data: ExpDataMerge,
         sequence_data: SequencingMetadataParser,
         sample_data: SampleMetadataParser,
         output_folder: Path = None,
@@ -1369,7 +1413,7 @@ class ExpThroughputDataScheme:
 
 
 def create_sample_set(
-    exp_data: ExpMetadataMerge, sample_data: SampleMetadataParser
+    exp_data: ExpDataMerge, sample_data: SampleMetadataParser
 ) -> pd.DataFrame:
     """
     Generate a df that has the key information (barcode, expt_id, sample_id

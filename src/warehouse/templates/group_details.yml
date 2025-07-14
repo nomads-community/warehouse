@@ -13,10 +13,13 @@ NMEC:
     - CC
   projects: 
     - MIS2024
-    - HRP2/3
+    - HRP2_2024
     - ATSB2023
     - GENE8
     - TES2022
+  templates:
+    - NOMADS_PCR_Worksheet
+    - NOMADS_Library_Rapid_Worksheet
 UCB:
   names:
     - Valéry Byela
@@ -33,6 +36,9 @@ UCB:
   projects: 
     - MARS
     - ARMEA
+  templates:
+    - NOMADS_PCR_Worksheet
+    - NOMADS_Library_Rapid_Worksheet
 UNAM: 
   names:
     - Lydia Eloff
@@ -40,6 +46,9 @@ UNAM:
     - LE
   projects: 
     - NOMADS
+  templates:
+    - NOMADS_PCR_Worksheet
+    - NOMADS_Library_Rapid_Worksheet
 KEMRI_ENTO:
   names:
     - Cyprian Adala
@@ -59,6 +68,9 @@ KEMRI_ENTO:
     - EAVES
     - ATSB
     - NMCP
+  templates:
+    - NOMADS_Library_Ligation_Worksheet
+    - NOMADS_PCR_Worksheet
 KCL:
   names:
     - Miriam Wanjiku
@@ -71,6 +83,9 @@ KCL:
   projects:
     - ATSB
     - ASH
+  templates:
+    - NOMADS_PCR_Worksheet
+    - NOMADS_Library_Rapid_Worksheet
 CIGASS:
   names:
     - Djiby Sow 
@@ -85,6 +100,9 @@ CIGASS:
     - TES Niger
     - TES Burkina
     - CIGASS
+  templates:
+    - NOMADS_PCR_Worksheet
+    - NOMADS_Library_Rapid_Worksheet
 IRSS:
   names:
     - Salif Sombie
@@ -101,6 +119,9 @@ IRSS:
   projects:
     - IRSS
     - INDIE/GRAS
+  templates:
+    - NOMADS_PCR_Worksheet
+    - NOMADS_Library_Rapid_Worksheet
 LAUTECH:
   names:
     - Adedolapo Femi
@@ -110,3 +131,6 @@ LAUTECH:
     - FO
   projects:
     - NOMADS
+  templates:
+    - NOMADS_PCR_Worksheet
+    - NOMADS_Library_Rapid_Worksheet

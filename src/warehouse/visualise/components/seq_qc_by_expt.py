@@ -5,7 +5,7 @@ from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 
 from warehouse.lib.dataframes import filtered_dataframe
-from warehouse.metadata.metadata import ExpMetadataMerge, SequencingMetadataParser
+from warehouse.metadata.metadata import ExpDataMerge, SequencingMetadataParser
 from warehouse.visualise.components import ids
 
 # List of different charts that can be shown to the user based on their selection
@@ -25,7 +25,7 @@ sample_types_suffix = ["Samples", "Controls", "Controls"]
 def render(
     app: Dash,
     sequence_data: SequencingMetadataParser,
-    experiment_data: ExpMetadataMerge,
+    experiment_data: ExpDataMerge,
 ) -> html.Div:
     """
     Render the sequencing quality control overview page
@@ -59,7 +59,7 @@ def render(
 def main_selection_panel(
     app: Dash,
     sequence_data: SequencingMetadataParser,
-    experiment_data: ExpMetadataMerge,
+    experiment_data: ExpDataMerge,
 ) -> html.Div:
     """
     Provides an html.Div container that has the universal options for the user to select
@@ -119,7 +119,7 @@ def expt_selections(expt_ids) -> html.Div:
     )
 
 
-def qc_chart(app: Dash, sequence_data: ExpMetadataMerge, exp_id_order: list):
+def qc_chart(app: Dash, sequence_data: ExpDataMerge, exp_id_order: list):
     # Define df and schema to use from object
     SeqDataSchema = sequence_data.DataSchema
     qc_per_expt_df = sequence_data.qc_per_expt
@@ -570,7 +570,7 @@ def switch_threshold(app) -> html.Button:
 
 
 def order_seq_expt_ids_by_date(
-    experiment_data: ExpMetadataMerge, sequence_data: SequencingMetadataParser
+    experiment_data: ExpDataMerge, sequence_data: SequencingMetadataParser
 ) -> list:
     """
     Extract all seqlib experiments and rank them in order by date

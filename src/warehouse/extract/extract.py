@@ -1,7 +1,6 @@
 import logging
 from pathlib import Path
 
-import click
 import yaml
 
 from warehouse.configure.configure import get_configuration_value
@@ -14,33 +13,18 @@ from warehouse.lib.synchronise import (
 script_dir = Path(__file__).parent.resolve()
 
 
-@click.command(
-    short_help="Consolidate sequencing data into seqfolders structure and selectively synchronise"
-)
-@click.option(
-    "-s",
-    "--seq_folder",
-    type=Path,
-    help="Path to folder containing sequencing outputs generated with warehouse seqfolders",
-)
-@click.option(
-    "-o",
-    "--output_folder",
-    type=Path,
-    help="Path to synchronisation folder where summary sequencing outputs should be copied to",
-)
 def extract(seq_folder: Path, output_folder: Path):
     """
     Extract summary sequence data files for sharing online
 
     """
     # Set up child log
-    log = logging.getLogger(script_dir.stem + "_commands")
+    log = logging.getLogger(script_dir.stem)
     log.info(divider)
     log.debug(identify_cli_command())
 
     if not (seq_folder or output_folder):
-        seq_folder = get_configuration_value("raw_sequence_folder")
+        seq_folder = get_configuration_value("sequence_folder")
         output_folder = get_configuration_value("sequence")
 
     # Identify and load targets dict from YAML file

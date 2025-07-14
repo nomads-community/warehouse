@@ -1,180 +1,69 @@
 <p align="center"><img src="misc/warehouse_logo.png" width="500"></p>
 
 # Overview
-This repository aims to help streamline and standardise the storage of experimental data generated from NOMADS assays. In particular, we are trying to encourage standardised:
-- Recording of experimental details
-- Storage of sequence data
+This repository aims to streamline and standardize the storage and recording of experimental details and sequence data generated from NOMADS assays.
 
-There are six processes in `warehouse`, plus a backup function (not shown below):
-```mermaid
-flowchart LR
-    subgraph OS1["**Shared drive**"]
-    A[<span style="color:orange;">**warehouse templates**</span> 
-    Generate group specific templates] --> B[<span style="color:orange;">**warehouse metadata**</span> 
-    Record and ensure experimental data is consistent]
-    end
-    B --> C[<span style="color:orange;">**warehouse seqfolders**</span> 
-    Generate sequence data folder for each experiment]
-    subgraph SC["**Sequencing computer**"]
-        C --> D[<span style="color:orange;">**warehouse aggregate**</span> 
-        Aggregate sequence data into sequence data folder]
-        D --> E[<span style="color:orange;">**warehouse extract**</span> 
-        Extract summary sequence data for wider sharing]
-    end
-    subgraph OS2["**Shared drive**"]
-    E --> T[<span style="color:orange;">**warehouse visualise**</span> 
-    View and interact with data in a dashboard]
-    end
-
-
-style OS1 fill:#8a5a67, color: #fefdfd
-style OS2 fill:#8a5a67, color: #fefdfd
-style SC fill:#678a5a, color: #fefdfd
-    
-```
-Note that steps 3 to 5 must be performed on the sequencing computer, while all others should use the shared online resource. This resource should be sorted into three folders:
-- <b>experimental:</b> contains all completed experimental templates
-- <b>sample:</b> contains information from the field for samples e.g. date collected, parasitaemia etc, in a spreadsheet or csv, together with a corresponding `.ini` file (see `example_data/sample/`) that defines the different fields
-- <b>sequence:</b> - contains summary sequence data extracted from the complete raw sequence data on the sequencing laptop.
-
-
-## 1. warehouse templates
-All experimental data should be recorded in standardised Excel spreadsheets (see `templates` folder). Each has user-friendly tabs for entry of data and an instruction sheet. If possible use these templates in Excel as formatting can become corrupted in other programs. The standardisation that warehouse promotes relies on a number of identifiers.
+# Key Concepts
 
 <details>
-<summary>Identifiers used</summary>
 
-#### Experiment ID
-Every experiment is given a unique ID composed of:
-- Experiment type (2 letters): e.g. SW (sWGA), PC (PCR), SL (Sequence Library)
-- Users initials (2 letters): e.g. Bwalya Kabale would be BW
-- Experiment Number (3 digits): Incremental count for each experiment type e.g. 001
+### Templates
+`warehouse` relies on experimental data being recorded in standardised Excel spreadsheets. Each has an instruction sheet. We recommend opening templates in Excel whenever possible and always starting with a fresh, blank template.
 
-The third PCR for Bwalya Kabale would therefore be PCBW003. The templates generate everything except for the experiment number e.g. 001, that is entered by the user.
+### Experiment ID
+Every experiment requires a unique ID that is composed of:
+- Experiment type (2 letters): e.g., SW (sWGA), PC (PCR), SL (Sequence Library)
+- Users initials (2 letters): e.g., Bwalya Kabale would be BW
+- Experiment Number (3 digits): An incremental count for each experiment type for each user (e.g., 001)
 
-#### Sample ID
-Each sample must have a unique sampleID that can consist of any combination of characters. It is recommended that this should be the 'master' id assigned during sample collection and the reference for any sample metadata collected.
+The third PCR for Bwalya Kabale would therefore be PCBW003, similarly the third PCR for James Ubuntu would be PCJU003. The templates automatically generate the experiment ID components, with the exception of the 3-digit experiment number (e.g., 001), which is entered by the user.
 
-#### Extraction ID
-It is assumed that every mosquito / blood spot sample will need to have DNA extracted from it before testing. Multiple extractions may be made from a single sample therefore each needs a unique reference. A simple system should be used to generate the extraction ID so that is can be transcribed onto tubes / plates as necessary. NOMADS recommend using a two letter prefix and then number extracts sequentially with three digits e.g. AA001, AA002 etc.
+### Shared Data
+A cloud synchronised folder with three subfolders:
+    - **experimental:** Contains all completed experimental templates
+    - **sample:** Contains one or more sample metadata information sheets, together with a corresponding `.yml` file that defines the fields
+    - **sequence:** - contains summary sequence data
 
-#### Reaction ID
-To track the movement of samples / extracts through different experiments, a unique identifier is used for each. This is composed of the experiment id and the well or reaction number e.g. the `pcr_identifier` for the sample tested in well A1 in PCBW003 would be `PCBW003_A1`
+### Sequencing laptop
+All data generated during a sequencing run should be stored in a single folder on the sequencing laptop. `warehouse` oversees this process.
+
+</details>
+
+# Running `warehouse` 
+
+### 1. `warehouse configure`
+To eliminate repetitive entry of the same details, `warehouse configure` can be used to enter all of the required information, e.g., folder locations, for other commands to run without any additional input. This command only needs to be run once on each laptop that `warehouse` is installed on.
+
+<details>
+
+<summary>Example usage</summary>
+
+```
+warehouse configure -d GDrive/data -n NMEC -s Sequence_Folder
+```
+
 </details>
 
 
-Templates are regularly improved / updated in this repository. To avoid manual entry of group details every time an update is made, users can populate the latest templates with their group specific details using this command.
+### 2. `warehouse process`
+This command sequentially processes the data using the configured , without any additional input, as follows:
+1. Import, check and validate all experimental templates
+2. Create a standardised folder hierarchy for each experiment 
+3. Aggregate all sequencing outputs into the standard folder hierarchy
+4. Extract summary sequence data to share on the cloud
+5. Launch interactive user dashboard to view all data
 
+### 3. `warehouse backup`
+This command will backup your raw sequence data to an external USB hard disk drive. When you connect your drive, find the path to the drive in your file manager and copy the location for the -b flag
 <details>
 <summary>Example usage</summary>
 
-Get a list of the groups available:
 ```
-warehouse templates -l
-```
-Update templates with group details:
-
-```
-warehouse templates -g UCB -o ~/NOMADS_Blank_Templates 
+warehouse backup -b /media/usb_drive/seqdata/
 ```
 
 </details>
 
-## 2. warehouse metadata
-This command allows you to directly import, validate, munge and export all experimental and sequencing data as required. We recommend regularly (e.g. after each experiment) using this function to ensure your data are valid and consistent.
-
-<details>
-<summary>Example usage</summary>
-
-Extract and validate all experimental data from Excel files: 
-```
-warehouse metadata -e example_data/experimental/
-```
-Extract, validate and output all experimental data:
-```
-warehouse metadata -e example_data/experimental/ -o output_folder/
-```
-Extract, validate and output experimental data, sequencing data and sample metadata including sample status:
-```
-warehouse metadata -e example_data/experimental/ -m example_data/sample/sample_metadata.csv -s example_data/seqdata -o output_folder/
-```
-</details>
-
-## 3. warehouse seqfolders
-This command will generate a standardised folder hierarchy for storing sequence data associated with a run. By default it will create the following folders:
-
-- **metadata** - experimental data for each rxn e.g. sampleID, barcode assigned etc
-- **minknow** - raw sequence data from ONT minknow
-- **nomadic** - output from `nomadic`
-- **savanna** - output from `savanna`
-
-<details>
-<summary>Example usage</summary>
-
-Create directory structure:
-```
-warehouse seqfolders -e example_data/experimental/ -i SLJS034 -o sequence_data/
-```
-An `.ini` file can be used to define the desired folder structure, including sub-folders (see `resources/seqfolders` for an example), but  unless absolutely necessary we recommend using the default.
-</details>
-
-## 4. warehouse aggregate
-  
-This command moves sequence data outputs into the sequence data folder. Default locations for data are:
-- **minknow**: /var/lib/minknow/data/
-- **nomadic**: ~/git/nomadic/results
-- **savanna**: ~/git/savanna/results
-
-<details>
-<summary>Example usage</summary>
-
-Aggregate sequence data into the seqfolders structure:
-```
-warehouse aggregate -s example_data/seqdata/ 
-```
-
-If your NOMADS git directory is not in '~/git' provide this to aggregate:
-```
-warehouse aggregate -s example_data/seqdata/ -g ~/Work/git
-```
-</details>
-
-## 5. warehouse extract
-  
-Sharing all raw sequence data would be impractical due to its sheer size. This command selectively extracts data to reduce the size, but enable most downstream analyses.
-
-<details>
-<summary>Example usage</summary>
-
-Selectively extract sequence data for sharing:
-```
-warehouse extract -s example_data/seqdata/ -o ~/GoogleDriveFolder/
-```
-</details>
-
-## 6. warehouse visualise
-This command can be used to analyse the experimental, field and sequence data in one dashboard. 
-
-<details>
-<summary>Example usage</summary>
-
-View dashboard of all experimental, sample and sequence data available.
-```
-warehouse visualise -e example_data/experimental/ -s example_data/seqdata/ -m example_data/sample/sample_metadata.csv
-```
-</details>
-
-## 7. warehouse backup
-This command can be used to backup your raw sequence data to an external USB hard disk drive. 
-
-<details>
-<summary>Example usage</summary>
-
-Backup sequence data
-```
-warehouse backup -s example_data/seqdata/ -b /media/usb_drive/seqdata/
-```
-</details>
 
 ## Installation
 <details>

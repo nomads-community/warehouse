@@ -28,10 +28,11 @@ def get_configuration_value(config_key: str) -> Path | str:
     config_dict = load_warehouse_configuration_dict()
     value = config_dict.get(config_key, "")
     # Check if empty
-    if not value:
+    if (not value) and (value is not False):
         raise PathError(f"Unable to identify {config_key}")
+
     # Check if a path
-    if "/" in value or "\\" in value:
+    if isinstance(value, str) and ("/" in value or "\\" in value):
         return Path(value)
     return value
 
