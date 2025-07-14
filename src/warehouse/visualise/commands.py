@@ -22,15 +22,9 @@ def visualise(
     sample_data: SampleMetadataParser,
     seq_data: SequencingMetadataParser,
     combined_data: Combine_Exp_Seq_Sample_data,
-    cli_flags: list,
 ):
-    # Add in cli_flags
-    # cli_flags = [exp_folder, seq_folder, metadata_file]
-
     log.info("Starting the warehouse dashboard")
     app = Dash(__name__, external_stylesheets=CSS_STYLE)
     app.title = "Warehouse"
-    app.layout = create_layout(
-        app, sample_data, exp_data, seq_data, combined_data, cli_flags
-    )
+    app.layout = create_layout(app, sample_data, exp_data, seq_data, combined_data)
     app.run()

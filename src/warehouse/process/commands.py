@@ -81,11 +81,10 @@ def process(ctx):
         extract(seq_folder=seq_data_folder, output_folder=shared_seq_dir)
 
     ######################################################
-    cli_flags = [shared_exp_dir, shared_seq_dir, shared_sample_file]
+
     visualise(
         exp_data=exp_data,
         seq_data=seq_data,
         sample_data=sample_data,
         combined_data=combined_data,
-        cli_flags=cli_flags,
     )

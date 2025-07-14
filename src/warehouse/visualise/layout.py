@@ -22,7 +22,6 @@ def create_layout(
     experiment_data: ExpDataParser,
     sequence_data: SequencingMetadataParser,
     combined_data: Combine_Exp_Seq_Sample_data,
-    cli_flags,
 ) -> html.Div:
     """
     Return the webpage
@@ -31,7 +30,7 @@ def create_layout(
     return html.Div(
         className="entire",
         children=[
-            banner.render(app, cli_flags),
+            banner.render(app),
             pie_expt_types.render(app, sample_data, experiment_data),
             seq_qc_by_expt.render(app, sequence_data, experiment_data),
             upset_plot.render(app, sequence_data, combined_data),
