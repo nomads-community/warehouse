@@ -3,7 +3,7 @@ from pathlib import Path
 
 import click
 
-from warehouse.aggregate.aggregate import aggregate
+from warehouse.aggregate.aggregate import aggregate, currently_sequencing
 from warehouse.configure.configure import get_configuration_value
 from warehouse.extract.extract import extract
 from warehouse.lib.general import produce_dir
@@ -68,13 +68,16 @@ def process(ctx):
         # Ensure all seqfolders have been created
         seqfolders(exp_data, seq_data_folder)
 
-        ######################################################
+    ######################################################
+    # Need to ensure that aggregate is not run while a run is happening
+    if full_config and not currently_sequencing():
         log.info(divider)
         log.info("Aggregating sequence data into sequence folders")
         log.info(divider)
         aggregate(seq_data_folder, git_dir)
 
-        ######################################################
+    ######################################################
+    if full_config:
         log.info(divider)
         log.info("Extracting sequence data summaries to shared cloud folder")
         log.info(divider)

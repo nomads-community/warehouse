@@ -196,3 +196,28 @@ def aggregate_seq_data_to_single_dir(
         results.append(msg)
 
     return results, columns
+
+
+def currently_sequencing() -> bool:
+    """
+    Prompts the user to input if they are currently performing a sequencing run or not.
+
+    Returns:
+        bool: True if the user indicates 'Yes' (Y or Enter), False if 'No' (N).
+    """
+    log.info(divider)
+    log.info("Are you currently sequencing? (Y/n - default is Y)")
+    while True:
+        try:
+            choice = input("Y/n: ").strip().lower()
+            if choice == "y" or choice == "":
+                return True
+            elif choice == "n":
+                return False
+            else:
+                print(
+                    "Invalid choice. Please enter 'Y' or 'N' (or just press Enter for 'Y')."
+                )
+        except Exception as e:  # Catch a more general exception for input issues
+            log.error(f"An error occurred during input: {e}")
+            print("An unexpected error occurred. Please try again.")

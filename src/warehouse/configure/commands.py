@@ -139,6 +139,20 @@ def configure(
         raise GenError(f"{name_group} not found in known groups: {list(groups.keys())}")
     config_data["group_name"] = name_group
 
+    # Identify and load targets dict from YAML file
+    locations_yaml = script_dir.parent / "aggregate" / "locations.yml"
+    with open(locations_yaml, "r") as f:
+        locations = yaml.safe_load(f)
+    # Add in the minknow dir
+    config_data["minknow_dir"] = locations.get("minknow").get("source_dir")
+    # Add in the nomadic and savanna results dir
+    config_data["nomadic_results_dir"] = str(
+        git_folder / locations.get("nomadic").get("source_dir")
+    )
+    config_data["savanna_results_dir"] = str(
+        git_folder / locations.get("savanna").get("source_dir")
+    )
+
     # Define the output folder
     output_folder = (
         script_dir.parent.parent.parent
