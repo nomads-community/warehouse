@@ -18,7 +18,7 @@ def load_warehouse_configuration_dict() -> dict:
     config_file = script_dir / "warehouse_config.yml"
     if not config_file.exists():
         raise PathError("No configuration file found. Please run 'warehouse configure'")
-    log.info("Loading warehouse configuration file")
+    log.info("   Loading warehouse configuration file")
     with open(config_file, "r") as f:
         config_dict = yaml.safe_load(f)
     return config_dict

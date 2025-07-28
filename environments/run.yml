@@ -16,3 +16,4 @@ dependencies:
  - pretty_errors
  - pyyaml
  - upsetplot
+ - tabulate 

@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
+from warehouse.lib.dataframes import tabulate_df
 from warehouse.lib.general import (
     identify_exptid_from_path,
     identify_folders_by_pattern,
@@ -31,6 +32,10 @@ def aggregate(seq_folder: Path, git_folder: Path):
     log = logging.getLogger(script_dir.stem)
     log.debug(identify_cli_command())
 
+    log.info(divider)
+    log.info("Aggregating sequence data into sequence folders:")
+    log.info(divider)
+
     # Identify and load targets dict from YAML file
     locations_yaml = script_dir / "locations.yml"
     with open(locations_yaml, "r") as f:
@@ -51,11 +56,8 @@ def aggregate(seq_folder: Path, git_folder: Path):
         log.info(divider)
 
     if len(summary_df) > 0:
-        log.info(
-            "The following experiments were processed (present indicates a not empty folder):"
-        )
-        # TODO: Add in tabluate for nicer output?
-        log.info(summary_df.to_string(index=False))
+        log.info("The following experiments were processed:")
+        log.info(tabulate_df(summary_df))
     else:
         log.info("No experiments were identified for aggregation.")
     log.info(divider)
@@ -205,7 +207,6 @@ def currently_sequencing() -> bool:
     Returns:
         bool: True if the user indicates 'Yes' (Y or Enter), False if 'No' (N).
     """
-    log.info(divider)
     log.info("Are you currently sequencing? (Y/n - default is Y)")
     while True:
         try:

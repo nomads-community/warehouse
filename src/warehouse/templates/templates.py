@@ -27,6 +27,10 @@ def templates(group_name: str, output_folder: Path):
     log = logging.getLogger(script_dir.stem)
     log.debug(identify_cli_command())
 
+    log.info(divider)
+    log.info("Generating templates:")
+    log.info(divider)
+
     # Load group details from YAML file
     group_details_yaml = script_dir / "group_details.yml"
     with open(group_details_yaml, "r") as f:
@@ -69,13 +73,14 @@ def templates(group_name: str, output_folder: Path):
         # Load the workbook
         workbook = load_workbook(template_fn)
         # Select the correct worksheet
-        worksheet = workbook["reference"]
+        worksheet = workbook["Reference"]
 
+        # Names, initials and projects are in cols I,J and L
         for dict_key, col_num in zip(grp_details.keys(), [9, 10, 12]):
             # Extract the correct values to enter
-            details = pad_list(grp_details, dict_key, 6)
-            # Names are in I3-I8, Initials in J3 to J8 and Projects in L3 to L8
-            for count, xl_row in enumerate(range(3, 8)):
+            details = pad_list(grp_details, dict_key, 10)
+            # Names, initials and projects are in rows 17 to 26
+            for count, xl_row in enumerate(range(17, 27)):
                 # Define the cell to edit
                 cell = worksheet.cell(row=xl_row, column=col_num)
                 # Assign the new value to the cell

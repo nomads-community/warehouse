@@ -15,13 +15,9 @@ STATUS:
   field: status
   label: Status
 DATE:
-  field: date
-  label: Date Enrolled
+  field: collection_date
+  label: Date Sample Collected
   dateformat: '%Y/%m/%d'
-INTDATE:
-  field: intervention_date
-  label: Intervention Date
-  dateformat: '%Y-%m-%d'
 PARASITAEMIA:
   field: parasitaemia_p/ul
   label: Parasitaemia (p/ul)

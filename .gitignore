@@ -25,4 +25,5 @@ experiments
 logs
 results
 data
+example_data/experimental/templates
 warehouse_config.yml

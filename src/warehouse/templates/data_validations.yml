@@ -1,110 +1,122 @@
 # YAML file containing all of the data validations for each of the templates
 
-NOMADS_sWGA_Worksheet:      # TemplateName
-  Assay:                    # SheetName
-    UserName:               # ValidationName
-      ref_range: reference!I3:I8
-      ref_type: list
-      apply_to_cell: C3 
+NOMADS_sWGA_Worksheet:                    # TemplateName
+  Assay:                                  # SheetName
+    UserName:                             # ValidationName
+      ref_range: Reference!I17:I26        # Range of cells to reference
+      ref_type: list                      # Type of validation
+      apply_to_cell: C3                   # Cell to apply the validation to in SheetName
     ProjectName:
-      ref_range: reference!L3:L8
+      ref_range: Reference!L17:L26  
       ref_type: list
       apply_to_cell: C7
     swga_enzyme:
-      ref_range: reference!E3:E4
+      ref_range: Reference!E17:E18
       ref_type: list
       apply_to_cell: C11
-    reference_type:
-      ref_range: reference!E42:E43
+    plate_reference_type:
+      ref_range: Reference!E56:E57
       ref_type: list
       apply_to_cell: F33
   sWGA:
     sample_type:
-      ref_range: reference!E7:E9
+      ref_range: Reference!E21:E23
       ref_type: list
-      apply_to_cell: F3:F98
+      apply_to_cell: G3:G98
 
 NOMADS_PCR_Worksheet:
   Assay:
     UserName:
-      ref_range: reference!I3:I8
+      ref_range: Reference!I17:I26
       ref_type: list
       apply_to_cell: C3 
     ProjectName:
-      ref_range: reference!L3:L8
+      ref_range: Reference!L17:L26
       ref_type: list
       apply_to_cell: C7
     assay_name:
-      ref_range: reference!E3:E8
+      ref_range: Reference!G17:G21
       ref_type: list
       apply_to_cell: C11
     pcr_enzyme:
-      ref_range: reference!E14:E16
+      ref_range: Reference!E21:E23
       ref_type: list
-      apply_to_cell: C15
-    reference_type:
-      ref_range: reference!E104:E105
+      apply_to_cell: C13
+    plate_reference_type:
+      ref_range: Reference!E120:E121
       ref_type: list
       apply_to_cell: F34
   PCR:
     sample_type:
-      ref_range: reference!E19:E21
+      ref_range: Reference!E26:E28
       ref_type: list
       apply_to_cell: G3:G98
 
 NOMADS_Library_Ligation_Worksheet:
   Assay:
     UserName:
-      ref_range: reference!I3:I8
+      ref_range: Reference!I17:I26
       ref_type: list
       apply_to_cell: C3 
     ProjectName:
-      ref_range: reference!L3:L8
+      ref_range: Reference!L17:L26
       ref_type: list
       apply_to_cell: C7
+    etoh_wash_volume:
+      ref_range: Reference!E53:E54
+      ref_type: list
+      apply_to_cell: F34
+    post-clean-up_resuspension_vol:
+      ref_range: Reference!E57:E58
+      ref_type: list
+      apply_to_cell: G34
+    wash_buffer_used:
+      ref_range: Reference!E66:E67
+      ref_type: list
+      apply_to_cell: C52
     sequencing_platform:
-      ref_range: reference!E11:E15
+      ref_range: Reference!E25:E30
       ref_type: list
       apply_to_cell: C67
     flowcellstatus:
-      ref_range: reference!E3:E4
+      ref_range: Reference!E17:E18
       ref_type: list
       apply_to_cell: C69
     flowcellchemistry:
-      ref_range: reference!E18:E19
+      ref_range: Reference!E33
       ref_type: list
       apply_to_cell: C71
   Library:
     sample_type:
-      ref_range: reference!E46:E48
+      ref_range: Reference!E61:E63
       ref_type: list
       apply_to_cell: F3:F98
 
 NOMADS_Library_Rapid_Worksheet:
   Assay:
     UserName:
-      ref_range: reference!I3:I8
+      ref_range: Reference!I17:I26
       ref_type: list
       apply_to_cell: C3 
     ProjectName:
-      ref_range: reference!L3:L8
+      ref_range: Reference!L17:L26
       ref_type: list
       apply_to_cell: C7
     sequencing_platform:
-      ref_range: reference!E11:E14
+      ref_range: Reference!E25:E30
       ref_type: list
       apply_to_cell: C41
     flowcellstatus:
-      ref_range: reference!E3:E4
+      ref_range: Reference!E17:E18
       ref_type: list
       apply_to_cell: C43
     flowcellchemistry:
-      ref_range: reference!E18:E19
+      ref_range: Reference!E33
       ref_type: list
       apply_to_cell: C45
   Library:
     sample_type:
-      ref_range: reference!E37:E39
+      ref_range: Reference!E52:E54
       ref_type: list
       apply_to_cell: F3:F98
 

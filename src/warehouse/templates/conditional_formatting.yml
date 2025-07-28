@@ -4,11 +4,34 @@ NOMADS_Library_Rapid_Worksheet:      # TemplateName
   Assay:                             # SheetName
     DNAconcPooled_low:               # ValidationName
       apply_to_cell: D27
-      value_to_compare: reference!B9
+      value_to_compare: Post_PCR_target_DNA_conc
       operator: lessThan
       colour: FFFF0000
     DNAconcPooled_high:
       apply_to_cell: D27
-      value_to_compare: reference!B9
-      operator: greaterThan
+      value_to_compare: Post_PCR_target_DNA_conc
+      operator: greaterThanOrEqual
+      colour: FF00FF00
+
+NOMADS_Library_Ligation_Worksheet:   # TemplateName
+  Assay:                             # SheetName
+    DNAconcPooled_low:               # ValidationName
+      apply_to_cell: D39
+      value_to_compare: Post_PCR_target_DNA_conc
+      operator: lessThan
+      colour: FFFF0000
+    DNAconcPooled_high:
+      apply_to_cell: D39
+      value_to_compare: Post_PCR_target_DNA_conc
+      operator: greaterThanOrEqual
+      colour: FF00FF00
+    Library_final_conc_low:
+      apply_to_cell: G56
+      value_to_compare: Minimum_final_pooled_DNA_conc
+      operator: lessThan
+      colour: FFFF0000
+    Library_final_conc_high:
+      apply_to_cell: G56
+      value_to_compare: Minimum_final_pooled_DNA_conc
+      operator: greaterThanOrEqual
       colour: FF00FF00

@@ -130,6 +130,9 @@ def configure(
     else:
         metadata_file = metadata_paths[0]
     config_data["shared_sample_file"] = str(metadata_file.resolve())
+    config_data["shared_sample_file_config"] = str(
+        metadata_file.with_suffix(".yml").resolve()
+    )
 
     # Add in git folder
     config_data["git_dir"] = str(git_folder.resolve())

@@ -15,6 +15,7 @@ from warehouse.lib.dataframes import (
     identify_duplicate_colnames,
     identify_export_class_attributes,
     merge_additional_rxn_level_fields,
+    tabulate_df,
 )
 from warehouse.lib.decorators import singleton
 from warehouse.lib.dictionaries import (
@@ -59,7 +60,10 @@ def metadata(
     log = logging.getLogger(script_dir.stem)
     log.debug(identify_cli_command())
 
-    log.info("Processing experimental data")
+    log.info(divider)
+    log.info("Loading experimental data:")
+    log.info(divider)
+
     exp_data = ExpDataMerge(Path(exp_folder), output_folder, verbose=verbose)
 
     log.info("Processing sequencing data")
@@ -689,7 +693,7 @@ class ExpDataMerge:
                         + " data"
                     )
                     log.info(f"   WARNING: {warning}")
-                    log.info(missing_records_df[show_cols].to_string(index=False))
+                    log.info(tabulate_df(missing_records_df[show_cols]))
 
                     # Output the missing data
                     if self.output_folder:
@@ -713,10 +717,8 @@ class ExpDataMerge:
                     # Feedback to user
                     if mismatches_df.shape[0] > 0:
                         log.info(f"   WARNING: Mismatches identified for {c}")
-                        log.info(
-                            f"   {mismatches_df[show_cols].to_string(index=False)}"
-                        )
-                        # Output the missmatched data
+                        log.info(tabulate_df(mismatches_df[show_cols]))
+                        # Output the mismatched data
                         if self.output_folder:
                             # to a folder called problematic
                             problematic_dir = self.output_folder / "problematic"
@@ -724,7 +726,6 @@ class ExpDataMerge:
                             path = problematic_dir / f"{c} mismatches.csv"
                             mismatches_df[show_cols].to_csv(path, index=False)
                             log.info(f"   Mismatched records written to {path}")
-                        log.info("")
                         log.info("")
 
                 # To ensure that all columns have the correct suffix, you need to rejoin the columns with or wthout
@@ -801,9 +802,6 @@ class ExpDataMerge:
         # Create an instance attribute
         self.all_df = alldata_df
 
-        log.info("Done")
-        log.info(divider)
-
         # Remove columns from expts_df
         expt_cols = [
             "expt_id",
@@ -822,7 +820,7 @@ class ExpDataMerge:
 
         # Give user a summary of experiments performed
         log.info("Experiments performed:")
-        log.info(expt_summary_df.to_string(index=False))
+        log.info(tabulate_df(expt_summary_df))
         log.info(divider)
 
     def _check_duplicate_expid(self, filepaths: list[Path]) -> None:
@@ -976,9 +974,6 @@ class SampleMetadataParser:
         if self.output_folder:
             identify_export_class_attributes(self, self.output_folder)
 
-        log.info("Done")
-        log.info(divider)
-
 
 class SequencingMetadataParser:
     """
@@ -1091,9 +1086,6 @@ class SequencingMetadataParser:
         if self.output_folder:
             identify_export_class_attributes(self, self.output_folder)
 
-        log.info("Done")
-        log.info(divider)
-
     def incorporate_experimental_data_to_sequence_class(self, ExpClassInstance):
         """
         Expand sequence data metrics with the addition of experimental data
@@ -1182,9 +1174,6 @@ class SequencingMetadataParser:
         if self.output_folder:
             identify_export_class_attributes(self, self.output_folder)
 
-        log.info("Done")
-        log.info(divider)
-
     def add_bcftools_filtered_to_samples_passing_QC(self, sample_set: pd.DataFrame):
         """
         This method adds a new attribute that consists of the the bcftools output filtered to
@@ -1194,7 +1183,7 @@ class SequencingMetadataParser:
         that have passed QC to identify those that came up as reference. QC outputs are at
         the sample level in sequence_data.qc_per_sample_with_exp. Therefore start with
         all possible amplicons per sample_id rxn and then determine using coverage cutoffs from sequence_data.summary_bedcov_with_exp
-        # and contamination cutoff from sequence_data.qc_per_sample_with_exp
+        and contamination cutoff from sequence_data.qc_per_sample_with_exp
         """
 
         # Define uid colnames
@@ -1398,9 +1387,6 @@ class Combine_Exp_Seq_Sample_data:
 
         if output_folder:
             identify_export_class_attributes(self, output_folder)
-
-        log.info("Done")
-        log.info(divider)
 
 
 class ExpThroughputDataScheme:

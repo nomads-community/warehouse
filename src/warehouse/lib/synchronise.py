@@ -58,14 +58,21 @@ def selective_rsync(
     rsync_feedback = [
         f"{f.name}" if isinstance(f, Path) else f for f in rsync_components
     ]
-    log.info(f"{' '.join(rsync_feedback)}")
-
-    # Fromat the rsync command properly for bash to run it
-    rsync_command = [
-        f"{f.resolve()}/" if isinstance(f, Path) else f for f in rsync_components
-    ]
-    subprocess.run(rsync_command)
-    log.info("")
+    log.debug(f"{' '.join(rsync_feedback)}")
+    try:
+        # Format the rsync command properly for bash to run it
+        rsync_command = [
+            f"{f.resolve()}/" if isinstance(f, Path) else f for f in rsync_components
+        ]
+        result = subprocess.run(
+            rsync_command, capture_output=True, text=True, check=True
+        )
+        if result.stdout:
+            log.debug(f"stdout: {result.stdout}")
+        if result.stderr:
+            log.warning(f"stderr: {result.stderr}")
+    except Exception as e:
+        log.error(f"An unexpected error occurred: {e}")
 
 
 def process_targets(
@@ -87,14 +94,16 @@ def process_targets(
         source_dir = source_base_dir / target_name
 
         # Check if source directory exists and is not empty
-        if not source_dir.exists() or is_directory_empty(source_dir):
-            log.info(
-                f"   {source_dir.name} is empty or does not exist. Skipping this target"
-            )
+        if not source_dir.exists():
+            log.debug(f"   {source_dir.name} does not exist. Skipping...")
+            continue
+        if is_directory_empty(source_dir):
+            log.debug(f"   {source_dir.name} is empty. Skipping...")
             continue
 
         # Check if expected paths are given
         expected_path_dt = target_config.get("expected_path", {})
+
         # Pull in details from dict if given
         if expected_path_dt:
             path_type = expected_path_dt.get("type")
@@ -132,6 +141,7 @@ def process_targets(
         # Identify anything to exclude
         exclusions = target_config.get("exclusions", [])
 
+        log.debug(f"   Rsyncing {target_name}")
         # rsync for each target
         selective_rsync(
             source_dir=source_dir,

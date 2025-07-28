@@ -42,15 +42,11 @@ def process(ctx):
     produce_dir(output_folder)
 
     ######################################################
-    log.info(divider)
-    log.info("Generating templates")
-    log.info(divider)
+    # Rebuild templates
     templates(group_name=group_name, output_folder=shared_templates_dir)
 
     ######################################################
-    log.info(divider)
-    log.info("Loading experimental data")
-    log.info(divider)
+    # Pull in experimental data
     exp_data, seq_data, sample_data, combined_data = metadata(
         exp_folder=shared_exp_dir,
         seq_folder=shared_seq_dir,
@@ -60,31 +56,28 @@ def process(ctx):
     )
 
     ######################################################
+    # Build sequence data folders
     if full_config:
         seq_data_folder = get_configuration_value("sequence_folder")
-        log.info(divider)
-        log.info("Creating sequence folders as required")
-        log.info(divider)
         # Ensure all seqfolders have been created
         seqfolders(exp_data, seq_data_folder)
 
     ######################################################
-    # Need to ensure that aggregate is not run while a run is happening
-    if full_config and not currently_sequencing():
-        log.info(divider)
-        log.info("Aggregating sequence data into sequence folders")
-        log.info(divider)
-        aggregate(seq_data_folder, git_dir)
+    # Aggregate data into one location
+    if full_config:
+        if not currently_sequencing():
+            aggregate(seq_data_folder, git_dir)
+        else:
+            log.info("Skipping aggregation as a run is currently in progress")
+            log.info(divider)
 
     ######################################################
+    # Selectively extract to cloud share
     if full_config:
-        log.info(divider)
-        log.info("Extracting sequence data summaries to shared cloud folder")
-        log.info(divider)
         extract(seq_folder=seq_data_folder, output_folder=shared_seq_dir)
 
     ######################################################
-
+    # View dashboard
     visualise(
         exp_data=exp_data,
         seq_data=seq_data,

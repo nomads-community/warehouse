@@ -4,6 +4,7 @@ import pathlib as Path
 from itertools import chain
 
 import pandas as pd
+from tabulate import tabulate
 
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import (
@@ -127,8 +128,6 @@ def identify_export_class_attributes(obj, output_dir):
             attr.to_csv(csv_file, index=False)
             log.info(f"     dataframe: '{attr_name}' saved to {csv_file}")
 
-    log.info("   Done")
-
 
 def merge_additional_rxn_level_fields(
     main_df: pd.DataFrame,
@@ -183,7 +182,7 @@ def merge_additional_rxn_level_fields(
     if not seq_details_missing_df.empty:
         exp_ids = list(seq_details_missing_df[colnames[0]].unique())
         log.warning(f"Warning: {exp_ids} missing matching sequence detail data.")
-        log.info(f"   {seq_details_missing_df}")
+        log.info(tabulate_df(seq_details_missing_df))
 
     # Remove unnecessary entries
     if how == "left":
@@ -275,3 +274,37 @@ def dataframe_not_empty(df) -> bool:
         bool: True if the DataFrame is not empty, False otherwise.
     """
     return not df.empty
+
+
+def tabulate_df(
+    df: pd.DataFrame,
+    maxcolwidth: int = 30,
+    tablefmt: str = "grid",
+    colalign: str = "center",
+) -> str | None:
+    """
+    Converts a DataFrame to a tabulate format for better readability.
+
+    Args:
+        df (pd.DataFrame): The DataFrame to convert.
+        maxcolwidth (int): The maximum column width for the tabulated output.
+        tablefmt (str): The format of the table (e.g., 'grid', 'plain').
+        colalign (str): The alignment for all columns ('left', 'center', 'right
+
+    Returns:
+        str: The tabulated string representation of the DataFrame.
+    """
+    if df.empty:
+        return None
+    max_col_widths = [maxcolwidth] * len(df.columns)
+    colaligns = [colalign] * len(df.columns)
+
+    return tabulate(
+        df,
+        headers="keys",
+        colalign=colaligns,
+        tablefmt=tablefmt,
+        maxcolwidths=max_col_widths,
+        showindex=False,
+        missingval="N/A",
+    )

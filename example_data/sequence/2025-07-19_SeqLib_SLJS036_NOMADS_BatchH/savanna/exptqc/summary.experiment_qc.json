@@ -1,0 +1,1 @@
+{"n_barcodes": 22, "n_negative_cntrls": 1, "n_positive_cntrls": 2, "n_samples": 19, "n_samples_pass_cov": 19, "n_samples_pass_contamination": 19, "n_samples_pass": 19, "per_samples_pass": 100, "per_contamination_mean": 24.87894214737085, "expt_pass": true}

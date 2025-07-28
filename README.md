@@ -31,6 +31,8 @@ All data generated during a sequencing run should be stored in a single folder o
 
 # Running `warehouse` 
 
+There are only three commands in warehouse. The first (configure) sets-up the system with all the necessary file locations. The second (process) performs all of the data validation and file checking including launching the warehouse dashboard. The last (backup) **only** needs to be run on the sequencing laptop and backs up the sequence folder to the back-up drive.
+
 ### 1. `warehouse configure`
 To eliminate repetitive entry of the same details, `warehouse configure` can be used to enter all of the required information, e.g., folder locations, for other commands to run without any additional input. This command only needs to be run once on each laptop that `warehouse` is installed on.
 

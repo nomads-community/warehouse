@@ -364,7 +364,7 @@ def identify_path_by_search(
             msg = f"No matching files found matching pattern: {pattern}"
             if raise_error:
                 raise ValueError(msg)
-            else:
+            if verbose:
                 log.info(msg)
         # Feedback to user what has been found
         if verbose:

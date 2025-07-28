@@ -23,8 +23,14 @@ def seqfolders(
     # Set up child log
     script_dir = Path(__file__).parent.resolve()
     log = logging.getLogger(script_dir.stem)
-    log.info(divider)
     log.debug(identify_cli_command())
+
+    log.info(divider)
+    log.info("Creating sequence folders:")
+    log.info(divider)
+
+    # Bool value to indicate if seqfolders have been created
+    seqfolder_created = False
 
     # Read in the directory structure to create
     dir_yml = script_dir / "dir_structure.yml"
@@ -64,13 +70,26 @@ def seqfolders(
             exp.expt_date, exp.expt_id, exp.expt_summary
         )
         seqfolder_path = seq_folder / new_folder_name
+        log.info(f"   Creating seqfolder: {seqfolder_path}")
         produce_dir(seqfolder_path)
+        seqfolder_created = True
         # Populate with subdirectories
         for dir in dirs:
             target = seqfolder_path / dir
             produce_dir(target)
             if dir == "metadata":
-                exp.df.to_csv(target / f"{exp_id}_sample_info.csv", index=False)
+                # Only export the minimum required information for end-user clarity
+                min_info = [
+                    exp.DataSchema.BARCODE[0],
+                    exp.DataSchema.SAMPLE_ID[0],
+                    exp.DataSchema.EXTRACTION_ID[0],
+                    exp.DataSchema.SAMPLE_TYPE[0],
+                ]
+                exp.df[min_info].to_csv(
+                    target / f"{exp_id}_sample_info.csv", index=False
+                )
+    if not seqfolder_created:
+        log.info("   No new seqfolders created")
 
 
 def create_experiment_name(expt_date: str, expt_id: str, expt_summary) -> str:
