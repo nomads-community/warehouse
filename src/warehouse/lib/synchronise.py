@@ -187,7 +187,7 @@ def move_folder(
         # Move source to dest
         if as_sudo:
             subprocess.run(["sudo", "mv", source_dir, dest_dir], check=True)
-            chown_paths_to_user(dest_path)
+            chown_path_to_user_with_sudo(dest_path)
         else:
             subprocess.run(["mv", source_dir, dest_dir], check=True)
         log.info("   Folder moved successfully.")
@@ -200,7 +200,7 @@ def move_folder(
         return f"   Error moving folder: {e}"
 
 
-def chown_paths_to_user(path: Path):
+def chown_path_to_user_with_sudo(path: Path):
     """
     Recursively change ownership of files / folders within a path.
 
@@ -209,10 +209,9 @@ def chown_paths_to_user(path: Path):
     """
     user = os.getlogin()
     dir = str(path.resolve())
-    subprocess.run(["sudo", "chown", f"{user}:{user}", dir], check=True)
-    for path_ob in path.rglob("*"):
-        try:
-            item = str(path_ob.resolve())
-            subprocess.run(["sudo", "chown", f"{user}:{user}", item], check=True)
-        except OSError as e:
-            log.warning(f"   Error changing permissions for '{item}': {e}")
+
+    try:
+        subprocess.run(["sudo", "chown", "-R", f"{user}:{user}", dir], check=True)
+        log.debug("Changed ownership of {path.name} to {user}")
+    except subprocess.CalledProcessError as e:
+        log.error(f"Error changing permissions for '{dir}': {e}")

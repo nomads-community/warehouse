@@ -65,8 +65,6 @@ UNAM:
   templates:
     - NOMADS_PCR_Worksheet
     - NOMADS_Library_Rapid_Worksheet
-    - NOMADS_Library_Ligation_Worksheet
-    - NOMADS_SWGA_Worksheet
 KEMRI_ENTO:
   names:
     - Cyprian Adala
