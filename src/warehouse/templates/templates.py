@@ -6,7 +6,7 @@ from openpyxl import load_workbook
 
 from warehouse.lib.exceptions import DataFormatError
 from warehouse.lib.general import identify_path_by_search, pad_list, produce_dir
-from warehouse.lib.logging import divider, identify_cli_command
+from warehouse.lib.logging import divider, major_header
 from warehouse.lib.regex import Regex_patterns
 from warehouse.lib.spreadsheets import (
     apply_worksheet_conditional_formatting,
@@ -25,11 +25,7 @@ def templates(group_name: str, output_folder: Path):
 
     # Set up child log
     log = logging.getLogger(script_dir.stem)
-    log.debug(identify_cli_command())
-
-    log.info(divider)
-    log.info("Generating templates:")
-    log.info(divider)
+    major_header(log, "Generating templates:")
 
     # Load group details from YAML file
     group_details_yaml = script_dir / "group_details.yml"

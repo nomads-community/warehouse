@@ -8,7 +8,7 @@ from warehouse.lib.general import (
     identify_all_folders_with_expid,
     produce_dir,
 )
-from warehouse.lib.logging import divider, identify_cli_command
+from warehouse.lib.logging import major_header
 from warehouse.metadata.metadata import ExpDataMerge
 
 
@@ -23,11 +23,7 @@ def seqfolders(
     # Set up child log
     script_dir = Path(__file__).parent.resolve()
     log = logging.getLogger(script_dir.stem)
-    log.debug(identify_cli_command())
-
-    log.info(divider)
-    log.info("Creating sequence folders:")
-    log.info(divider)
+    major_header(log, "Creating sequence folders:")
 
     # Bool value to indicate if seqfolders have been created
     seqfolder_created = False

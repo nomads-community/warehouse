@@ -3,7 +3,7 @@ from pathlib import Path
 
 from dash import Dash
 
-from warehouse.lib.logging import divider
+from warehouse.lib.logging import major_header
 from warehouse.metadata.metadata import (
     Combine_Exp_Seq_Sample_data,
     ExpDataMerge,
@@ -14,9 +14,6 @@ from warehouse.visualise.layout import create_layout
 
 CSS_STYLE = ["scripts/visualise/assets/calling-style.css"]
 
-# Define logging process
-log = logging.getLogger(Path(__file__).stem)
-
 
 def visualise(
     exp_data: ExpDataMerge,
@@ -24,9 +21,9 @@ def visualise(
     seq_data: SequencingMetadataParser,
     combined_data: Combine_Exp_Seq_Sample_data,
 ):
-    log.info(divider)
-    log.info("Starting the warehouse dashboard")
-    log.info(divider)
+    # Define logging process
+    log = logging.getLogger(Path(__file__).stem)
+    major_header(log, "Starting the warehouse dashboard")
 
     app = Dash(__name__, external_stylesheets=CSS_STYLE)
     app.title = "Warehouse"

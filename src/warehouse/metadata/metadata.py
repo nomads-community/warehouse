@@ -33,7 +33,7 @@ from warehouse.lib.general import (
     identify_path_by_search,
     produce_dir,
 )
-from warehouse.lib.logging import divider, identify_cli_command
+from warehouse.lib.logging import major_header, minor_header
 from warehouse.lib.regex import Regex_patterns
 
 pretty_errors.configure(stack_depth=1, display_locals=1)
@@ -58,23 +58,20 @@ def metadata(
 
     # Set up child log and enter cli cmd
     log = logging.getLogger(script_dir.stem)
-    log.debug(identify_cli_command())
+    major_header(log, "Processing all data:")
 
-    log.info(divider)
-    log.info("Loading experimental data:")
-    log.info(divider)
-
+    minor_header(log, "Experimental data:")
     exp_data = ExpDataMerge(Path(exp_folder), output_folder, verbose=verbose)
 
-    log.info("Processing sequencing data")
+    minor_header(log, "Sequencing data:")
     seq_data = SequencingMetadataParser(Path(seq_folder), output_folder)
     seq_data.incorporate_experimental_data_to_sequence_class(exp_data)
 
-    log.info("Processing sample metadata file")
+    minor_header(log, "Sample metadata:")
     sample_data = SampleMetadataParser(Path(sample_metadata_file), output_folder)
     sample_data.incorporate_experimental_data_to_sampleclass(exp_data)
 
-    log.info("Merging all data")
+    minor_header(log, "Merging all data")
     combined_data = Combine_Exp_Seq_Sample_data(
         exp_data, seq_data, sample_data, output_folder
     )
@@ -584,7 +581,6 @@ class ExpDataMerge:
             for filepath in exp_fns
         }
         self.expdata_dict = expdata_dict
-        log.info(divider)
 
         # Concatenate all the exp level data into a df
         self.expts_df = pd.concat(expdata_dict[key].expt_df for key in expdata_dict)
@@ -642,7 +638,6 @@ class ExpDataMerge:
                     "suffixes": ["_PCR", "_seqlib"],
                     "mismatch_escape": (ExpDataSchema.PCR_IDENTIFIER[0], "no pcr"),
                 }
-
             log.info("Checking for data validity and merging dataframes for:")
             # Cycle through all of the joins required based on the data present. Enumerate from 1
             for count, join in enumerate(joins, start=1):
@@ -781,7 +776,6 @@ class ExpDataMerge:
             # Fill in the nan values
             alldata_df_na = alldata_df.fillna("None")
 
-            log.info("Summarising rxn performed")
             # Group and aggregate the df to give a list of all experiments performed on each sample
             col_roots = [
                 ExpDataSchema.SAMPLE_ID[0],
@@ -821,7 +815,6 @@ class ExpDataMerge:
         # Give user a summary of experiments performed
         log.info("Experiments performed:")
         log.info(tabulate_df(expt_summary_df))
-        log.info(divider)
 
     def _check_duplicate_expid(self, filepaths: list[Path]) -> None:
         """

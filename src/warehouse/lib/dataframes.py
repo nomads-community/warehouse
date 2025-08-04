@@ -114,7 +114,7 @@ def identify_export_class_attributes(obj, output_dir):
         obj: The object whose attributes to inspect.
         output_dir: The directory where the CSV files will be saved.
     """
-    log.info("   Exporting attributes:")
+    log.debug("   Exporting attributes:")
     for attr_name in [a for a in dir(obj) if not a.startswith("__")]:
         attr = getattr(obj, attr_name)
         csv_file = f"{output_dir}/{attr_name}.csv"
@@ -122,11 +122,11 @@ def identify_export_class_attributes(obj, output_dir):
         if isinstance(attr, set):
             attr = pd.DataFrame(sorted(list(attr)), columns=[f"{attr_name}_elements"])
             attr.to_csv(csv_file, index=False)
-            log.info(f"      set: '{attr_name}' saved to {csv_file}")
+            log.debug(f"      set: '{attr_name}' saved to {csv_file}")
         if isinstance(attr, pd.DataFrame):
             produce_dir(output_dir)
             attr.to_csv(csv_file, index=False)
-            log.info(f"     dataframe: '{attr_name}' saved to {csv_file}")
+            log.debug(f"     dataframe: '{attr_name}' saved to {csv_file}")
 
 
 def merge_additional_rxn_level_fields(
@@ -177,12 +177,12 @@ def merge_additional_rxn_level_fields(
     if not exp_details_missing_df.empty:
         exp_ids = list(exp_details_missing_df[colnames[0]].unique())
         log.warning(f"Warning: {exp_ids} missing matching experimental detail data.")
-        log.info(f"   {exp_details_missing_df}")
+        log.debug(tabulate_df(exp_details_missing_df))
 
     if not seq_details_missing_df.empty:
         exp_ids = list(seq_details_missing_df[colnames[0]].unique())
         log.warning(f"Warning: {exp_ids} missing matching sequence detail data.")
-        log.info(tabulate_df(seq_details_missing_df))
+        log.debug(tabulate_df(seq_details_missing_df))
 
     # Remove unnecessary entries
     if how == "left":

@@ -8,7 +8,7 @@ import yaml
 from warehouse.configure.configure import select_int_from_list
 from warehouse.lib.exceptions import GenError, PathError
 from warehouse.lib.general import check_path_present, identify_path_by_search
-from warehouse.lib.logging import divider, identify_cli_command
+from warehouse.lib.logging import divider, identify_cli_command, major_header
 from warehouse.lib.regex import Regex_patterns
 
 script_dir = Path(__file__).parent.resolve()
@@ -60,7 +60,6 @@ def configure(
     """
     # Set up child log
     log = logging.getLogger(script_dir.stem + "_commands")
-    log.info(divider)
     log.debug(identify_cli_command())
 
     # Load group details from YAML file
@@ -70,8 +69,7 @@ def configure(
     # List group options
     if list_groups:
         groups = ", ".join(list(groups.keys()))
-        log.info(f"Available groups are: {groups}")
-        log.info(divider)
+        major_header(log, f"Available groups are: {groups}")
         return
 
     # Check correct args passed

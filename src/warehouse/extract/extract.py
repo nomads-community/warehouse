@@ -5,7 +5,7 @@ import yaml
 
 from warehouse.configure.configure import get_configuration_value
 from warehouse.lib.general import identify_all_folders
-from warehouse.lib.logging import divider, identify_cli_command
+from warehouse.lib.logging import major_header
 from warehouse.lib.synchronise import (
     process_targets,
 )
@@ -20,11 +20,7 @@ def extract(seq_folder: Path, output_folder: Path):
     """
     # Set up child log
     log = logging.getLogger(script_dir.stem)
-    log.debug(identify_cli_command())
-
-    log.info(divider)
-    log.info("Extracting sequence data summaries to shared cloud folder:")
-    log.info(divider)
+    major_header(log, "Extracting sequence data summaries:")
 
     if not (seq_folder or output_folder):
         seq_folder = get_configuration_value("sequence_folder")
@@ -39,9 +35,9 @@ def extract(seq_folder: Path, output_folder: Path):
     target_list = list(targets.keys())
     target_string = ", ".join(target_list[:-1]) + " and " + target_list[-1]
 
-    log.info(f"Identifying sequence data summaries from {target_string}")
-    log.info(f"   Source: {seq_folder}")
-    log.info(f"   Target: {output_folder}")
+    log.debug(f"Identifying sequence data summaries from {target_string}")
+    log.debug(f"   Source: {seq_folder}")
+    log.debug(f"   Target: {output_folder}")
 
     # Identify all experimental folders
     exp_folders = [folder for folder in identify_all_folders(seq_folder)]
@@ -52,9 +48,7 @@ def extract(seq_folder: Path, output_folder: Path):
         target_folder = output_folder / relative_path
 
         # User feedback
-        log.info(f"Processing {exp_folder.name}")
+        log.info(f"   {exp_folder.name}")
 
         # Process
         process_targets(targets, exp_folder, target_folder)
-
-    log.info(divider)

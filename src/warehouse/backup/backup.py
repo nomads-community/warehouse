@@ -4,7 +4,7 @@ from pathlib import Path
 import click
 
 from warehouse.configure.configure import get_configuration_value
-from warehouse.lib.logging import divider, identify_cli_command
+from warehouse.lib.logging import identify_cli_command, major_header
 from warehouse.lib.synchronise import selective_rsync
 
 script_dir = Path(__file__).parent.resolve()
@@ -28,10 +28,7 @@ def backup(backup_folder: Path) -> None:
 
     # Set up child log
     log = logging.getLogger(script_dir.stem)
-    log.info(divider)
     log.debug(identify_cli_command())
+    major_header(log, f"Backing up sequence data from {seq_folder} to {backup_folder}")
 
-    log.info(f"Backing up sequence data from {seq_folder} to {backup_folder}")
     selective_rsync(source_dir=seq_folder, target_dir=backup_folder, recursive=True)
-
-    log.info(divider)

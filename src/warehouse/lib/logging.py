@@ -71,3 +71,16 @@ def identify_cli_command() -> str:
     ctx = click.get_current_context()
     flags = format_cli_flags(ctx.args, ctx.params)
     return f"{ctx.command.name} {flags})"
+
+
+def major_header(log: logging, msg: str):
+    log.info("")
+    log.info(divider)
+    log.info(msg)
+    log.info(divider)
+
+
+def minor_header(log: logging, msg: str):
+    log.info("")
+    log.info(f"   {msg}")
+    log.info(f"   {divider}")

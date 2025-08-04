@@ -15,7 +15,7 @@ from warehouse.lib.general import (
     identify_single_folder,
     is_directory_empty,
 )
-from warehouse.lib.logging import divider, identify_cli_command
+from warehouse.lib.logging import major_header
 from warehouse.lib.regex import Regex_patterns
 from warehouse.lib.synchronise import chown_path_to_user_with_sudo
 
@@ -31,11 +31,7 @@ def aggregate(seq_folder: Path, git_folder: Path):
     """
     # Set up child log
     log = logging.getLogger(script_dir.stem)
-    log.debug(identify_cli_command())
-
-    log.info(divider)
-    log.info("Aggregating sequence data into sequence folders:")
-    log.info(divider)
+    major_header(log, "Aggregating sequence data into sequence folders:")
 
     # Identify and load targets dict from YAML file
     locations_yaml = script_dir / "locations.yml"
@@ -54,14 +50,12 @@ def aggregate(seq_folder: Path, git_folder: Path):
         if count == 0:
             summary_df = pd.DataFrame(columns=columns)
         summary_df.loc[len(summary_df)] = results
-        log.info(divider)
 
     if len(summary_df) > 0:
-        log.info("The following experiments were processed:")
+        log.info("")
         log.info(tabulate_df(summary_df))
     else:
         log.info("No experiments were identified for aggregation.")
-    log.info(divider)
 
 
 def move_folder(
@@ -120,7 +114,7 @@ def aggregate_seq_data_to_single_dir(
         log.info(f"   Experiment ID not found in path: {expt_dir}. Skipping...")
         return
 
-    log.info(f"Aggregating data for experiment {expt_id} into {expt_dir}")
+    log.debug(f"  {expt_id} into {expt_dir}")
 
     # Record outcomes for each process with columns:
     # expt_id, target1, target 2...
@@ -135,11 +129,11 @@ def aggregate_seq_data_to_single_dir(
         log.debug(f"destination_dir: {destination_dir}")
 
         if not destination_dir.exists():
-            log.info(f"   {key_name} destination folder not found. Skipping...")
+            log.debug(f"   {key_name} destination folder not found. Skipping...")
             results.append("Destination Missing")
             continue
         if not is_directory_empty(destination_dir, raise_error=False):
-            log.info(f"   {key_name} destination folder not empty. Skipping...")
+            log.debug(f"   {key_name} destination folder not empty. Skipping...")
             results.append("Present")
             continue
 
@@ -159,7 +153,7 @@ def aggregate_seq_data_to_single_dir(
             recursive=False,
         )
         if not source_dir:
-            log.info(f"   {key_name} source folder not found. Skipping...")
+            log.debug(f"   {key_name} source folder not found. Skipping...")
             results.append("Source Missing")
             continue
 
