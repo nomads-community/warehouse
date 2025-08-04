@@ -37,7 +37,6 @@ def selective_rsync(
 
     # delete only works if recursive is True
     if recursive:
-        rsync_components.append("--recursive")
         if delete:
             rsync_components.append("--delete")
     else:
