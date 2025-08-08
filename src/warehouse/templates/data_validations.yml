@@ -105,15 +105,15 @@ NOMADS_Library_Rapid_Worksheet:
     sequencing_platform:
       ref_range: Reference!E25:E30
       ref_type: list
-      apply_to_cell: C41
+      apply_to_cell: C50
     flowcellstatus:
       ref_range: Reference!E17:E18
       ref_type: list
-      apply_to_cell: C43
+      apply_to_cell: C52
     flowcellchemistry:
       ref_range: Reference!E33
       ref_type: list
-      apply_to_cell: C45
+      apply_to_cell: C54
   Library:
     sample_type:
       ref_range: Reference!E52:E54
