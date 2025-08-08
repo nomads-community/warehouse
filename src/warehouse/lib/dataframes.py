@@ -214,8 +214,14 @@ def concat_files_add_expID(
 
     # Extract data, add in experiment ID and concatenate all data
     for file in files:
-        expid = identify_exptid_from_path(file)
+        expid = identify_exptid_from_path(file, raise_error=False)
 
+        # Ensure there is an expid
+        if not expid:
+            log.warning(f"No ExpID identified for {file}, skipping...")
+            continue
+
+        # Process according to filetype
         if file.suffix == ".csv":
             data = pd.read_csv(file)
             data[EXP_ID_COL] = expid
