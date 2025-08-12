@@ -147,7 +147,7 @@ def check_no_openfiles(fn_list: list):
     # Ensure there are not any open files in the supplied list
     if openfiles:
         raise ValueError(
-            f"{len(openfiles)} open files identified. Please close and run again:"
+            f"{len(openfiles)} open file(s) identified ({openfiles}). Please close and run again. "
         )
 
 
