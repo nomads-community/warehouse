@@ -4,14 +4,15 @@ from pathlib import Path
 import yaml
 from openpyxl import load_workbook
 
-from warehouse.lib.exceptions import DataFormatError
-from warehouse.lib.general import identify_path_by_search, pad_list, produce_dir
-from warehouse.lib.logging import divider, major_header
+from warehouse.configure.configure import get_configuration_value
+from warehouse.lib.general import identify_path_by_search, produce_dir
+from warehouse.lib.logging import major_header
 from warehouse.lib.regex import Regex_patterns
 from warehouse.lib.spreadsheets import (
     apply_worksheet_conditional_formatting,
     apply_worksheet_validation_rule,
 )
+from warehouse.lib.strings import get_initials
 
 # Resolve file / folder locations irrespective of cwd
 script_dir = Path(__file__).parent.resolve()
@@ -27,11 +28,6 @@ def templates(group_name: str, output_folder: Path):
     log = logging.getLogger(script_dir.stem)
     major_header(log, "Generating templates:")
 
-    # Load group details from YAML file
-    group_details_yaml = script_dir / "group_details.yml"
-    with open(group_details_yaml, "r") as f:
-        details = yaml.safe_load(f)
-
     # Load data validation details from YAML file
     data_validations_yaml = script_dir / "data_validations.yml"
     with open(data_validations_yaml, "r") as f:
@@ -42,24 +38,14 @@ def templates(group_name: str, output_folder: Path):
     with open(conditional_formatting_yaml, "r") as f:
         formatting_rules = yaml.safe_load(f)
 
-    # Extract group names
-    grp_details = details.get(group_name)
-    if grp_details is None:
-        raise DataFormatError(
-            f"-g '{group_name}' not found. Options are {list(details.keys())}."
-        )
-
-    if not output_folder:
-        log.info("You have not defined an output folder (-o) option")
-        log.info(divider)
-        return
-
     # Identify all template files
     template_fns = identify_path_by_search(
         folder_path=templates_dir, pattern=Regex_patterns.EXCEL_FILE, files_only=True
     )
     # Limit to those relevent to the group:
-    template_fns = [t for t in template_fns if t.stem in grp_details.get("templates")]
+    template_fns = [
+        t for t in template_fns if t.stem in get_configuration_value("templates")
+    ]
 
     # Create the output folder
     produce_dir(output_folder)
@@ -70,11 +56,16 @@ def templates(group_name: str, output_folder: Path):
         workbook = load_workbook(template_fn)
         # Select the correct worksheet
         worksheet = workbook["Reference"]
-
+        grp_details = [
+            get_configuration_value("names"),
+            [get_initials(name) for name in get_configuration_value("names")],
+            get_configuration_value("projects"),
+        ]
         # Names, initials and projects are in cols I,J and L
-        for dict_key, col_num in zip(grp_details.keys(), [9, 10, 12]):
-            # Extract the correct values to enter
-            details = pad_list(grp_details, dict_key, 10)
+        for detail_list, col_num in zip(grp_details, [9, 10, 12]):
+            # Pad the list to a length of 10
+            details = detail_list + [""] * (10 - len(detail_list))
+
             # Names, initials and projects are in rows 17 to 26
             for count, xl_row in enumerate(range(17, 27)):
                 # Define the cell to edit

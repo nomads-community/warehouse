@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 
 from warehouse.lib.decorators import singleton
-from warehouse.lib.exceptions import PathError
+from warehouse.lib.exceptions import GenError, PathError
 from warehouse.lib.logging import minor_header
 
 # Get logging process
@@ -30,7 +30,7 @@ def get_configuration_value(config_key: str) -> Path | str:
     value = config_dict.get(config_key, "")
     # Check if empty
     if (not value) and (value is not False):
-        raise PathError(f"Unable to identify {config_key}")
+        raise GenError(f"Unable to identify {config_key}")
 
     # Check if a path
     if isinstance(value, str) and ("/" in value or "\\" in value):

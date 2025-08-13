@@ -435,9 +435,3 @@ def produce_dir(*args, verbose: bool = True) -> Path:
             log.info(f"   {dir.absolute()} created")
 
     return dir
-
-
-def pad_list(dictionary: dict, key: str, padlength: int) -> list:
-    details = dictionary.get(key)
-    details = details + [""] * (padlength - len(details))
-    return details
