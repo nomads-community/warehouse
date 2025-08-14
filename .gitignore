@@ -25,5 +25,5 @@ experiments
 logs
 results
 data
-example_data/experimental/templates
+example_data/experimental/templates/*.xlsx
 warehouse_config.yml

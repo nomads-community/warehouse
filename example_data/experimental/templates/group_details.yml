@@ -1,0 +1,18 @@
+# YAML file containing names of researchers and projects for each NOMADS group
+# Values are used to update template references
+group: EXAMPLE
+names:
+- John Smith
+- Fiona Waiting
+- Terence Broad
+initials:
+- JS
+- FW
+- TB
+projects:
+- NOMADS
+templates:
+- NOMADS_PCR_Worksheet
+- NOMADS_Library_Rapid_Worksheet
+- NOMADS_sWGA_Worksheet
+- NOMADS_Library_Ligation_Worksheet
