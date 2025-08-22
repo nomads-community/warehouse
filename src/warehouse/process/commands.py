@@ -7,8 +7,8 @@ from warehouse.aggregate.aggregate import aggregate, currently_sequencing
 from warehouse.configure.configure import get_configuration_value
 from warehouse.extract.extract import extract
 from warehouse.lib.general import produce_dir
-from warehouse.lib.logging import divider, identify_cli_command
-from warehouse.metadata.metadata import metadata
+from warehouse.lib.logging import divider, identify_cli_command, minor_header
+from warehouse.metadata.metadata import ExpDataMerge, metadata
 from warehouse.seqfolders.seqfolders import seqfolders
 from warehouse.templates.templates import templates
 from warehouse.visualise.commands import visualise
@@ -48,34 +48,39 @@ def process(ctx):
     templates(group_name=group_name, output_folder=shared_templates_dir)
 
     ######################################################
-    # Selectively extract to cloud share
-    # Note this needs to be run before metadata in case there is no matching data
-    if full_config:
-        extract(seq_folder=seq_data_folder, output_folder=shared_seq_dir)
-
-    ######################################################
     # Pull in experimental data
-    exp_data, seq_data, sample_data, combined_data = metadata(
-        exp_folder=shared_exp_dir,
-        seq_folder=shared_seq_dir,
-        sample_metadata_file=shared_sample_file,
-        output_folder=output_folder,
-        verbose=verbose,
-    )
+    minor_header(log, "Experimental data:")
+    exp_data = ExpDataMerge(Path(shared_exp_dir), output_folder, verbose=verbose)
 
     ######################################################
-    # Build sequence data folders
+    # Run all the full_config processes before running metadata to ensure everything is
+    # in its correct place
     if full_config:
+        ######################################################
+        # Build sequence data folders
+        # TODO: Add logic for if this is the first time being run
         seqfolders(exp_data, seq_data_folder)
 
-    ######################################################
-    # Aggregate data into one location
-    if full_config:
+        ######################################################
+        # Aggregate data into one location
         if not currently_sequencing():
             aggregate(seq_data_folder, git_dir)
         else:
             log.info("Skipping aggregation as a run is currently in progress")
             log.info(divider)
+
+        ######################################################
+        # Selectively extract to cloud share
+        extract(seq_folder=seq_data_folder, output_folder=shared_seq_dir)
+
+    ######################################################
+    # Pull in experimental data
+    seq_data, sample_data, combined_data = metadata(
+        exp_data=exp_data,
+        seq_folder=shared_seq_dir,
+        sample_metadata_file=shared_sample_file,
+        output_folder=output_folder,
+    )
 
     ######################################################
     # View dashboard

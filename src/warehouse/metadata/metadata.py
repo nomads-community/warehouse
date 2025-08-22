@@ -45,40 +45,6 @@ log = logging.getLogger(Path(__file__).stem)
 script_dir = Path(__file__).parent.resolve()
 
 
-def metadata(
-    exp_folder: Path,
-    seq_folder: Path,
-    sample_metadata_file: Path,
-    output_folder: Path = None,
-    verbose: bool = False,
-):
-    """
-    Validate, merge and export experimental, metadata and sequence data
-    """
-
-    # Set up child log and enter cli cmd
-    log = logging.getLogger(script_dir.stem)
-    major_header(log, "Processing all data:")
-
-    minor_header(log, "Experimental data:")
-    exp_data = ExpDataMerge(Path(exp_folder), output_folder, verbose=verbose)
-
-    minor_header(log, "Sequencing data:")
-    seq_data = SequencingMetadataParser(Path(seq_folder), output_folder)
-    seq_data.incorporate_experimental_data_to_sequence_class(exp_data)
-
-    minor_header(log, "Sample metadata:")
-    sample_data = SampleMetadataParser(Path(sample_metadata_file), output_folder)
-    sample_data.incorporate_experimental_data_to_sampleclass(exp_data)
-
-    minor_header(log, "Merging all data")
-    combined_data = Combine_Exp_Seq_Sample_data(
-        exp_data, seq_data, sample_data, output_folder
-    )
-
-    return exp_data, seq_data, sample_data, combined_data
-
-
 @dataclass
 class SchemaParser:
     """
@@ -1418,3 +1384,33 @@ def create_sample_set(
     df["rxn_uid"] = df["expt_id"] + "_" + df["barcode"]
 
     return df
+
+
+def metadata(
+    exp_data: ExpDataMerge,
+    seq_folder: Path,
+    sample_metadata_file: Path,
+    output_folder: Path = None,
+):
+    """
+    Validate, merge and export sample and sequence data with experimental data
+    """
+
+    # Set up child log and enter cli cmd
+    log = logging.getLogger(script_dir.stem)
+    major_header(log, "Processing sequence and sample data:")
+
+    minor_header(log, "Sequencing data:")
+    seq_data = SequencingMetadataParser(Path(seq_folder), output_folder)
+    seq_data.incorporate_experimental_data_to_sequence_class(exp_data)
+
+    minor_header(log, "Sample metadata:")
+    sample_data = SampleMetadataParser(Path(sample_metadata_file), output_folder)
+    sample_data.incorporate_experimental_data_to_sampleclass(exp_data)
+
+    minor_header(log, "Merging all data")
+    combined_data = Combine_Exp_Seq_Sample_data(
+        exp_data, seq_data, sample_data, output_folder
+    )
+
+    return seq_data, sample_data, combined_data

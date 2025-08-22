@@ -22,6 +22,7 @@ def load_warehouse_configuration_dict() -> dict:
     minor_header(log, "Loading warehouse configuration:")
     with open(config_file, "r") as f:
         config_dict = yaml.safe_load(f)
+    log.info("   Done")
     return config_dict
 
 
