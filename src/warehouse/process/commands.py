@@ -40,10 +40,18 @@ def process(ctx):
     group_name = get_configuration_value("group_name")
     output_folder = get_configuration_value("output_folder")
     produce_dir(output_folder)
+    if full_config:
+        seq_data_folder = get_configuration_value("sequence_folder")
 
     ######################################################
     # Rebuild templates
     templates(group_name=group_name, output_folder=shared_templates_dir)
+
+    ######################################################
+    # Selectively extract to cloud share
+    # Note this needs to be run before metadata in case there is no matching data
+    if full_config:
+        extract(seq_folder=seq_data_folder, output_folder=shared_seq_dir)
 
     ######################################################
     # Pull in experimental data
@@ -58,8 +66,6 @@ def process(ctx):
     ######################################################
     # Build sequence data folders
     if full_config:
-        seq_data_folder = get_configuration_value("sequence_folder")
-        # Ensure all seqfolders have been created
         seqfolders(exp_data, seq_data_folder)
 
     ######################################################
@@ -70,11 +76,6 @@ def process(ctx):
         else:
             log.info("Skipping aggregation as a run is currently in progress")
             log.info(divider)
-
-    ######################################################
-    # Selectively extract to cloud share
-    if full_config:
-        extract(seq_folder=seq_data_folder, output_folder=shared_seq_dir)
 
     ######################################################
     # View dashboard
