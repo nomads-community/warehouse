@@ -137,7 +137,7 @@ def configure(
         script_dir.parent.parent.parent
         / "notebooks"
         / "data"
-        / details.get("group_name", "default")
+        / details.get("group", "default")
         / metadata_file.stem
     )
     config_data["output_folder"] = str(output_folder.resolve())

@@ -58,7 +58,6 @@ def process(ctx):
     if full_config:
         ######################################################
         # Build sequence data folders
-        # TODO: Add logic for if this is the first time being run
         seqfolders(exp_data, seq_data_folder)
 
         ######################################################
