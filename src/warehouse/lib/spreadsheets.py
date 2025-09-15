@@ -96,3 +96,28 @@ def apply_worksheet_conditional_formatting(worksheet, formatting_dict: dict) -> 
                 fill=fill,
             ),
         )
+
+
+def extract_values_from_named_range(workbook, range_name: str) -> list:
+    """
+    Extracts values from a named range in an Excel workbook.
+
+    workbook: openpyxl workbook object
+    range_name: name of the range to extract values from
+
+    Returns a list of values from the named range.
+    """
+    named_range = workbook.defined_names[range_name]
+    # workbook.defined_names["exp_version"]
+
+    if not named_range:
+        log.error(f"Named range '{range_name}' not found in the workbook.")
+        return []
+
+    values = []
+    for sheetname, cell_address in named_range.destinations:
+        sheet = workbook[sheetname]
+        cell = sheet[cell_address]
+        values.append(cell.value)
+
+    return values

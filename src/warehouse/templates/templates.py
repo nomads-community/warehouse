@@ -1,4 +1,5 @@
 import logging
+import warnings
 from pathlib import Path
 
 import yaml
@@ -11,8 +12,12 @@ from warehouse.lib.regex import Regex_patterns
 from warehouse.lib.spreadsheets import (
     apply_worksheet_conditional_formatting,
     apply_worksheet_validation_rule,
+    extract_values_from_named_range,
 )
 from warehouse.lib.strings import get_initials
+
+# The exact message to ignore
+warnings.filterwarnings("ignore", category=UserWarning)
 
 # Resolve file / folder locations irrespective of cwd
 script_dir = Path(__file__).parent.resolve()
@@ -53,9 +58,22 @@ def templates(group_name: str, output_folder: Path):
     # For each template change the names, initials and projects
     for template_fn in template_fns:
         # Load the workbook
-        workbook = load_workbook(template_fn)
+        ref_workbook = load_workbook(template_fn)
+        master_version = extract_values_from_named_range(ref_workbook, "exp_version")[0]
+        curr_template = output_folder / template_fn.name
+        if curr_template.exists():
+            curr_workbook = load_workbook(curr_template)
+            curr_version = extract_values_from_named_range(
+                curr_workbook, "exp_version"
+            )[0]
+            if master_version <= curr_version:
+                log.debug(
+                    f"{template_fn.stem} already exists in {output_folder} and is the latest version ({master_version})"
+                )
+                continue
+
         # Select the correct worksheet
-        worksheet = workbook["Reference"]
+        worksheet = ref_workbook["Reference"]
         grp_details = [
             get_configuration_value("names"),
             [get_initials(name) for name in get_configuration_value("names")],
@@ -78,7 +96,7 @@ def templates(group_name: str, output_folder: Path):
 
         for sheetname, validation in validations.get(template_fn.stem, {}).items():
             # Load worksheet
-            worksheet = workbook[sheetname]
+            worksheet = ref_workbook[sheetname]
             log.debug(type(worksheet))
             log.debug(f"   Worksheet name: {sheetname}")
             for validationname, validation in validation.items():
@@ -88,7 +106,7 @@ def templates(group_name: str, output_folder: Path):
         # Then restore the conditional formatting logic that is somehow overwritten when replacing the above details
         for sheetname, format in formatting_rules.get(template_fn.stem, {}).items():
             # Load worksheet
-            worksheet = workbook[sheetname]
+            worksheet = ref_workbook[sheetname]
             log.debug(type(worksheet))
             log.debug(f"   Worksheet name: {sheetname}")
             for formattingnname, format in format.items():
@@ -97,6 +115,6 @@ def templates(group_name: str, output_folder: Path):
 
         # Define output path
         output_path = Path(output_folder) / template_fn.name
-        log.info(f"{template_fn.name} output to {output_folder}")
+        log.info(f"{template_fn.name} updated and output to {output_folder}")
         # Save the modified workbook
-        workbook.save(output_path)
+        ref_workbook.save(output_path)
