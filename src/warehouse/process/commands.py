@@ -31,14 +31,17 @@ def process(ctx):
 
     ######################################################
     # pull in warehouse configure definitions
+
     full_config = get_configuration_value("full_config")
     shared_exp_dir = get_configuration_value("shared_experimental_dir")
     shared_seq_dir = get_configuration_value("shared_sequence_dir")
     shared_templates_dir = get_configuration_value("shared_templates_dir")
     shared_sample_file = get_configuration_value("shared_sample_file")
-    git_dir = get_configuration_value("git_dir")
+    nomadic_dir = get_configuration_value("nomadic_dir")
+    savanna_dir = get_configuration_value("savanna_dir")
     group_name = get_configuration_value("group_name")
     output_folder = get_configuration_value("output_folder")
+    minknow_dir = get_configuration_value("minknow_dir")
     produce_dir(output_folder)
     if full_config:
         seq_data_folder = get_configuration_value("sequence_folder")
@@ -58,12 +61,22 @@ def process(ctx):
     if full_config:
         ######################################################
         # Build sequence data folders
-        seqfolders(exp_data, seq_data_folder)
-
+        seqfolders(
+            experiment_data=exp_data,
+            seq_folder=seq_data_folder,
+            nomadic_results_dir=nomadic_dir / "results",
+            savanna_results_dir=savanna_dir,
+            minknow_dir=minknow_dir,
+        )
         ######################################################
         # Aggregate data into one location
         if not currently_sequencing():
-            aggregate(seq_data_folder, git_dir)
+            aggregate(
+                seq_folder=seq_data_folder,
+                nomadic_dir=nomadic_dir / "results",
+                savanna_dir=savanna_dir,
+                minknow_dir=minknow_dir,
+            )
         else:
             log.info("Skipping aggregation as a run is currently in progress")
             log.info(divider)

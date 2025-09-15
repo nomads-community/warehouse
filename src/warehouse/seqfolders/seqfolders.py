@@ -3,7 +3,6 @@ from pathlib import Path
 
 import yaml
 
-from warehouse.configure.configure import get_configuration_value
 from warehouse.lib.general import (
     identify_all_folders_with_expid,
     produce_dir,
@@ -15,6 +14,9 @@ from warehouse.metadata.metadata import ExpDataMerge
 def seqfolders(
     experiment_data: ExpDataMerge,
     seq_folder: Path,
+    nomadic_results_dir: Path,
+    savanna_results_dir: Path,
+    minknow_dir: Path,
 ):
     """
     Create NOMADS sequencing folder structure including relevent data
@@ -36,37 +38,35 @@ def seqfolders(
     # Get all exisiting seqfolder ExpIDS
     seq_folder_expids = identify_all_folders_with_expid(seq_folder)
 
-    # Get all minknow, nomadic and savanna entries
-    all_expids = []
-    for target in ["nomadic_results_dir", "savanna_results_dir", "minknow_dir"]:
-        value = get_configuration_value(target)
-        exp_dict = identify_all_folders_with_expid(value)
+    # Get all minknow, nomadic and savanna directories that aren't symlinks i.e. new data
+    new_expids = []
+    for dir in [nomadic_results_dir, savanna_results_dir, minknow_dir]:
+        exp_dict = identify_all_folders_with_expid(dir)
         expids = [k for k, v in exp_dict.items() if not v.is_symlink()]
-        log.debug(f"{target}: {value}, {exp_dict.keys()}, {expids}")
-        all_expids = all_expids + expids
+        new_expids = new_expids + expids
     # Make unique set
-    all_expids = set(all_expids)
+    new_expids = set(new_expids)
 
-    for exp_id, exp in experiment_data.expdata_dict.items():
-        # Must be a seqlib experiment
+    for exp_id in new_expids:
+        # Check this expid is in the experimental data
+        if exp_id not in experiment_data.expdata_dict.keys():
+            log.debug(f"ExpID: {exp_id} not in experimental data")
+            continue
+        # Check this expid is a seqlib experiment
+        exp = experiment_data.expdata_dict[exp_id]
         if not exp.expt_type == "seqlib":
+            log.debug(f"ExpID: {exp_id} not a seqlib experiment")
             continue
-        # There must not be an existing folder referencing the same EXPID
+        # There must NOT be an existing folder referencing the same EXPID
         if exp_id in seq_folder_expids.keys():
-            log.debug(f"Seqfolder for: {exp_id} already present")
+            log.debug(f"ExpID: {exp_id} already has a seqfolder")
             continue
-        # Must have data from minknow / nomadic etc that references this EXPID
-        # This prevents the creation of loads of empty directories on sequencing laptops
-        if exp_id not in all_expids:
-            log.debug(f"No local data for: {exp_id}, so no seqfolder created")
-            continue
+
         log.debug(f"Creating seqfolder for: {exp_id}")
-        # Create the new folder
         new_folder_name = create_experiment_name(
             exp.expt_date, exp.expt_id, exp.expt_summary
         )
         seqfolder_path = seq_folder / new_folder_name
-        log.info(f"   Creating seqfolder: {seqfolder_path}")
         produce_dir(seqfolder_path)
         seqfolder_created = True
         # Populate with subdirectories

@@ -25,10 +25,13 @@ script_dir = Path(__file__).parent.resolve()
 log = logging.getLogger(script_dir.stem)
 
 
-def aggregate(seq_folder: Path, git_folder: Path):
+def aggregate(
+    seq_folder: Path, nomadic_dir: Path, savanna_dir: Path, minknow_dir: Path
+):
     """
     Aggregate raw sequence data outputs into the standardised seqfolders structure
     """
+    # TODO: Test if the move folder is across partitions. If so then rsync and delete original
     # Set up child log
     log = logging.getLogger(script_dir.stem)
     major_header(log, "Aggregating sequence data into sequence folders:")
@@ -37,19 +40,20 @@ def aggregate(seq_folder: Path, git_folder: Path):
     locations_yaml = script_dir / "locations.yml"
     with open(locations_yaml, "r") as f:
         locations = yaml.safe_load(f)
+    # Add in the source_dir for each folder
+    locations["minknow"]["source_dir"] = minknow_dir
+    locations["nomadic"]["source_dir"] = nomadic_dir
+    locations["savanna"]["source_dir"] = savanna_dir
 
     # Define list of experiment folders
     expt_dirs = identify_folders_by_pattern(seq_folder, Regex_patterns.NOMADS_EXPID)
 
     summary_df = pd.DataFrame()
-    # Process each folder
     for count, expt_dir in enumerate(expt_dirs):
-        results, columns = aggregate_seq_data_to_single_dir(
-            locations, expt_dir, git_folder
-        )
-        if count == 0:
-            summary_df = pd.DataFrame(columns=columns)
-        summary_df.loc[len(summary_df)] = results
+        results, columns = aggregate_seq_data_to_single_dir(locations, expt_dir)
+    if count == 0:
+        summary_df = pd.DataFrame(columns=columns)
+    summary_df.loc[len(summary_df)] = results
 
     if len(summary_df) > 0:
         log.info("")
@@ -95,17 +99,13 @@ def move_folder(
         return f"   Error moving folder / creating symlink: {e}"
 
 
-def aggregate_seq_data_to_single_dir(
-    locations: dict, expt_dir: Path, git_folder: Path
-) -> list:
+def aggregate_seq_data_to_single_dir(locations: dict, expt_dir: Path) -> list:
     """
     Check presence of expected folders (whether full) and then move to expt_folder.
 
     Args:
         locations: A dictionary containing the transfer specifics.
         expt_dir: The path to the experiment directory.
-        git_folder: The path to the git folder.
-
 
     """
     # Get the expt_id for the path
@@ -137,11 +137,7 @@ def aggregate_seq_data_to_single_dir(
             results.append("Present")
             continue
 
-        # Identify source_dir
-        if values.get("git_prefix"):
-            source_dir = git_folder / values.get("source_dir")
-        else:
-            source_dir = Path(values.get("source_dir"))
+        source_dir = Path(values.get("source_dir"))
         # Ensure it is a not a symlink
         if source_dir.is_symlink():
             continue

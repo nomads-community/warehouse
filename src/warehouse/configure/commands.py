@@ -26,22 +26,30 @@ script_dir = Path(__file__).parent.resolve()
     help="Shared data folder synchronised to Google Drive",
 )
 @click.option(
+    "-n",
+    "--nomadic_folder",
+    type=Path,
+    required=True,
+    help="Path to nomadic workspace folder",
+)
+@click.option(
+    "-v",
+    "--savanna_folder",
+    default=Path.home() / "git" / "savanna" / "results",
+    type=Path,
+    help="Path to savanna folder",
+)
+@click.option(
     "-s",
     "--sequence_folder",
     type=Path,
     help="Path to folder containing all raw sequencing data. Only needed if this is a sequencing laptop",
 )
-@click.option(
-    "-g",
-    "--git_folder",
-    type=Path,
-    default=Path.home() / "git",
-    help="Path to git folder containing nomadic and savanna clones. Default is ~/git",
-)
 def configure(
     sequence_folder: Path,
+    nomadic_folder: Path,
+    savanna_folder: Path,
     shared_data_folder: Path,
-    git_folder: Path,
 ) -> None:
     """
     Configure all variables necessary to routinely run warehouse. Values are checked and then stored
@@ -72,15 +80,6 @@ def configure(
     # Add the templates folder
     template_path = exp_path / "templates"
     config_data["shared_templates_dir"] = str(template_path.resolve())
-    # Check group details yaml exists and load
-    group_details_yaml = template_path / "group_details.yml"
-    check_path_present(group_details_yaml, isfile=True, raise_error=True)
-    with open(group_details_yaml, "r") as f:
-        details = yaml.safe_load(f)
-    config_data["group_name"] = details.get("group", "default")
-    config_data["names"] = details.get("names", [])
-    config_data["projects"] = details.get("projects", [])
-    config_data["templates"] = details.get("templates", [])
     # Identify sequence folder
     path = shared_data_folder / "sequence"
     check_path_present(path, raise_error=True)
@@ -115,8 +114,15 @@ def configure(
         metadata_file.with_suffix(".yml").resolve()
     )
 
-    # Add in git folder
-    config_data["git_dir"] = str(git_folder.resolve())
+    # Check group details yaml exists and load
+    group_details_yaml = template_path / "group_details.yml"
+    check_path_present(group_details_yaml, isfile=True, raise_error=True)
+    with open(group_details_yaml, "r") as f:
+        details = yaml.safe_load(f)
+    config_data["group_name"] = details.get("group", "default")
+    config_data["names"] = details.get("names", [])
+    config_data["projects"] = details.get("projects", [])
+    config_data["templates"] = details.get("templates", [])
 
     # Identify and load targets dict from YAML file
     locations_yaml = script_dir.parent / "aggregate" / "locations.yml"
@@ -124,13 +130,12 @@ def configure(
         locations = yaml.safe_load(f)
     # Add in the minknow dir
     config_data["minknow_dir"] = locations.get("minknow").get("source_dir")
-    # Add in the nomadic and savanna results dir
-    config_data["nomadic_results_dir"] = str(
-        git_folder / locations.get("nomadic").get("source_dir")
-    )
-    config_data["savanna_results_dir"] = str(
-        git_folder / locations.get("savanna").get("source_dir")
-    )
+
+    # Add nomadic folder
+    config_data["nomadic_dir"] = str(nomadic_folder.resolve())
+
+    # Add savanna folder
+    config_data["savanna_dir"] = str(savanna_folder.resolve())
 
     # Define the output folder
     output_folder = (
