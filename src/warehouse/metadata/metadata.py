@@ -958,52 +958,103 @@ class SequencingMetadataParser:
         # Save dataschema as an attribute
         self.DataSchema = SeqDataSchema
 
-        log.info("   Searching for bamstats file(s)")
-        bamfiles = identify_path_by_search(
-            seqdata_folder,
-            Regex_patterns.SEQDATA_BAMSTATS_CSV,
-            recursive=True,
-            files_only=True,
-            raise_error=False,
-        )
-        self.summary_bam = concat_files_add_expID(bamfiles, SeqDataSchema.EXP_ID[0])
+        # File lists
+        bamfiles = []
+        bedcovfiles = []
+        exptqcfiles = []
+        bcftools_files = []
+        qc_per_expt_files = []
 
-        log.info("   Searching for bedcov file(s)")
-        bedcovfiles = identify_path_by_search(
-            seqdata_folder,
-            Regex_patterns.SEQDATA_BEDCOV_CSV,
-            recursive=True,
-            files_only=True,
-            raise_error=False,
-        )
-        # Remove any with nomadic in path as this output is identically named in nomadic and savanna and only want latter
-        bedcovfiles = [x for x in bedcovfiles if "nomadic" not in str(x)]
+        # Sequentially search each experiment folder rather than the whole seqdata_folder for matching files
+        for exp_folder in seqdata_folder.iterdir():
+            exp_id = identify_exptid_from_path(exp_folder)
+            # Select sequence data source
+            if identify_path_by_search(
+                exp_folder / "savanna",
+                Regex_patterns.SAVANNA_BAMSTATS_CSV,
+                recursive=True,
+                files_only=True,
+                raise_error=False,
+            ):
+                log.debug(f"   Savanna data found for {exp_id} ({exp_folder})")
+                exp_folder = exp_folder / "savanna"
+            elif identify_path_by_search(
+                exp_folder / "nomadic",
+                Regex_patterns.NOMADIC_BAMSTATS_CSV,
+                recursive=True,
+                files_only=True,
+                raise_error=False,
+            ):
+                exp_folder = exp_folder / "nomadic"
+                log.warning(
+                    f"   Nomadic data found for {exp_id} ({exp_folder}), but warehouse unable to use so skipping"
+                )
+                continue
+            else:
+                log.warning(
+                    f"No savanna or nomadic data found for {exp_id} ({exp_folder}), skipping"
+                )
+                continue
+
+            bamfile = identify_path_by_search(
+                exp_folder,
+                Regex_patterns.SAVANNA_BAMSTATS_CSV,
+                recursive=True,
+                files_only=True,
+                raise_error=False,
+            )
+            bedcovfile = identify_path_by_search(
+                exp_folder,
+                Regex_patterns.SAVANNA_BEDCOV_CSV,
+                recursive=True,
+                files_only=True,
+                raise_error=False,
+                verbose=False,
+            )
+            exptqcfile = identify_path_by_search(
+                exp_folder,
+                Regex_patterns.SAVANNA_QC_PER_SAMPLE_CSV,
+                recursive=True,
+                files_only=True,
+                raise_error=False,
+            )
+            qc_per_expt_file = identify_path_by_search(
+                exp_folder,
+                Regex_patterns.SAVANNA_QC_PER_EXPT_JSON,
+                recursive=True,
+                files_only=True,
+                raise_error=False,
+            )
+            bcftools_file = identify_path_by_search(
+                exp_folder,
+                Regex_patterns.SAVANNA_BCFTOOLS_OUTPUT_TSV,
+                recursive=True,
+                files_only=True,
+                raise_error=False,
+            )
+
+            if not all(
+                [bamfile, bedcovfile, exptqcfile, qc_per_expt_file, bcftools_file]
+            ):
+                log.debug(f"Incomplete data for {exp_id} ({exp_folder}), skipping")
+                continue
+
+            # Extend list of files to process
+            bamfiles.extend(bamfile)
+            bedcovfiles.extend(bedcovfile)
+            exptqcfiles.extend(exptqcfile)
+            qc_per_expt_files.extend(qc_per_expt_file)
+            bcftools_files.extend(bcftools_file)
+
+        self.summary_bam = concat_files_add_expID(bamfiles, SeqDataSchema.EXP_ID[0])
         self.summary_bedcov = concat_files_add_expID(
             bedcovfiles, SeqDataSchema.EXP_ID[0]
-        )
-
-        log.info("   Searching for sample QC file(s)")
-        exptqcfiles = identify_path_by_search(
-            seqdata_folder,
-            Regex_patterns.SEQDATA_QC_PER_SAMPLE_CSV,
-            recursive=True,
-            files_only=True,
-            raise_error=False,
         )
         self.qc_per_sample = concat_files_add_expID(
             exptqcfiles, SeqDataSchema.EXP_ID[0]
         )
-
-        log.info("   Searching for experiment QC file(s)")
-        qc_per_expt_files = identify_path_by_search(
-            seqdata_folder,
-            Regex_patterns.SEQDATA_QC_PER_EXPT_JSON,
-            recursive=True,
-            files_only=True,
-            raise_error=False,
-        )
         qc_per_expt = concat_files_add_expID(qc_per_expt_files, SeqDataSchema.EXP_ID[0])
-        # Add in additional calculations not made from savanna
+        # Add in additional calculations not made by savanna
         if not qc_per_expt.empty:
             qc_per_expt[SeqDataSchema.PERCENT_SAMPLES_PASSEDCOV[0]] = (
                 qc_per_expt[SeqDataSchema.N_SAMPLES_PASS_COV_THRSHLD[0]]
@@ -1014,18 +1065,7 @@ class SequencingMetadataParser:
                 / qc_per_expt[SeqDataSchema.N_SAMPLES[0]]
             ) * 100
         self.qc_per_expt = qc_per_expt
-
-        log.info("   Searching for bcftools file(s)")
-        bcftools_files = identify_path_by_search(
-            seqdata_folder,
-            Regex_patterns.SEQDATA_BCFTOOLS_OUTPUT_TSV,
-            recursive=True,
-            files_only=True,
-            raise_error=False,
-        )
-        # Pull in data
         self.bcftools = concat_files_add_expID(bcftools_files, SeqDataSchema.EXP_ID[0])
-
         if not self.bcftools.empty:
             # filter and clean up dtypes
             bcftools_filter_dict = create_dict_from_yaml(
@@ -1041,7 +1081,6 @@ class SequencingMetadataParser:
             self.bcftools["wsaf"] = self.bcftools["wsaf"].astype(float)
             self.bcftools = self.bcftools[self.bcftools["wsaf"] >= wsaf_threshold]
             self.bcftools["qual"] = self.bcftools["qual"].astype(float)
-
         if self.output_folder:
             identify_export_class_attributes(self, self.output_folder)
 

@@ -211,7 +211,6 @@ def concat_files_add_expID(
     # Create empty df to add data to and list of expids
     df = pd.DataFrame()
     expids = []
-
     # Extract data, add in experiment ID and concatenate all data
     for file in files:
         expid = identify_exptid_from_path(file, raise_error=False)
@@ -235,7 +234,6 @@ def concat_files_add_expID(
             data.rename(columns={"index": EXP_ID_COL}, inplace=True)
         else:
             raise DataFormatError(f"Unsupported file type: {file.suffix}")
-
         if expid in expids:
             duplicates = [str(f.parent) for f in files if expid in str(f)]
             raise DataFormatError(

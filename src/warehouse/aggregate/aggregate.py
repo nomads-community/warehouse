@@ -50,10 +50,10 @@ def aggregate(
 
     summary_df = pd.DataFrame()
     for count, expt_dir in enumerate(expt_dirs):
-        results, columns = aggregate_seq_data_to_single_dir(locations, expt_dir)
-    if count == 0:
-        summary_df = pd.DataFrame(columns=columns)
-    summary_df.loc[len(summary_df)] = results
+        row_data, columns = aggregate_seq_data_to_single_dir(locations, expt_dir)
+        if count == 0:
+            summary_df = pd.DataFrame(columns=columns)
+        summary_df.loc[len(summary_df)] = row_data
 
     if len(summary_df) > 0:
         log.info("")

@@ -15,9 +15,13 @@ class Regex_patterns:
     CSV_OPEN_FILES = re.compile(r"~lock")
     OPENFILES = re.compile("|".join([EXCEL_OPEN_FILES.pattern, CSV_OPEN_FILES.pattern]))
 
-    # Sequence Data filetypes
-    SEQDATA_BAMSTATS_CSV = re.compile(r".*summary.bamstats.*.csv")
-    SEQDATA_BEDCOV_CSV = re.compile(r".*summary.bedcov.*.csv")
-    SEQDATA_QC_PER_SAMPLE_CSV = re.compile(r".*summary.sample_qc.*.csv")
-    SEQDATA_QC_PER_EXPT_JSON = re.compile(r".*summary.experiment_qc.*.json")
-    SEQDATA_BCFTOOLS_OUTPUT_TSV = re.compile(r"bcftools.filtered.annotated.*.tsv")
+    # Sequence Data filetypes for nomadic / savanna
+    NOMADIC_BAMSTATS_CSV = re.compile(r".*summary.bam_flagstats.*.csv")
+    NOMADIC_BEDCOV_CSV = re.compile(r".*summary.read_mapping.csv")
+    NOMADIC_BCFTOOLS_OUTPUT_TSV = re.compile(r"bcftools.filtered.annotated.*.tsv")
+    # Savanna
+    SAVANNA_BAMSTATS_CSV = re.compile(r".*summary.bamstats.*.csv")
+    SAVANNA_BEDCOV_CSV = re.compile(r".*summary.bedcov.*.csv")
+    SAVANNA_QC_PER_SAMPLE_CSV = re.compile(r".*summary.sample_qc.*.csv")
+    SAVANNA_QC_PER_EXPT_JSON = re.compile(r".*summary.experiment_qc.*.json")
+    SAVANNA_BCFTOOLS_OUTPUT_TSV = re.compile(r"bcftools.filtered.annotated.*.tsv")

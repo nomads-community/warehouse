@@ -368,7 +368,7 @@ def identify_path_by_search(
                 log.info(msg)
         # Feedback to user what has been found
         if verbose:
-            log.info(f"Found {len(matches)} matching file(s)")
+            log.debug(f"Found {len(matches)} matching file(s)")
         return matches
 
     except FileNotFoundError:

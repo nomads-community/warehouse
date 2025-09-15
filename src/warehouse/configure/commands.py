@@ -129,7 +129,7 @@ def configure(
     with open(locations_yaml, "r") as f:
         locations = yaml.safe_load(f)
     # Add in the minknow dir
-    config_data["minknow_dir"] = locations.get("minknow").get("source_dir")
+    config_data["minknow_dir"] = "/var/lib/minknow/data"
 
     # Add nomadic folder
     config_data["nomadic_dir"] = str(nomadic_folder.resolve())

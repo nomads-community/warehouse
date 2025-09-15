@@ -68,6 +68,20 @@ def process(ctx):
             savanna_results_dir=savanna_dir,
             minknow_dir=minknow_dir,
         )
+
+        if (nomadic_dir / "metadata").exists():
+            cols = [
+                exp_data.dataschema.BARCODE[0],
+                exp_data.dataschema.SAMPLE_ID[0],
+                exp_data.dataschema.EXTRACTION_ID[0],
+                exp_data.dataschema.SAMPLE_TYPE[0],
+            ]
+            target_dir = nomadic_dir / "metadata"
+            for expid, expdata in exp_data.expdata_dict.items():
+                if expdata.expt_type == "seqlib":
+                    expdata.df[cols].to_csv(target_dir / f"{expid}.csv", index=False)
+            log.info("   All metadata files written to nomadic metadata folder")
+
         ######################################################
         # Aggregate data into one location
         if not currently_sequencing():
