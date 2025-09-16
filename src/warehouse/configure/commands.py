@@ -28,16 +28,16 @@ script_dir = Path(__file__).parent.resolve()
 @click.option(
     "-n",
     "--nomadic_folder",
+    default=Path.home() / "git" / "nomadic",
     type=Path,
-    required=True,
-    help="Path to nomadic workspace folder",
+    help="Path to nomadic workspace [default: ~/git/nomadic]",
 )
 @click.option(
     "-v",
     "--savanna_folder",
     default=Path.home() / "git" / "savanna" / "results",
     type=Path,
-    help="Path to savanna folder",
+    help="Path to savanna folder [default: ~/git/savanna/results]",
 )
 @click.option(
     "-s",
@@ -132,6 +132,7 @@ def configure(
     config_data["minknow_dir"] = "/var/lib/minknow/data"
 
     # Add nomadic folder
+    check_path_present(nomadic_folder, raise_error=True)
     config_data["nomadic_dir"] = str(nomadic_folder.resolve())
 
     # Add savanna folder
