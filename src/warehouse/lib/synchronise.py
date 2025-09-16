@@ -20,6 +20,8 @@ def selective_rsync(
     recursive: bool = False,
     delete: bool = False,
     checksum: bool = False,
+    verbose: bool = False,
+    progressbar: bool = False,
 ):
     """Copies contents of a folder to a new location.
 
@@ -29,11 +31,19 @@ def selective_rsync(
         exclusions(list): A list of file patterns to exclude
         recursive(bool): Copy top-level files or entire directory
         delete(bool): Delete files in target that are not in source
+        verbose(bool): Whether to output verbose rsync information
+        progressbar(bool): Whether to show a progress bar
     """
     # Base command with compress (z), verbose (v), recursive (r)) and timestamp (t) options
     # r is needed to select all entries in the folder even if the rsync is not to be recursive
     # then a all folder exclusion is added
-    rsync_components = ["rsync", "-zvrt"]
+    rsync_components = ["rsync", "-zrt"]
+
+    # Progressbar or verbose (can't have both)
+    if progressbar:
+        rsync_components.append("--info=progress2")
+    elif verbose:
+        rsync_components.append("-v")
 
     # delete only works if recursive is True
     if recursive:
@@ -58,14 +68,13 @@ def selective_rsync(
         f"{f.name}" if isinstance(f, Path) else f for f in rsync_components
     ]
     log.debug(f"{' '.join(rsync_feedback)}")
+
     try:
         # Format the rsync command properly for bash to run it
         rsync_command = [
             f"{f.resolve()}/" if isinstance(f, Path) else f for f in rsync_components
         ]
-        result = subprocess.run(
-            rsync_command, capture_output=True, text=True, check=True
-        )
+        result = subprocess.run(rsync_command, text=True, check=True)
         if result.stdout:
             log.debug(f"stdout: {result.stdout}")
         if result.stderr:
@@ -160,6 +169,49 @@ def process_targets(
             )
 
 
+def move_folder_with_rsync(
+    source_path: Path,
+    dest_path: Path,
+    chown_user: bool = False,
+    with_symlink: bool = False,
+) -> str:
+    """
+    Moves a folder with optional sudo privileges and replace with symlink in origin.
+
+    Args:
+      source_dir: The path to the folder to be moved.
+      dest_dir: The path to the destination folder.
+      chown_user: Whether to change ownership of folder to current user.
+      with_symlink: Whether to create a symlink from original location to new location.
+
+    Returns:
+      A string indicating success or the error message.
+    """
+    try:
+        # Change to user so if something goes wrong user can move files without sudo
+        if chown_user:
+            chown_path_to_user_with_sudo(source_path)
+
+        # Copy the data across with rsync first to ensure data integrity
+        selective_rsync(
+            source_dir=source_path,
+            target_dir=dest_path,
+            recursive=True,
+            delete=True,
+            progressbar=True,
+        )
+
+        if with_symlink:
+            os.symlink(dest_path, source_path)
+            log.info("   Symlink created")
+
+        # Remove the source
+        shutil.rmtree(source_path)
+
+    except subprocess.CalledProcessError as e:
+        return f"   Error moving folder: {e}"
+
+
 def move_folder(
     source_path: Path,
     dest_path: Path,
@@ -170,8 +222,10 @@ def move_folder(
     Moves a folder with optional sudo privileges and replace with symlink in origin.
 
     Args:
-      source_dir: The path to the folder to be moved.
-      dest_dir: The path to the destination folder.
+      source_path: The path to the folder to be moved.
+      dest_path: The path to the destination folder.
+      chown_user: Whether to change ownership of folder to current user.
+      with_symlink: Whether to create a symlink from original location to new location.
 
     Returns:
       A string indicating success or the error message.

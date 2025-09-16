@@ -31,4 +31,9 @@ def backup(backup_folder: Path) -> None:
     log.debug(identify_cli_command())
     major_header(log, f"Backing up sequence data from {seq_folder} to {backup_folder}")
 
-    selective_rsync(source_dir=seq_folder, target_dir=backup_folder, recursive=True)
+    selective_rsync(
+        source_dir=seq_folder,
+        target_dir=backup_folder,
+        recursive=True,
+        progressbar=True,
+    )

@@ -1,8 +1,6 @@
 import logging
 import os
 import re
-import shutil
-import subprocess
 from pathlib import Path
 
 import pandas as pd
@@ -17,7 +15,7 @@ from warehouse.lib.general import (
 )
 from warehouse.lib.logging import major_header
 from warehouse.lib.regex import Regex_patterns
-from warehouse.lib.synchronise import chown_path_to_user_with_sudo
+from warehouse.lib.synchronise import move_folder, move_folder_with_rsync
 
 # Get logging process
 
@@ -31,7 +29,6 @@ def aggregate(
     """
     Aggregate raw sequence data outputs into the standardised seqfolders structure
     """
-    # TODO: Test if the move folder is across partitions. If so then rsync and delete original
     # Set up child log
     log = logging.getLogger(script_dir.stem)
     major_header(log, "Aggregating sequence data into sequence folders:")
@@ -40,7 +37,7 @@ def aggregate(
     locations_yaml = script_dir / "locations.yml"
     with open(locations_yaml, "r") as f:
         locations = yaml.safe_load(f)
-    # Add in the source_dir for each folder
+    # Add in the source_dir for each folder to the dict
     locations["minknow"]["source_dir"] = minknow_dir
     locations["nomadic"]["source_dir"] = nomadic_dir
     locations["savanna"]["source_dir"] = savanna_dir
@@ -60,43 +57,6 @@ def aggregate(
         log.info(tabulate_df(summary_df))
     else:
         log.info("No experiments were identified for aggregation.")
-
-
-def move_folder(
-    source_path: Path,
-    dest_path: Path,
-    as_sudo: bool = False,
-    with_symlink: bool = False,
-) -> str:
-    """
-    Moves a folder using the 'sudo' command.
-
-    Args:
-      source_dir: The path to the folder to be moved.
-      dest_dir: The path to the destination folder.
-
-    Returns:
-      A string indicating success or the error message.
-    """
-    try:
-        # Convert pathlib objects to str
-        source_dir = str(source_path.resolve())
-        dest_dir = str(dest_path.resolve())
-
-        # Remove the dest_directory
-        shutil.rmtree(dest_dir)
-        # Move source to dest
-        if as_sudo:
-            subprocess.run(["sudo", "mv", source_dir, dest_dir], check=True)
-            chown_path_to_user_with_sudo(dest_path)
-        else:
-            subprocess.run(["mv", source_dir, dest_dir], check=True)
-
-        if with_symlink:
-            os.symlink(dest_dir, source_dir)
-
-    except subprocess.CalledProcessError as e:
-        return f"   Error moving folder / creating symlink: {e}"
 
 
 def aggregate_seq_data_to_single_dir(locations: dict, expt_dir: Path) -> list:
@@ -122,18 +82,18 @@ def aggregate_seq_data_to_single_dir(locations: dict, expt_dir: Path) -> list:
     results = [expt_id]
 
     # Process each target in the locations dict
-    for key_name, values in locations.items():
-        columns.append(key_name)
+    for location, values in locations.items():
+        columns.append(location)
         # Identify destination dir and ensure empty
-        destination_dir = expt_dir / key_name
+        destination_dir = expt_dir / location
         log.debug(f"destination_dir: {destination_dir}")
 
         if not destination_dir.exists():
-            log.debug(f"   {key_name} destination folder not found. Skipping...")
+            log.debug(f"   {location} destination folder not found. Skipping...")
             results.append("Destination Missing")
             continue
         if not is_directory_empty(destination_dir, raise_error=False):
-            log.debug(f"   {key_name} destination folder not empty. Skipping...")
+            log.debug(f"   {location} destination folder not empty. Skipping...")
             results.append("Present")
             continue
 
@@ -149,21 +109,38 @@ def aggregate_seq_data_to_single_dir(locations: dict, expt_dir: Path) -> list:
             recursive=False,
         )
         if not source_dir:
-            log.debug(f"   {key_name} source folder not found. Skipping...")
+            log.debug(f"   {location} source folder not found. Skipping...")
             results.append("Source Missing")
             continue
 
-        # Build the command
+        # Get values from dict for this folder
         as_sudo = values.get("as_sudo")
         with_symlink = values.get("with_symlink")
-        # Give user feedback
-        log.info(f"   {key_name} folders found.")
-        move_folder(
-            source_dir,
-            destination_dir,
-            as_sudo,
-            with_symlink,
-        )
+
+        # Check if source and destination are on different partitions
+        source_dev = os.stat(os.path.dirname(source_dir)).st_dev
+        destination_dev = os.stat(os.path.dirname(destination_dir)).st_dev
+
+        # Move the folder
+        if source_dev != destination_dev:
+            log.warning(
+                f"   {location} on different partition to destination. This may take some time..."
+            )
+            move_folder_with_rsync(
+                source_path=source_dir,
+                dest_path=destination_dir,
+                chown_user=as_sudo,
+                with_symlink=with_symlink,
+            )
+        else:
+            move_folder(
+                source_path=source_dir,
+                dest_path=destination_dir,
+                as_sudo=as_sudo,
+                with_symlink=with_symlink,
+            )
+
+        # Build outcome message for reporting in table back to user
         msg = "Moved"
         if with_symlink:
             msg = f"{msg} and symlinked"

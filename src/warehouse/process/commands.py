@@ -68,7 +68,7 @@ def process(ctx):
             savanna_results_dir=savanna_dir,
             minknow_dir=minknow_dir,
         )
-
+        # Output all the metadata files to the nomadic metadata folder
         if (nomadic_dir / "metadata").exists():
             cols = [
                 exp_data.dataschema.BARCODE[0],
