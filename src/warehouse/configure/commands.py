@@ -124,10 +124,6 @@ def configure(
     config_data["projects"] = details.get("projects", [])
     config_data["templates"] = details.get("templates", [])
 
-    # Identify and load targets dict from YAML file
-    locations_yaml = script_dir.parent / "aggregate" / "locations.yml"
-    with open(locations_yaml, "r") as f:
-        locations = yaml.safe_load(f)
     # Add in the minknow dir
     config_data["minknow_dir"] = "/var/lib/minknow/data"
 
