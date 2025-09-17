@@ -46,6 +46,7 @@ def seqfolders(
         new_expids = new_expids + expids
     # Make unique set
     new_expids = set(new_expids)
+    log.debug(f"New ExpIDs identified: {new_expids}")
 
     for exp_id in new_expids:
         # Check this expid is in the experimental data

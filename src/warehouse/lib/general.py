@@ -333,7 +333,7 @@ def identify_path_by_search(
         raise GenError("Can not select files_only AND folders_only")
 
     if not files_only and not folders_only:
-        log.debug("Identify all paths whether files or folders")
+        log.debug(f"Identify all paths whether files or folders in {folder_path}")
         all_paths = True
     else:
         all_paths = False
