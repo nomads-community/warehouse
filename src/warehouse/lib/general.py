@@ -29,7 +29,7 @@ def identify_all_folders_with_expid(folder_path: Path) -> dict:
         verbose=False,
     )
     exp_ids = [identify_exptid_from_path(p, False) for p in exp_id_paths]
-
+    log.debug(f"Identified ExpIDs in {folder_path}: {exp_ids}")
     exp_dict = {}
     for exp_id, exp_path in zip(exp_ids, exp_id_paths):
         exp_dict[exp_id] = exp_path
