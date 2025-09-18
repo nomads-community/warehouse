@@ -17,10 +17,7 @@ def identify_all_folders_with_expid(folder_path: Path) -> dict:
         path (Path): path to the folder to search
 
     Returns:
-        tuple[list[Path], list[str]]: A tuple containing:
-            exp_id_paths (list[Path]): List of all matching paths
-            expt_ids (list[str]): Expt_ids extracted from the target path
-
+        dict: A dictionary containing exp_id : path as key:value pairs
     """
     exp_id_paths = identify_path_by_search(
         folder_path=folder_path,
@@ -28,6 +25,9 @@ def identify_all_folders_with_expid(folder_path: Path) -> dict:
         raise_error=False,
         verbose=False,
     )
+    if exp_id_paths is None:
+        log.debug(f"No folders with an ExpID found in {folder_path}")
+        return {}
     exp_ids = [identify_exptid_from_path(p, False) for p in exp_id_paths]
     log.debug(f"Identified ExpIDs in {folder_path}: {exp_ids}")
     exp_dict = {}

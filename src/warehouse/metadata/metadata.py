@@ -967,7 +967,10 @@ class SequencingMetadataParser:
 
         # Sequentially search each experiment folder rather than the whole seqdata_folder for matching files
         for exp_folder in seqdata_folder.iterdir():
-            exp_id = identify_exptid_from_path(exp_folder)
+            exp_id = identify_exptid_from_path(exp_folder, raise_error=False)
+            if not exp_id:
+                log.debug(f"   No valid experiment ID found for {exp_folder}, skipping")
+                continue
             # Select sequence data source
             if identify_path_by_search(
                 exp_folder / "savanna",
