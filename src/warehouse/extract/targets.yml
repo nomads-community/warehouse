@@ -29,7 +29,6 @@ nomadic:
   recursive: false
   exclusions:
     - summary.fastq.csv
-    - summary.depth.csv
     - barcodes/
   subfolders:
     metadata:
