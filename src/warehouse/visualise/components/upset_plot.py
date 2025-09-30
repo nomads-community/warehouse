@@ -158,8 +158,9 @@ def upsetplot_fig(
         log.debug(
             f"{target} mutations= {candidate} (candidate), {validated} (validated)\n {combinations} (combinations)"
         )
-        # Filter variants to relevant gene
+        # Filter variants to relevant gene and non-ref calls
         variants_df = variants_df[variants_df["gene"] == gene]
+        variants_df = variants_df[variants_df["gt"] != "0/0"]
 
         # Pivot data to wide where each row is a sample and cols are mutations
         mutation_matrix = pd.crosstab(
