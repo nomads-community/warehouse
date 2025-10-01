@@ -60,7 +60,7 @@ def render(
 
         # Generate the upset plot
         upset_plot = upsetplot_fig(
-            variants_df=bcf_df,
+            variants_df=variants_df,
             ids_passed_QC=temp,
             gene=gene,
             muts_dict=muts_dict,
@@ -75,14 +75,14 @@ def render(
     muts_dict = create_mutations_dict()
 
     # Load data
-    bcf_df = sequence_data.bcftools_samples_QC_pass.copy(deep=True)
+    variants_df = sequence_data.variants_qc.copy(deep=True)
     amp_uids_pass_QC_df = sequence_data.amp_uids_pass_QC.copy(deep=True)
     # Identify first gene in the list
     target_gene = list(muts_dict.keys())[0]
 
     # Generate the plot
     upset_plot = upsetplot_fig(
-        variants_df=bcf_df,
+        variants_df=variants_df,
         ids_passed_QC=amp_uids_pass_QC_df,
         gene=target_gene,
         muts_dict=muts_dict,

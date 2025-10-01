@@ -124,7 +124,7 @@ def qc_chart(app: Dash, sequence_data: ExpDataMerge, exp_id_order: list):
     SeqDataSchema = sequence_data.DataSchema
     qc_per_expt_df = sequence_data.qc_per_expt
     qc_per_sample_df = sequence_data.qc_per_sample_with_exp
-    qc_reads_mapped = sequence_data.summary_bam
+    qc_reads_mapped = sequence_data.readmapping_qc
 
     # Update the chart
     @app.callback(

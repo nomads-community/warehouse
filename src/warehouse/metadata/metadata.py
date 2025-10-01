@@ -959,10 +959,10 @@ class SequencingMetadataParser:
         self.DataSchema = SeqDataSchema
 
         # File lists
-        bamfiles = []
-        bedcovfiles = []
+        readmappingfiles = []
+        coveragefiles = []
         exptqcfiles = []
-        bcftools_files = []
+        variants_files = []
         qc_per_expt_files = []
 
         # Sequentially search each experiment folder rather than the whole seqdata_folder for matching files
@@ -999,14 +999,14 @@ class SequencingMetadataParser:
                 )
                 continue
 
-            bamfile = identify_path_by_search(
+            readmappingfile = identify_path_by_search(
                 exp_folder,
                 Regex_patterns.SAVANNA_BAMSTATS_CSV,
                 recursive=True,
                 files_only=True,
                 raise_error=False,
             )
-            bedcovfile = identify_path_by_search(
+            coveragefile = identify_path_by_search(
                 exp_folder,
                 Regex_patterns.SAVANNA_BEDCOV_CSV,
                 recursive=True,
@@ -1028,7 +1028,7 @@ class SequencingMetadataParser:
                 files_only=True,
                 raise_error=False,
             )
-            bcftools_file = identify_path_by_search(
+            variants_file = identify_path_by_search(
                 exp_folder,
                 Regex_patterns.SAVANNA_BCFTOOLS_OUTPUT_TSV,
                 recursive=True,
@@ -1037,22 +1037,28 @@ class SequencingMetadataParser:
             )
 
             if not all(
-                [bamfile, bedcovfile, exptqcfile, qc_per_expt_file, bcftools_file]
+                [
+                    readmappingfile,
+                    coveragefile,
+                    exptqcfile,
+                    qc_per_expt_file,
+                    variants_file,
+                ]
             ):
                 log.debug(f"Incomplete data for {exp_id} ({exp_folder}), skipping")
                 continue
 
             # Extend list of files to process
-            bamfiles.extend(bamfile)
-            bedcovfiles.extend(bedcovfile)
+            readmappingfiles.extend(readmappingfile)
+            coveragefiles.extend(coveragefile)
             exptqcfiles.extend(exptqcfile)
             qc_per_expt_files.extend(qc_per_expt_file)
-            bcftools_files.extend(bcftools_file)
+            variants_files.extend(variants_file)
 
-        self.summary_bam = concat_files_add_expID(bamfiles, SeqDataSchema.EXP_ID[0])
-        self.summary_bedcov = concat_files_add_expID(
-            bedcovfiles, SeqDataSchema.EXP_ID[0]
+        self.readmapping = concat_files_add_expID(
+            readmappingfiles, SeqDataSchema.EXP_ID[0]
         )
+        self.coverage = concat_files_add_expID(coveragefiles, SeqDataSchema.EXP_ID[0])
         self.qc_per_sample = concat_files_add_expID(
             exptqcfiles, SeqDataSchema.EXP_ID[0]
         )
@@ -1068,22 +1074,22 @@ class SequencingMetadataParser:
                 / qc_per_expt[SeqDataSchema.N_SAMPLES[0]]
             ) * 100
         self.qc_per_expt = qc_per_expt
-        self.bcftools = concat_files_add_expID(bcftools_files, SeqDataSchema.EXP_ID[0])
-        if not self.bcftools.empty:
+        self.variants = concat_files_add_expID(variants_files, SeqDataSchema.EXP_ID[0])
+        if not self.variants.empty:
             # filter and clean up dtypes
-            bcftools_filter_dict = create_dict_from_yaml(
-                script_dir / "filtering" / "bcftools.yml"
+            variants_filter_dict = create_dict_from_yaml(
+                script_dir / "filtering" / "variants.yml"
             )
-            mut_types = bcftools_filter_dict.get("include_mut_type")
+            mut_types = variants_filter_dict.get("include_mut_type")
             log.info(f"      Filtering for mut_types : {mut_types}")
-            self.bcftools = self.bcftools[self.bcftools["mut_type"].isin(mut_types)]
-            wsaf_threshold = bcftools_filter_dict.get("wsaf_threshold")
+            self.variants = self.variants[self.variants["mut_type"].isin(mut_types)]
+            wsaf_threshold = variants_filter_dict.get("wsaf_threshold")
             log.info(f"      Filtering on wsaf_threshold of : {wsaf_threshold}")
             # Remove the period entries and change col to float then filter
-            self.bcftools = self.bcftools[self.bcftools["wsaf"] != "."]
-            self.bcftools["wsaf"] = self.bcftools["wsaf"].astype(float)
-            self.bcftools = self.bcftools[self.bcftools["wsaf"] >= wsaf_threshold]
-            self.bcftools["qual"] = self.bcftools["qual"].astype(float)
+            self.variants = self.variants[self.variants["wsaf"] != "."]
+            self.variants["wsaf"] = self.variants["wsaf"].astype(float)
+            self.variants = self.variants[self.variants["wsaf"] >= wsaf_threshold]
+            self.variants["qual"] = self.variants["qual"].astype(float)
         if self.output_folder:
             identify_export_class_attributes(self, self.output_folder)
 
@@ -1128,17 +1134,17 @@ class SequencingMetadataParser:
             ExpDataSchema.BARCODE[0],
         ]
 
-        summary_bam = merge_additional_rxn_level_fields(
-            self.summary_bam, match_df, cols_to_match
+        readmapping = merge_additional_rxn_level_fields(
+            self.readmapping, match_df, cols_to_match
         )
-        self.summary_bam_with_exp = summary_bam
+        self.readmapping_with_expID = readmapping
 
-        summary_bedcov = merge_additional_rxn_level_fields(
-            main_df=self.summary_bedcov,
+        coverage = merge_additional_rxn_level_fields(
+            main_df=self.coverage,
             exp_seq_df=match_df,
             colnames=cols_to_match,
         )
-        self.summary_bedcov_with_exp = summary_bedcov
+        self.coverage_with_expID = coverage
 
         qc_per_sample = merge_additional_rxn_level_fields(
             self.qc_per_sample, match_df, cols_to_match
@@ -1159,32 +1165,33 @@ class SequencingMetadataParser:
         )
         self.qc_per_sample_with_exp = qc_per_sample
 
-        # Merge the exptqc and bam outputs and drop repeat columns
-        summary_bamqc = pd.merge(
-            left=self.summary_bam,
+        # Merge the exptqc and readmapping outputs and drop repeat columns
+        readmapping_qc = pd.merge(
+            left=self.readmapping,
             right=self.qc_per_sample,
             on=[self.DataSchema.BARCODE[0], self.DataSchema.EXP_ID[0]],
             how="outer",
         )
-        summary_bamqc = collapse_repeat_columns(
-            summary_bamqc,
+        readmapping_qc = collapse_repeat_columns(
+            readmapping_qc,
             [self.DataSchema.SAMPLE_ID[0], self.DataSchema.SAMPLE_TYPE[0]],
         )
-        self.summary_bamqc = summary_bamqc
+        self.readmapping_qc = readmapping_qc
 
         if self.output_folder:
             identify_export_class_attributes(self, self.output_folder)
 
-    def add_bcftools_filtered_to_samples_passing_QC(self, sample_set: pd.DataFrame):
+    def add_variants_filtered_to_samples_passing_QC(self, sample_set: pd.DataFrame):
         """
-        This method adds a new attribute that consists of the the bcftools output filtered to
+        This method adds a new attribute that consists of the the variants (bcftools) output filtered to
         just entries that appear in the sample data and that have passed QC thresholds.
 
         bcftools only contains non-ref alleles, therefore need to know all amplicons per rxn
         that have passed QC to identify those that came up as reference. QC outputs are at
         the sample level in sequence_data.qc_per_sample_with_exp. Therefore start with
-        all possible amplicons per sample_id rxn and then determine using coverage cutoffs from sequence_data.summary_bedcov_with_exp
-        and contamination cutoff from sequence_data.qc_per_sample_with_exp
+        all possible amplicons per sample_id rxn and then determine using coverage cutoffs
+        from sequence_data.coverage_with_expid and contamination cutoff from
+        sequence_data.qc_per_sample_with_exp
         """
 
         # Define uid colnames
@@ -1212,54 +1219,64 @@ class SequencingMetadataParser:
         rxn_uids_pass_contam = set(qc_df[rxn_uid_col])
 
         # Get amplicons passing coverage threshold:
-        bed_df = self.summary_bedcov.copy(deep=True)
-        log.debug(f"{bed_df.shape[0]} summary_bedcov_with_exp entries")
+        coverage_df = self.coverage.copy(deep=True)
+        log.debug(f"{coverage_df.shape[0]} summary_bedcov_with_exp entries")
         # Translate the amplicon to the gene name
-        bed_df["gene"] = bed_df["name"].replace(gene_names)
+        coverage_df["gene"] = coverage_df["name"].replace(gene_names)
         # Add new cols with uid
-        bed_df[rxn_uid_col] = bed_df["expt_id"] + "_" + bed_df["barcode"]
-        bed_df[amp_uid_col] = (
-            bed_df["expt_id"] + "_" + bed_df["barcode"] + "_" + bed_df["gene"]
+        coverage_df[rxn_uid_col] = coverage_df["expt_id"] + "_" + coverage_df["barcode"]
+        coverage_df[amp_uid_col] = (
+            coverage_df["expt_id"]
+            + "_"
+            + coverage_df["barcode"]
+            + "_"
+            + coverage_df["gene"]
         )
         # Filter those not passing contamination and coverage
-        bed_df = bed_df[bed_df["mean_cov"] >= 50]
-        log.debug(f"   {bed_df.shape[0]} have mean_cov >= 50")
-        bed_df = bed_df[bed_df[rxn_uid_col].isin(rxn_uids_pass_contam)]
-        log.debug(f"   {bed_df.shape[0]} are in the rxn_uids_pass_contam")
-        bed_df = bed_df[bed_df[rxn_uid_col].isin(rxn_uids_samples)]
-        log.debug(f"   {bed_df.shape[0]} are samples")
+        coverage_df = coverage_df[coverage_df["mean_cov"] >= 50]
+        log.debug(f"   {coverage_df.shape[0]} have mean_cov >= 50")
+        coverage_df = coverage_df[coverage_df[rxn_uid_col].isin(rxn_uids_pass_contam)]
+        log.debug(f"   {coverage_df.shape[0]} are in the rxn_uids_pass_contam")
+        coverage_df = coverage_df[coverage_df[rxn_uid_col].isin(rxn_uids_samples)]
+        log.debug(f"   {coverage_df.shape[0]} are samples")
 
         # Add in sample_id for easier downstream processing
-        bed_df = pd.merge(
-            bed_df,
+        coverage_df = pd.merge(
+            coverage_df,
             sample_set[[rxn_uid_col, "sample_id"]],
             left_on=[rxn_uid_col],
             right_on=[rxn_uid_col],
             how="left",
         )
         # Define all amplicon uids that pass QC
-        self.amp_uids_pass_QC = bed_df[
+        self.amp_uids_pass_QC = coverage_df[
             ["expt_id", "barcode", "gene", "name", amp_uid_col, "sample_id"]
         ]
-        amp_uids_pass_QC = set(bed_df[amp_uid_col])
+        amp_uids_pass_QC = set(coverage_df[amp_uid_col])
 
         #####################
-        # Prep the bcftools data
+        # Prep the variants data
         #####################
-        bcf_df = self.bcftools.copy(deep=True)
+        variants_df = self.variants.copy(deep=True)
         # Translate the amplicon to the gene name
-        bcf_df["gene"] = bcf_df["amplicon"].replace(gene_names)
+        variants_df["gene"] = variants_df["amplicon"].replace(gene_names)
         # Select ONLY nonsynonymous (missense) mutations
-        bcf_df = bcf_df[bcf_df["mut_type"].str.contains("missense", na=False)]
+        variants_df = variants_df[
+            variants_df["mut_type"].str.contains("missense", na=False)
+        ]
         # Make a unique reference for results from each gene reaction
-        bcf_df[amp_uid_col] = (
-            bcf_df["expt_id"] + "_" + bcf_df["sample"] + "_" + bcf_df["gene"]
+        variants_df[amp_uid_col] = (
+            variants_df["expt_id"]
+            + "_"
+            + variants_df["sample"]
+            + "_"
+            + variants_df["gene"]
         )
         # Filter to those passing QC
-        bcf_df = bcf_df[bcf_df[amp_uid_col].isin(amp_uids_pass_QC)]
+        variants_df = variants_df[variants_df[amp_uid_col].isin(amp_uids_pass_QC)]
 
-        self.bcftools_samples_QC_pass = pd.merge(
-            bcf_df,
+        self.variants_qc = pd.merge(
+            variants_df,
             sample_set[["barcode", "expt_id", "sample_id"]],
             left_on=["sample", "expt_id"],
             right_on=["barcode", "expt_id"],
@@ -1291,15 +1308,15 @@ class Combine_Exp_Seq_Sample_data:
         # Create reference set
         self.sample_set = create_sample_set(exp_data=exp_data, sample_data=sample_data)
 
-        # Filter bcftools to sample data
-        sequence_data.add_bcftools_filtered_to_samples_passing_QC(
+        # Filter variants to sample data
+        sequence_data.add_variants_filtered_to_samples_passing_QC(
             sample_set=self.sample_set
         )
 
         log.debug("   Combining experimental and sequence data to alldata_df:")
         alldata_df = pd.merge(
             exp_data.all_df,
-            sequence_data.summary_bamqc,
+            sequence_data.readmapping_qc,
             left_on=[
                 ExpDataSchema.BARCODE[0],
                 f"{ExpDataSchema.EXP_ID[0]}_seqlib",
@@ -1330,7 +1347,7 @@ class Combine_Exp_Seq_Sample_data:
         log.debug("   Collapsing duplicate columns in alldata_df")
         # Collapse all repeat columns
         dup_cols = identify_duplicate_colnames(
-            exp_data.all_df, sequence_data.summary_bamqc, sample_data.df
+            exp_data.all_df, sequence_data.readmapping_qc, sample_data.df
         )
         alldata_df = collapse_repeat_columns(alldata_df, dup_cols)
 
