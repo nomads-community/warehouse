@@ -29,6 +29,7 @@ nomadic:
   recursive: false
   exclusions:
     - barcodes/
+    - "summary.depth*.csv"
   subfolders:
     metadata:
       name: metadata
