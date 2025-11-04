@@ -28,7 +28,6 @@ nomadic:
     pattern: "**/summary.bam_flagstats.csv"
   recursive: false
   exclusions:
-    - summary.fastq.csv
     - barcodes/
   subfolders:
     metadata:
